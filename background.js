@@ -99,8 +99,6 @@ async function blockUser(userDid, handle) {
         //     }
         // ]
 
-        console.log(`Preparing to Post: ${JSON.stringify(body, null, 2)}`);
-
         await fetchWithAuth('https://bsky.social/xrpc/com.atproto.repo.applyWrites', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
