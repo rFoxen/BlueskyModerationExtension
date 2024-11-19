@@ -157,6 +157,58 @@ async function getUserRepoDid() {
     return data.did;
 }
 
+// Function to export block lists as JSON
+async function exportBlockLists() {
+    try {
+        const userDid = await getUserRepoDid();
+        if (!userDid) {
+            throw new Error("User DID not found. Please log in.");
+        }
+
+        // Fetch user's block lists
+        const response = await fetchWithAuth(`https://bsky.social/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userDid)}`);
+        const blockLists = response.lists.filter(list => list.purpose === "app.bsky.graph.defs#modlist");
+
+        if (blockLists.length === 0) {
+            showNotification("No block lists to export.", "Export Failed");
+            return;
+        }
+
+        // Fetch items for each block list
+        const blockListData = [];
+        for (const list of blockLists) {
+            const itemsResponse = await fetchWithAuth(`https://bsky.social/xrpc/app.bsky.graph.getList?list=${encodeURIComponent(list.uri)}`);
+            blockListData.push({
+                name: list.name,
+                uri: list.uri,
+                items: itemsResponse.items || [],
+            });
+        }
+
+        // Prepare JSON
+        const json = JSON.stringify(blockListData, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const downloadId = "block-list-export";
+
+        browser.downloads.download({
+            url,
+            filename: `bluesky-block-lists-${new Date().toISOString().slice(0, 10)}.json`,
+            saveAs: true
+        }).then(() => {
+            showNotification("Block lists exported successfully.", "Export Success");
+        }).catch(err => {
+            console.error("Download error:", err);
+            showNotification("Failed to download block lists.", "Export Failed");
+        });
+    } catch (error) {
+        console.error("Failed to export block lists:", error);
+        showNotification(`Failed to export block lists: ${error.message}`, "Export Failed");
+    }
+}
+
 browser.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.accessJwt && !changes.accessJwt.newValue) {
         showNotification("You have been logged out. Please log in again.", "Session Expired");
@@ -170,10 +222,18 @@ browser.runtime.onInstalled.addListener(() => {
         title: "Block User",
         contexts: ["link", "selection"]
     });
+    browser.contextMenus.create({
+        id: "export-block-lists",
+        title: "Export Block Lists",
+        contexts: ["browser_action"]
+    });
 });
 
 // Listener for context menu clicks
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === "export-block-lists") {
+        await exportBlockLists();
+    }
     if (info.menuItemId === "block-user") {
         try {
             const response = await browser.tabs.sendMessage(tab.id, { action: "getUserHandleFromContext", info });

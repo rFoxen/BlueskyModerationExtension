@@ -133,17 +133,23 @@ function updateUI(isLoggedIn, handle = "") {
     const statusParagraph = document.getElementById("status");
 
     if (isLoggedIn) {
-        loggedInDiv.style.display = "block";
-        loggedOutDiv.style.display = "none";
+        loggedInDiv.classList.remove("hidden");
+        loggedInDiv.classList.add("visible");
+        loggedOutDiv.classList.remove("visible");
+        loggedOutDiv.classList.add("hidden");
         userHandleSpan.textContent = sanitizeInput(handle);
         statusParagraph.textContent = "";
-        statusParagraph.style.color = "green";
+        statusParagraph.classList.remove("status-error", "status-info");
+        statusParagraph.classList.add("status-success");
     } else {
-        loggedInDiv.style.display = "none";
-        loggedOutDiv.style.display = "block";
+        loggedInDiv.classList.remove("visible");
+        loggedInDiv.classList.add("hidden");
+        loggedOutDiv.classList.remove("hidden");
+        loggedOutDiv.classList.add("visible");
         userHandleSpan.textContent = "";
         statusParagraph.textContent = "";
-        statusParagraph.style.color = "green";
+        statusParagraph.classList.remove("status-success", "status-error");
+        statusParagraph.classList.add("status-info");
     }
 }
 
@@ -151,16 +157,17 @@ function updateUI(isLoggedIn, handle = "") {
 function updateStatus(message, type = "info") {
     const status = document.getElementById("status");
     status.textContent = message;
+    status.classList.remove("status-success", "status-error", "status-info");
 
     switch (type) {
         case "success":
-            status.style.color = "green";
+            status.classList.add("status-success");
             break;
         case "error":
-            status.style.color = "red";
+            status.classList.add("status-error");
             break;
         default:
-            status.style.color = "black";
+            status.classList.add("status-info");
     }
 }
 

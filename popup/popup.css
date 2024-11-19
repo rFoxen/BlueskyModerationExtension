@@ -49,3 +49,23 @@ button {
     background-color: #f44336;
     color: white;
 }
+
+.hidden {
+    display: none;
+}
+
+.visible {
+    display: block;
+}
+
+.status-success {
+    color: green;
+}
+
+.status-error {
+    color: red;
+}
+
+.status-info {
+    color: black;
+}

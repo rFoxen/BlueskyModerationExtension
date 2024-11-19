@@ -9,7 +9,8 @@
     "notifications",
     "tabs",
     "https://bsky.social/*",
-    "https://bsky.app/*"
+    "https://bsky.app/*",
+    "downloads"
   ],
   "content_scripts": [
     {

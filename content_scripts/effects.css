@@ -1,15 +1,20 @@
 /* content_scripts/effects.css */
+
 /* Particle Effect */
 .particle {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: var(--particle-size, 12px);
+    height: var(--particle-size, 12px);
     border-radius: 50%;
     background: radial-gradient(circle, #ff6f61, #ffcc00);
     animation: particle-animation 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
     z-index: 9999;
     pointer-events: none;
     opacity: 0.9;
+    top: var(--particle-top, 0px);
+    left: var(--particle-left, 0px);
+    transform: translate(var(--particle-x, 0px), var(--particle-y, 0px)) scale(0.8);
+    opacity: 0;
 }
 
 .particle.star {
@@ -31,14 +36,15 @@
     background-color: rgba(255, 215, 0, 0.9);
 }
 
+/* Particle Animation */
 @keyframes particle-animation {
     0% {
-        transform: translate(0, 0) scale(1);
         opacity: 1;
+        transform: translate(0, 0) scale(1);
     }
     100% {
-        transform: translate(var(--particle-x), var(--particle-y)) scale(0.8);
         opacity: 0;
+        transform: translate(var(--particle-x, 0px), var(--particle-y, 0px)) scale(0.8);
     }
 }
 
@@ -57,6 +63,9 @@
     text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
     z-index: 9999;
     pointer-events: none;
+    top: var(--blocklist-top, 0px);
+    left: var(--blocklist-left, 0px);
+    opacity: 0;
 }
 
 @keyframes block-list-appear {
