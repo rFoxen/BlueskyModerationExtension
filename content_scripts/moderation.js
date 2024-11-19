@@ -54,12 +54,39 @@ function sanitizeInput(input) {
 // Function to create cursor effect
 function createCursorEffect(position, blockListName) {
     const sanitizedBlockListName = sanitizeInput(blockListName);
-    // ... rest of the code remains the same, using sanitizedBlockListName
+    const numParticles = 16; // Number of particles
+    const angleStep = 360 / numParticles;
+
+    // Create particle explosion
+    for (let i = 0; i < numParticles; i++) {
+        const particle = document.createElement("div");
+        particle.className = Math.random() > 0.5 ? "particle" : "particle star";
+
+        // Randomize size and movement
+        const size = Math.random() * 8 + 10; // Random size between 10px and 18px
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+
+        const angle = angleStep * i;
+        const distance = Math.random() * 60 + 40; // Random distance between 40px and 100px
+        particle.style.setProperty("--particle-x", `${Math.cos((angle * Math.PI) / 180) * distance}px`);
+        particle.style.setProperty("--particle-y", `${Math.sin((angle * Math.PI) / 180) * distance}px`);
+
+        // Position particle at the click location
+        particle.style.top = `${position.y}px`;
+        particle.style.left = `${position.x}px`;
+
+        document.body.appendChild(particle);
+
+        // Remove particle after animation
+        setTimeout(() => particle.remove(), 1000);
+    }
+
     // Add animated block list text
     const blockListText = document.createElement("div");
     blockListText.className = "block-list-text";
     blockListText.style.top = `${position.y}px`;
-    blockListText.style.left = `${position.x + 30}px`;
+    blockListText.style.left = `${position.x + 30}px`; // Offset slightly to the right
     blockListText.textContent = `Added to ${sanitizedBlockListName}`;
 
     document.body.appendChild(blockListText);

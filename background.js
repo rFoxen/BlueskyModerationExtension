@@ -1,60 +1,7 @@
 ﻿// background.js
-
-const notificationBuffer = [];
+let notificationBuffer = [];
 let notificationTimer = null;
 const NOTIFICATION_DELAY = 10000;
-
-// Encryption key for secure storage (Note: In practice, you should manage keys securely)
-let cryptoKey = null;
-
-// Generate a cryptographic key for encryption
-async function generateCryptoKey() {
-    if (!cryptoKey) {
-        cryptoKey = await crypto.subtle.generateKey(
-            {
-                name: "AES-GCM",
-                length: 256
-            },
-            true,
-            ["encrypt", "decrypt"]
-        );
-    }
-}
-
-// Function to encrypt data
-async function encryptData(data) {
-    await generateCryptoKey();
-    const encoded = new TextEncoder().encode(data);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt(
-        {
-            name: "AES-GCM",
-            iv: iv
-        },
-        cryptoKey,
-        encoded
-    );
-    return {
-        iv: Array.from(iv),
-        data: Array.from(new Uint8Array(encrypted))
-    };
-}
-
-// Function to decrypt data
-async function decryptData(encryptedData) {
-    await generateCryptoKey();
-    const iv = new Uint8Array(encryptedData.iv);
-    const data = new Uint8Array(encryptedData.data);
-    const decrypted = await crypto.subtle.decrypt(
-        {
-            name: "AES-GCM",
-            iv: iv
-        },
-        cryptoKey,
-        data
-    );
-    return new TextDecoder().decode(decrypted);
-}
 
 // Function to display batched notifications
 function showBatchedNotification(message, title = "Bluesky Moderation") {
@@ -83,14 +30,11 @@ function showNotification(message, title = "Bluesky Moderation") {
 // Function to fetch with authentication
 async function fetchWithAuth(url, options = {}) {
     const data = await browser.storage.local.get(["accessJwt"]);
-    let accessJwt = data.accessJwt;
+    const accessJwt = data.accessJwt;
 
     if (!accessJwt) {
         throw new Error("User not authenticated.");
     }
-
-    // Decrypt the access token
-    accessJwt = await decryptData(accessJwt);
 
     options.headers = {
         ...options.headers,
@@ -105,7 +49,7 @@ async function fetchWithAuth(url, options = {}) {
         throw new Error("Network error occurred.");
     }
 
-    if (response.status === 401) {
+    if (response.status === 401) { // Unauthorized, token might have expired
         showNotification("Session expired. Please log in again.", "Session Expired");
         await browser.storage.local.remove(["accessJwt", "did", "handle"]);
         throw new Error("Session expired.");
@@ -151,13 +95,16 @@ async function blockUser(userDid, handle) {
             ]
         };
 
-        await fetchWithAuth("https://bsky.social/xrpc/com.atproto.repo.applyWrites", {
+        let response = await fetchWithAuth("https://bsky.social/xrpc/com.atproto.repo.applyWrites", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
         });
 
         const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length === 0) {
+            throw new Error("No active tab found.");
+        }
         const rightClickPosition = await browser.tabs.sendMessage(tabs[0].id, { action: "getRightClickPosition" });
 
         browser.tabs.sendMessage(tabs[0].id, {

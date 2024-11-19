@@ -161,6 +161,9 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ### v1.3.1
 v1.3.1
 
+-- Bug Fix:
+    - Fixes bug that autologs out user from extension
+
 - Security Enhancements:
     - Secure Data Handling:
         - Continued implementation of encryption for storing sensitive data such as accessJwt using the Web Crypto API.

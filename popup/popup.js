@@ -1,86 +1,33 @@
 // popup.js
 
 document.addEventListener("DOMContentLoaded", () => {
-    checkAuthenticationStatus();
+    window.onload = () => {
+        checkAuthenticationStatus();
 
-    document.getElementById("login-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-        loginUser();
-    });
+        document.getElementById("login-form").addEventListener("submit", (e) => {
+            e.preventDefault();
+            loginUser();
+        });
 
-    document.getElementById("logout-button").addEventListener("click", () => {
-        logoutUser();
-    });
+        document.getElementById("logout-button").addEventListener("click", () => {
+            logoutUser();
+        });
 
-    document.getElementById("block-list-select").addEventListener("change", async (e) => {
-        const selectedBlockList = e.target.value;
-        await browser.storage.local.set({ selectedBlockList });
-    });
-});
-
-// Encryption key for secure storage
-let cryptoKey = null;
-
-// Generate a cryptographic key for encryption
-async function generateCryptoKey() {
-    if (!cryptoKey) {
-        cryptoKey = await crypto.subtle.generateKey(
-            {
-                name: "AES-GCM",
-                length: 256
-            },
-            true,
-            ["encrypt", "decrypt"]
-        );
-    }
-}
-
-// Function to encrypt data
-async function encryptData(data) {
-    await generateCryptoKey();
-    const encoded = new TextEncoder().encode(data);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt(
-        {
-            name: "AES-GCM",
-            iv: iv
-        },
-        cryptoKey,
-        encoded
-    );
-    return {
-        iv: Array.from(iv),
-        data: Array.from(new Uint8Array(encrypted))
+        document.getElementById("block-list-select").addEventListener("change", async (e) => {
+            const selectedBlockList = e.target.value;
+            await browser.storage.local.set({ selectedBlockList });
+        });
     };
-}
-
-// Function to decrypt data
-async function decryptData(encryptedData) {
-    await generateCryptoKey();
-    const iv = new Uint8Array(encryptedData.iv);
-    const data = new Uint8Array(encryptedData.data);
-    const decrypted = await crypto.subtle.decrypt(
-        {
-            name: "AES-GCM",
-            iv: iv
-        },
-        cryptoKey,
-        data
-    );
-    return new TextDecoder().decode(decrypted);
-}
+});
 
 // Function to fetch with authentication
 async function fetchWithAuth(url, options = {}) {
     const data = await browser.storage.local.get(["accessJwt"]);
-    let accessJwt = data.accessJwt;
+    const accessJwt = data.accessJwt;
 
     if (!accessJwt) {
         throw new Error("User not authenticated.");
     }
-
-    // Decrypt the access token
-    accessJwt = await decryptData(accessJwt);
 
     options.headers = {
         ...options.headers,
@@ -123,9 +70,6 @@ async function loginUser() {
         return;
     }
 
-    // Optionally, add input validation to check for invalid characters
-    // For example, you can check if the inputs exceed a certain length
-
     updateStatus("Logging in...");
 
     try {
@@ -141,11 +85,9 @@ async function loginUser() {
         console.log("Login Response:", data);
 
         if (data.accessJwt && data.did && data.handle) {
-            // Encrypt and store access token securely
-            const encryptedJwt = await encryptData(data.accessJwt);
-
+            // Store access token directly
             await browser.storage.local.set({
-                accessJwt: encryptedJwt,
+                accessJwt: data.accessJwt,
                 did: data.did,
                 handle: data.handle
             });
@@ -162,7 +104,6 @@ async function loginUser() {
         updateStatus("An error occurred during login.", "error");
     }
 }
-
 
 // Function to handle user logout
 async function logoutUser() {
