@@ -1,0 +1,53 @@
+﻿{
+  "manifest_version": 2,
+  "name": "Bluesky Moderation Helper",
+  "version": "1.3",
+  "description": "Assist with moderation on Bluesky by allowing users to block others and manage block lists.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "contextMenus",
+    "notifications",
+    "https://bsky.app/*",
+    "https://*.bsky.app/*",
+    "https://bsky.social/*",
+    "https://*.bsky.social/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://bsky.app/*",
+        "*://*.bsky.app/*",
+        "*://bsky.social/*",
+        "*://*.bsky.social/*"
+      ],
+      "js": ["content_scripts/moderation.js"],
+      "css": ["content_scripts/effects.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
+    "default_popup": "popup/popup.html",
+    "default_title": "Bluesky Moderation Helper"
+  },
+  "icons": {
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "homepage_url": "https://github.com/rFoxen/BlueskyModerationExtension",
+  "applications": {
+    "gecko": {
+      "id": "bluesky-moderation-helper@example.com",
+      "strict_min_version": "91.0"
+    }
+  },
+  "content_security_policy": "script-src 'self'; object-src 'self'; connect-src 'self' https://bsky.social https://*.bsky.social; style-src 'self' 'unsafe-inline'"
+}

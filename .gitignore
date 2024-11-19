@@ -33,9 +33,6 @@ build/
 *.min.js
 *.min.css
 
-# Ignoring the extension's "manifest.json" if it's being temporarily changed
-manifest.json
-
 # Ignore the extension's personal storage (locally stored data)
 *.db
 *.sqlite
