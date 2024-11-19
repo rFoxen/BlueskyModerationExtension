@@ -1,5 +1,8 @@
 // popup.js
 
+// Define cache expiration duration in milliseconds (e.g., 1 hour)
+const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 hour
+
 document.addEventListener("DOMContentLoaded", () => {
     window.onload = () => {
         checkAuthenticationStatus();
@@ -16,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("block-list-select").addEventListener("change", async (e) => {
             const selectedBlockList = e.target.value;
             await browser.storage.local.set({ selectedBlockList });
+            await displayBlockListCount(selectedBlockList); // Fetch and display the count
         });
     };
 });
@@ -112,6 +116,7 @@ async function logoutUser() {
     updateUI(false);
     const blockListSelect = document.getElementById("block-list-select");
     blockListSelect.innerHTML = "";
+    document.getElementById('block-list-count').textContent = ''; // Clear the count
 }
 
 // Function to check authentication status on popup load
@@ -171,7 +176,7 @@ function updateStatus(message, type = "info") {
     }
 }
 
-// Function to fetch block lists
+// Function to fetch block lists and display the count
 async function loadBlockLists() {
     const blockListSelect = document.getElementById("block-list-select");
     blockListSelect.innerHTML = "";
@@ -198,12 +203,18 @@ async function loadBlockLists() {
             noListsOption.disabled = true;
             blockListSelect.appendChild(noListsOption);
             updateStatus("No block lists available. Please create one on Bluesky.", "info");
+            document.getElementById('block-list-count').textContent = ''; // Clear the count
         } else {
             const { selectedBlockList } = await browser.storage.local.get("selectedBlockList");
-            if (selectedBlockList) {
+            if (selectedBlockList && blockLists.some(list => list.uri === selectedBlockList)) {
                 blockListSelect.value = selectedBlockList;
+            } else {
+                // If no block list is selected or the selected list no longer exists, select the first one
+                blockListSelect.value = blockLists[0].uri;
+                await browser.storage.local.set({ selectedBlockList: blockLists[0].uri });
             }
             updateStatus("Block lists loaded successfully.", "success");
+            await displayBlockListCount(blockListSelect.value); // Fetch and display the count
         }
     } catch (error) {
         console.error("Failed to load block lists:", error);
@@ -219,6 +230,62 @@ async function loadBlockLists() {
 async function getUserRepoDid() {
     const data = await browser.storage.local.get(["did"]);
     return data.did;
+}
+
+// Function to fetch and display the user count in the selected block list with cache invalidation
+async function displayBlockListCount(blockListUri) {
+    const blockListCountElement = document.getElementById('block-list-count');
+
+    // Define cache keys
+    const countCacheKey = `blockListCount_${blockListUri}`;
+    const timestampCacheKey = `blockListCountTimestamp_${blockListUri}`;
+
+    // Retrieve cached count and timestamp
+    const cachedData = await browser.storage.local.get([countCacheKey, timestampCacheKey]);
+    const cachedCount = cachedData[countCacheKey];
+    const cachedTimestamp = cachedData[timestampCacheKey];
+
+    const now = Date.now();
+
+    // Check if cached data exists and is not expired
+    if (cachedCount !== undefined && cachedTimestamp !== undefined) {
+        if (now - cachedTimestamp < CACHE_EXPIRATION_MS) {
+            blockListCountElement.textContent = `Number of users in this block list: ${cachedCount} (cached)`;
+            return;
+        } else {
+            // Cache is expired; remove cached data
+            await browser.storage.local.remove([countCacheKey, timestampCacheKey]);
+        }
+    }
+
+    // If no valid cache, fetch the count
+    blockListCountElement.textContent = 'Loading... (This may take a while for large lists)';
+
+    try {
+        let itemsCount = 0;
+        let cursor = null;
+        let hasMore = true;
+        const MAX_LIMIT = 100; // Maximum allowed limit per request
+
+        while (hasMore) {
+            const url = `https://bsky.social/xrpc/app.bsky.graph.getList?list=${encodeURIComponent(blockListUri)}&limit=${MAX_LIMIT}${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`;
+            const response = await fetchWithAuth(url);
+            itemsCount += (response.items || []).length;
+            cursor = response.cursor;
+            hasMore = !!cursor;
+        }
+
+        blockListCountElement.textContent = `Number of users in this block list: ${itemsCount}`;
+
+        // Cache the count and current timestamp
+        await browser.storage.local.set({
+            [countCacheKey]: itemsCount,
+            [timestampCacheKey]: now
+        });
+    } catch (error) {
+        console.error('Failed to fetch block list items:', error);
+        blockListCountElement.textContent = 'Failed to load block list count.';
+    }
 }
 
 // Input sanitization function

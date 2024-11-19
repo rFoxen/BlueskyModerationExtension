@@ -69,3 +69,9 @@ button {
 .status-info {
     color: black;
 }
+
+#block-list-count {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+}
