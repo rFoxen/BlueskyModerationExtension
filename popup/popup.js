@@ -17,9 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
         await browser.storage.local.set({ selectedBlockList });
     });
 
-    loadBlockLists();
 });
 
+// Function to fetch block lists
 // Function to fetch block lists
 async function loadBlockLists() {
     const blockListSelect = document.getElementById('block-list-select');
@@ -50,20 +50,24 @@ async function loadBlockLists() {
             noListsOption.textContent = 'No block lists available';
             noListsOption.disabled = true;
             blockListSelect.appendChild(noListsOption);
+            updateStatus('No block lists available. Please create one on Bluesky.', 'info');
         } else {
             // Persist previously selected block list
             const { selectedBlockList } = await browser.storage.local.get('selectedBlockList');
             if (selectedBlockList) {
                 blockListSelect.value = selectedBlockList; // Set saved option
             }
+            updateStatus('Block lists loaded successfully.', 'success');
         }
     } catch (error) {
         console.error('Failed to load block lists:', error);
-        updateStatus('Failed to load block lists.', 'Error');
+        if (error.message.includes('User DID not found')) {
+            updateStatus('Please log in to load your block lists.', 'error');
+        } else {
+            updateStatus('Failed to load block lists. Please try again.', 'error');
+        }
     }
 }
-
-
 
 async function getUserRepoDid() {
     const data = await browser.storage.local.get(['did']);
@@ -121,6 +125,7 @@ async function loginUser() {
         });
 
         const data = await response.json();
+        console.log('Login Response:', data); // Debugging line
 
         if (data.accessJwt && data.did && data.handle) {
             // Store access token, DID, and handle securely
@@ -132,6 +137,7 @@ async function loginUser() {
 
             updateStatus('Login successful!', 'success');
             updateUI(true, data.handle);
+            await loadBlockLists(); // Load block lists after successful login
         } else {
             const errorMsg = data.message || 'Unknown error. Please check your credentials.';
             updateStatus(`Login failed: ${errorMsg}`, 'error');
@@ -142,11 +148,15 @@ async function loginUser() {
     }
 }
 
+
 // Function to handle user logout
 async function logoutUser() {
     await browser.storage.local.remove(['accessJwt', 'did', 'handle']);
     updateStatus('Logged out successfully.', 'success');
     updateUI(false);
+    // Clear the block list select options
+    const blockListSelect = document.getElementById('block-list-select');
+    blockListSelect.innerHTML = '';
 }
 
 // Function to check authentication status on popup load
@@ -154,6 +164,7 @@ async function checkAuthenticationStatus() {
     const data = await browser.storage.local.get(['handle']);
     if (data.handle) {
         updateUI(true, data.handle);
+        await loadBlockLists();
     } else {
         updateUI(false);
     }
