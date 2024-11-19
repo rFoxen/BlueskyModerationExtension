@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bluesky Moderation Helper</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<h1>Bluesky Moderation Helper</h1>
+
+<!-- Logged Out State -->
+<div id="logged-out">
+    <form id="login-form">
+        <label for="identifier">Username or Email:</label><br>
+        <input type="text" id="identifier" name="identifier" required><br><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required><br><br>
+        <input type="submit" value="Login">
+    </form>
+</div>
+
+<!-- Logged In State -->
+<div id="logged-in" style="display: none;">
+    <p>Logged in as <strong>@<span id="user-handle"></span></strong></p>
+    <label for="block-list-select">Select Block List:</label>
+    <select id="block-list-select"></select>
+    <button id="logout-button">Log Out</button>
+</div>
+
+<p id="status"></p>
+<script src="popup.js"></script>
+</body>
+</html>

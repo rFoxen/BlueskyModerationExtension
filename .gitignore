@@ -1,0 +1,41 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+
+# Node modules (if you decide to add dependencies in the future)
+node_modules/
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignoring compiled or built files (if applicable)
+dist/
+build/
+
+# VS Code settings
+.vscode/
+
+# Personal or system-specific files (that shouldn't be versioned)
+*.bak
+*.idea/
+
+# Ignore the extension's compiled or minified files (if you build them)
+*.min.js
+*.min.css
+
+# Ignoring the extension's "manifest.json" if it's being temporarily changed
+manifest.json
+
+# Ignore the extension's personal storage (locally stored data)
+*.db
+*.sqlite
