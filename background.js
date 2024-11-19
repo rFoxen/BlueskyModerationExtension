@@ -1,60 +1,124 @@
 ﻿// background.js
 
-let notificationBuffer = [];
+const notificationBuffer = [];
 let notificationTimer = null;
 const NOTIFICATION_DELAY = 10000;
 
+// Encryption key for secure storage (Note: In practice, you should manage keys securely)
+let cryptoKey = null;
+
+// Generate a cryptographic key for encryption
+async function generateCryptoKey() {
+    if (!cryptoKey) {
+        cryptoKey = await crypto.subtle.generateKey(
+            {
+                name: "AES-GCM",
+                length: 256
+            },
+            true,
+            ["encrypt", "decrypt"]
+        );
+    }
+}
+
+// Function to encrypt data
+async function encryptData(data) {
+    await generateCryptoKey();
+    const encoded = new TextEncoder().encode(data);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+        {
+            name: "AES-GCM",
+            iv: iv
+        },
+        cryptoKey,
+        encoded
+    );
+    return {
+        iv: Array.from(iv),
+        data: Array.from(new Uint8Array(encrypted))
+    };
+}
+
+// Function to decrypt data
+async function decryptData(encryptedData) {
+    await generateCryptoKey();
+    const iv = new Uint8Array(encryptedData.iv);
+    const data = new Uint8Array(encryptedData.data);
+    const decrypted = await crypto.subtle.decrypt(
+        {
+            name: "AES-GCM",
+            iv: iv
+        },
+        cryptoKey,
+        data
+    );
+    return new TextDecoder().decode(decrypted);
+}
+
 // Function to display batched notifications
-function showBatchedNotification(message, title = 'Bluesky Moderation') {
+function showBatchedNotification(message, title = "Bluesky Moderation") {
     notificationBuffer.push(message);
 
-    // If the timer is not already set, start it
     if (!notificationTimer) {
         notificationTimer = setTimeout(() => {
             const fullMessage = notificationBuffer.join("\n");
             browser.notifications.create({
-                "type": "basic",
-                "iconUrl": browser.runtime.getURL("icons/icon.png"),
-                "title": title,
-                "message": fullMessage
+                type: "basic",
+                iconUrl: browser.runtime.getURL("icons/icon.png"),
+                title: title,
+                message: fullMessage
             });
-            // Clear the buffer and reset the timer
-            notificationBuffer = [];
+            notificationBuffer.length = 0;
             notificationTimer = null;
         }, NOTIFICATION_DELAY);
     }
 }
 
 // Utility function to display notifications
-function showNotification(message, title = 'Bluesky Moderation') {
+function showNotification(message, title = "Bluesky Moderation") {
     showBatchedNotification(message, title);
 }
 
 // Function to fetch with authentication
 async function fetchWithAuth(url, options = {}) {
-    const data = await browser.storage.local.get(['accessJwt']);
+    const data = await browser.storage.local.get(["accessJwt"]);
     let accessJwt = data.accessJwt;
 
     if (!accessJwt) {
-        throw new Error('User not authenticated.');
+        throw new Error("User not authenticated.");
     }
+
+    // Decrypt the access token
+    accessJwt = await decryptData(accessJwt);
 
     options.headers = {
         ...options.headers,
-        'Authorization': `Bearer ${accessJwt}`,
+        "Authorization": `Bearer ${accessJwt}`
     };
 
-    let response = await fetch(url, options);
+    let response;
+    try {
+        response = await fetch(url, options);
+    } catch (error) {
+        console.error("Network error:", error);
+        throw new Error("Network error occurred.");
+    }
 
-    if (response.status === 401) { // Unauthorized, token might have expired
-        showNotification('Session expired. Please log in again.', 'Session Expired');
-        await browser.storage.local.remove(['accessJwt', 'did', 'handle']);
-        throw new Error('Session expired.');
+    if (response.status === 401) {
+        showNotification("Session expired. Please log in again.", "Session Expired");
+        await browser.storage.local.remove(["accessJwt", "did", "handle"]);
+        throw new Error("Session expired.");
     }
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Unknown error');
+        let errorData;
+        try {
+            errorData = await response.json();
+        } catch {
+            errorData = { message: "Unknown error" };
+        }
+        throw new Error(errorData.message || "Unknown error");
     }
 
     return response.json();
@@ -63,10 +127,10 @@ async function fetchWithAuth(url, options = {}) {
 // Function to block a user
 async function blockUser(userDid, handle) {
     try {
-        const { selectedBlockList } = await browser.storage.local.get('selectedBlockList');
+        const { selectedBlockList } = await browser.storage.local.get("selectedBlockList");
 
         if (!selectedBlockList) {
-            showNotification('Please select a block list before blocking.', 'Error');
+            showNotification("Please select a block list before blocking.", "Error");
             return;
         }
 
@@ -87,56 +151,38 @@ async function blockUser(userDid, handle) {
             ]
         };
 
-        // Correctly blocks to user level block list
-        // writes: [
-        //     {
-        //         "$type": "com.atproto.repo.applyWrites#create", // Action: Create
-        //         "collection": "app.bsky.graph.block",
-        //         "value": {
-        //             "subject": userDid,
-        //             "createdAt": new Date().toISOString()
-        //         }
-        //     }
-        // ]
-
-        await fetchWithAuth('https://bsky.social/xrpc/com.atproto.repo.applyWrites', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        await fetchWithAuth("https://bsky.social/xrpc/com.atproto.repo.applyWrites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
         });
 
-        // Get the position of the right-click
         const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-        const rightClickPosition = await browser.tabs.sendMessage(tabs[0].id, { action: 'getRightClickPosition' });
+        const rightClickPosition = await browser.tabs.sendMessage(tabs[0].id, { action: "getRightClickPosition" });
 
-        // Trigger the animation
         browser.tabs.sendMessage(tabs[0].id, {
-            action: 'showEffect',
+            action: "showEffect",
             data: { ...rightClickPosition, blockListName }
         });
 
         console.log(`Successfully added @${handle} to the block list "${blockListName}".`);
     } catch (error) {
-        console.error('Failed to block user:', error);
-        showNotification(`Failed to block @${handle}: ${error.message}`, 'Error');
+        console.error("Failed to block user:", error);
+        showNotification(`Failed to block @${handle}: ${error.message}`, "Error");
     }
 }
-
-
 
 // Helper function to get block list name
 async function getBlockListName(blockListUri) {
     try {
         const userDid = await getUserRepoDid();
-        const response = await fetchWithAuth(`https://bsky.social/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userDid)}`, {
-            method: 'GET'
-        });
+        const response = await fetchWithAuth(`https://bsky.social/xrpc/app.bsky.graph.getLists?actor=${encodeURIComponent(userDid)}`);
 
         const blockList = response.lists.find(list => list.uri === blockListUri);
-        return blockList ? blockList.name : 'Unknown List';
+        return blockList ? blockList.name : "Unknown List";
     } catch (error) {
-        console.error('Failed to fetch block list name:', error);
-        return 'Unknown List';
+        console.error("Failed to fetch block list name:", error);
+        return "Unknown List";
     }
 }
 
@@ -150,23 +196,23 @@ async function resolveDidFromHandle(handle) {
             console.log(`Resolved DID for @${handle}: ${result.did}`);
             return result.did;
         } else {
-            throw new Error('Failed to resolve DID');
+            throw new Error("Failed to resolve DID");
         }
     } catch (error) {
-        console.error('Error resolving DID:', error);
+        console.error("Error resolving DID:", error);
         throw error;
     }
 }
 
 // Function to get the user's own DID (repo DID)
 async function getUserRepoDid() {
-    const data = await browser.storage.local.get(['did']);
+    const data = await browser.storage.local.get(["did"]);
     return data.did;
 }
 
 browser.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.accessJwt && !changes.accessJwt.newValue) {
-        showNotification('You have been logged out. Please log in again.', 'Session Expired');
+    if (area === "local" && changes.accessJwt && !changes.accessJwt.newValue) {
+        showNotification("You have been logged out. Please log in again.", "Session Expired");
     }
 });
 
@@ -185,15 +231,23 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         try {
             const response = await browser.tabs.sendMessage(tab.id, { action: "getUserHandleFromContext", info });
             if (response && response.userHandle) {
-                const userDid = await resolveDidFromHandle(response.userHandle);
-                await blockUser(userDid, response.userHandle);
+                const sanitizedHandle = sanitizeInput(response.userHandle);
+                const userDid = await resolveDidFromHandle(sanitizedHandle);
+                await blockUser(userDid, sanitizedHandle);
             } else {
-                console.error('User handle not found from context menu.');
-                showNotification('User handle not found from context menu.');
+                console.error("User handle not found from context menu.");
+                showNotification("User handle not found from context menu.");
             }
         } catch (error) {
-            console.error('Error handling context menu click:', error);
-            showNotification('An error occurred while blocking the user.', 'Error');
+            console.error("Error handling context menu click:", error);
+            showNotification("An error occurred while blocking the user.", "Error");
         }
     }
 });
+
+// Input sanitization function
+function sanitizeInput(input) {
+    const div = document.createElement("div");
+    div.textContent = input;
+    return div.innerHTML.trim();
+}
