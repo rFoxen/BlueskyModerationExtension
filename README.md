@@ -158,6 +158,21 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
+### v1.3.1
+v1.3.1
+
+- Security Enhancements:
+    - Secure Data Handling:
+        - Continued implementation of encryption for storing sensitive data such as accessJwt using the Web Crypto API.
+    - Input Validation:
+        - Added robust input validation to ensure user inputs meet expected formats without altering their actual values.
+    - Enhanced Content Security Policy:
+        - Further refined the Content Security Policy to tighten security measures and restrict resource loading.
+
+- Performance Improvements:
+    - Optimized Notification Handling:
+        - Improved the efficiency of batched notifications to enhance user experience without compromising performance.
+
 ### v1.3.0
 
 - Enhanced Visual Effects:
