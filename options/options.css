@@ -1,7 +1,9 @@
-/* popup/popup.css */
+/* options/options.css */
+/* The styles are similar to `popup.css`, but you can adjust the width if needed. */
 body {
     font-family: Arial, sans-serif;
-    width: 250px;
+    max-width: 500px;
+    margin: 0 auto;
     padding: 15px;
     box-sizing: border-box;
     background-color: #f9f9f9;

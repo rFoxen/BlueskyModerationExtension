@@ -158,8 +158,19 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
+### v1.4
+
+
+- Adds mobile functionality:
+    - Block handling moved to physical button:
+        - To facilitate mobile I've moved block functionality to a injected block button
+        - Removes right click block user context menu
+- Adds top level block list selection:
+    - Drop down menu to select current block list that blocks will be sent to
+    - Count of users in currently selected block list
+- Refactor code following OOP principles
+
 ### v1.3.1
-v1.3.1
 
 -- Bug Fix:
     - Fixes bug that autologs out user from extension

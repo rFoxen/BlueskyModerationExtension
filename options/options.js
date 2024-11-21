@@ -1,4 +1,4 @@
-// popup/popup.js
+// options/options.js
 document.addEventListener("DOMContentLoaded", () => {
     checkAuthenticationStatus();
 
@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Function to check authentication status on popup load
+// Function to check authentication status on page load
 async function checkAuthenticationStatus() {
     const data = await browser.storage.local.get(["handle"]);
     if (data.handle) {
