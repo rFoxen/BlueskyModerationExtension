@@ -1,3 +1,4 @@
+/* /content_scripts/effects.css */
 :root {
     --primary-color: #007BFF;
     --secondary-color: #6c757d;
@@ -106,7 +107,6 @@
 
 /* Block User Button Styles */
 .block-user-button {
-    margin-left: 10px; /* Adjust spacing as needed */
     padding: 5px 10px;
     background-color: #f44336;
     border: none;
@@ -115,8 +115,9 @@
     font-size: 12px;
     transition: background-color 0.3s ease;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    z-index: 10000; /* Ensure it's clickable */
+    z-index: 10000;
 }
+
 
 .block-user-button:hover {
     background-color: rgb(220, 220, 220);
@@ -194,11 +195,6 @@
 body > .particle,
 body > .block-list-text {
     z-index: 9999;
-}
-
-/* Ensure the Block User Button is Above Other Interactive Elements */
-.block-user-button {
-    pointer-events: auto;
 }
 
 /* Adjustments for Sliding Effects */

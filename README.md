@@ -158,8 +158,11 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
-### v1.4
+### v1.4.1
+- LoginFunction now part of the injected Moderation Helper slide-out
+- Removes unneeded Options/popout code 
 
+### v1.4
 
 - Adds mobile functionality:
     - Block handling moved to physical button:
@@ -172,7 +175,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### v1.3.1
 
--- Bug Fix:
+- Bug Fix:
     - Fixes bug that autologs out user from extension
 
 - Security Enhancements:

@@ -1,7 +1,7 @@
 ﻿{
   "manifest_version": 2,
   "name": "Bluesky Moderation Helper",
-  "version": "1.4",
+  "version": "1.4.1",
   "description": "Assist with moderation on Bluesky by allowing users to block others and manage block lists.",
   "permissions": [
     "storage",
@@ -32,12 +32,7 @@
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     },
-    "default_popup": "popup/popup.html",
     "default_title": "Bluesky Moderation Helper"
-  },
-  "options_ui": {
-    "page": "options/options.html",
-    "open_in_tab": true
   },
   "icons": {
     "48": "icons/icon-48.png",

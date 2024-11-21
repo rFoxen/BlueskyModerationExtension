@@ -1,4 +1,5 @@
-﻿// Sanitize input to prevent XSS
+﻿// Utilities.js
+// Sanitize input to prevent XSS
 class Utilities {
     static sanitizeInput(input) {
         const div = document.createElement("div");
