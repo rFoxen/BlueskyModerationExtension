@@ -118,9 +118,23 @@
     z-index: 10000;
 }
 
-
 .block-user-button:hover {
     background-color: rgb(220, 220, 220);
+}
+
+/* Styles for Report button */
+.report-user-button {
+    background-color: #ffa64d; /* Orange color */
+    color: #fff;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.report-user-button:hover {
+    background-color: #ff8c1a;
 }
 
 /* Particle and Star Effects */
@@ -145,12 +159,12 @@
 }
 
 /* Text Effect Styles */
-.block-list-text {
-    position: fixed; /* Changed from absolute to fixed */
-    top: var(--blocklist-top, 0px);
-    left: var(--blocklist-left, 0px);
-    background-color: rgba(244, 67, 54, 0.9);
-    color: #fff;
+.effect-text {
+    position: fixed;
+    top: var(--effect-top, 0px);
+    left: var(--effect-left, 0px);
+    background-color: rgba(33, 37, 41, 0.9);
+    color: #f8f9fa;
     padding: 8px 12px;
     border-radius: 4px;
     font-size: 14px;
@@ -158,6 +172,16 @@
     animation: fadeInOut 1.5s forwards;
     pointer-events: none;
     z-index: 10001; /* Above particles but below buttons */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Optional: Different colors based on action type */
+.effect-text.block {
+    background-color: rgba(244, 67, 54, 0.9); /* Red for block */
+}
+
+.effect-text.report {
+    background-color: rgba(255, 152, 0, 0.9); /* Orange for report */
 }
 
 /* Animations */
@@ -193,8 +217,8 @@
 
 /* Ensure Effect Elements are Properly Layered */
 body > .particle,
-body > .block-list-text {
-    z-index: 9999;
+body > .effect-text {
+    z-index: 10001; /* Adjust as needed */
 }
 
 /* Adjustments for Sliding Effects */

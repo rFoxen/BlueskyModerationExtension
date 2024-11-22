@@ -101,7 +101,6 @@ class NotificationManager {
 class BlockListManager {
     constructor(apiClient) {
         this.apiClient = apiClient;
-        // No longer using in-memory cache
     }
 
     async _reportSubject(userHandle, reasonType, subject, reason = "") {
@@ -143,18 +142,44 @@ class BlockListManager {
         );
     }
 
-    async reportAccount(userHandle, user_did, reason = "") {
+    async reportAccount(userHandle, user_did, reasonType, reason = "", position) {
         const subject = {
             $type: "com.atproto.admin.defs#repoRef",
             did: user_did,
             type: "account",
         };
-        await this._reportSubject(
-            userHandle,
-            "com.atproto.moderation.defs#reasonSpam",
-            subject,
-            reason
-        );
+        try {
+            await this._reportSubject(
+                userHandle,
+                reasonType,
+                subject,
+                reason
+            );
+
+            // Assuming _reportSubject does not throw on success
+            // Send message to show report effect
+            const tabs = await browser.tabs.query({active: true, currentWindow: true});
+            if (tabs.length > 0) {
+                const tab = tabs[0];
+                browser.tabs
+                    .sendMessage(tab.id, {
+                        action: "showEffect",
+                        data: {type: "report", userHandle, position, reason}, // position can be null or adjusted as needed
+                    })
+                    .catch((error) => {
+                        console.error(
+                            `Failed to send showEffect message to tab ${tab.id}:`,
+                            error
+                        );
+                    });
+            }
+        } catch (error) {
+            console.error(`Failed to report ${subject.type}:`, error);
+            NotificationManager.showNotification(
+                `Failed to report @${userHandle}: ${error.message}`,
+                "Error"
+            );
+        }
     }
 
     async blockUser(userDid, userHandle, tabId, position) {
@@ -194,7 +219,7 @@ class BlockListManager {
                 browser.tabs
                     .sendMessage(tabId, {
                         action: "showEffect",
-                        data: { blockListName, position },
+                        data: { type: "block", userHandle, blockListName, position },
                     })
                     .catch((error) => {
                         console.error(
@@ -421,6 +446,12 @@ class ContextMenuManager {
                     title: "Block User",
                     contexts: ["link", "selection"],
                 });
+                
+                browser.contextMenus.create({
+                    id: "report-user",
+                    title: "Report User",
+                    contexts: ["link", "selection"],
+                });
 
                 browser.contextMenus.create({
                     id: "export-block-lists",
@@ -433,26 +464,30 @@ class ContextMenuManager {
                 if (info.menuItemId === "export-block-lists") {
                     await this.blockListManager.exportBlockLists();
                 }
-                if (info.menuItemId === "block-user") {
+                if (info.menuItemId === "block-user" || info.menuItemId === "report-user") {
                     try {
                         const response = await browser.tabs.sendMessage(tab.id, {
                             action: "getUserHandleFromContext",
                             info,
                         });
                         if (response && response.userHandle) {
-                            const sanitizedHandle = Utilities.sanitizeInput(
-                                response.userHandle
-                            );
-                            const userDid =
-                                await this.blockListManager.apiClient.resolveDidFromHandle(
-                                    sanitizedHandle
+                            const sanitizedHandle = Utilities.sanitizeInput(response.userHandle);
+                            const userDid = await this.blockListManager.apiClient.resolveDidFromHandle(sanitizedHandle);
+
+                            if (info.menuItemId === "block-user") {
+                                await this.blockListManager.blockUser(
+                                    userDid,
+                                    sanitizedHandle,
+                                    tab.id,
+                                    null // Pass null or adjust as needed
                                 );
-                            await this.blockListManager.blockUser(
-                                userDid,
-                                sanitizedHandle,
-                                tab.id,
-                                null // Pass null or adjust as needed
-                            );
+                            } else if (info.menuItemId === "report-user") {
+                                await this.blockListManager.reportAccount(
+                                    sanitizedHandle,
+                                    userDid,
+                                    "Reason for reporting" // You might want to prompt for a reason
+                                );
+                            }
                         } else {
                             console.error("User handle not found from context menu.");
                             NotificationManager.showNotification(
@@ -462,7 +497,7 @@ class ContextMenuManager {
                     } catch (error) {
                         console.error("Error handling context menu click:", error);
                         NotificationManager.showNotification(
-                            "An error occurred while blocking the user.",
+                            "An error occurred while processing the action.",
                             "Error"
                         );
                     }
@@ -504,7 +539,8 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
             console.error("Error getting block lists:", error);
             return { blockLists: [], selectedBlockList: null };
         }
-    } else if (message.action === "updateSelectedBlockList") {
+    } 
+    else if (message.action === "updateSelectedBlockList") {
         try {
             await browser.storage.local.set({
                 selectedBlockList: message.selectedBlockList,
@@ -515,7 +551,8 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
             console.error("Error updating selected block list:", error);
             return { success: false };
         }
-    } else if (message.action === "getBlockListCount") {
+    } 
+    else if (message.action === "getBlockListCount") {
         try {
             const count = await blockListManager.getBlockListCount(
                 message.blockListUri
@@ -525,7 +562,8 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
             console.error("Error getting block list count:", error);
             return { count: null };
         }
-    } else if (message.action === "blockUserFromContentScript") {
+    }
+    else if (message.action === "blockUserFromContentScript") {
         const userHandle = Utilities.sanitizeInput(message.userHandle);
         const position = message.position;
         try {
@@ -536,11 +574,26 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
                 sender.tab.id,
                 position
             );
-            await blockListManager.reportAccount(userHandle, userDid, "");
         } catch (error) {
             console.error("Error blocking user from content script:", error);
             NotificationManager.showNotification(
                 "An error occurred while blocking the user.",
+                "Error"
+            );
+        }
+    }
+    else if (message.action === "reportUserFromContentScript") {
+        const userHandle = Utilities.sanitizeInput(message.userHandle);
+        const reason = message.reason || "";
+        const reasonType = message.reasonType || "com.atproto.moderation.defs#reasonSpam";
+        const position = message.position;
+        try {
+            const userDid = await apiClient.resolveDidFromHandle(userHandle);
+            await blockListManager.reportAccount(userHandle, userDid, reasonType, reason, position);
+        } catch (error) {
+            console.error("Error reporting user from content script:", error);
+            NotificationManager.showNotification(
+                "An error occurred while reporting the user.",
                 "Error"
             );
         }

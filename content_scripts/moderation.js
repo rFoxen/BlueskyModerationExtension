@@ -8,81 +8,88 @@ class BlockUserManager {
     }
 
     init() {
-        this.setupEventListeners();
-        this.injectBlockButtons();
+        this.injectActionButtons();
         this.observeDOMChanges();
         this.setupMessageListener();
     }
 
-    setupEventListeners() {
-        document.body.addEventListener(
-            "click",
-            this.handleBlockButtonClick.bind(this)
-        );
-    }
+    createActionButton(type, profileHandle) {
+        const button = document.createElement("button");
+        button.textContent = type === "block" ? "Block" : "Report";
+        button.className = `${type}-user-button`;
+        button.setAttribute("aria-label", `${type.charAt(0).toUpperCase() + type.slice(1)} user ${profileHandle}`);
+        button.dataset.profileHandle = profileHandle;
+        button.style.marginLeft = "8px";
+        button.style.border = "none";
+        button.style.cursor = "pointer";
+        button.style.backgroundColor = type === "block" ? "#ff4d4d" : "#ffa64d"; // Different colors for distinction
 
-    handleBlockButtonClick(event) {
-        const blockButton = event.target.closest(".block-user-button");
-        if (blockButton) {
-            event.preventDefault();
-            const profileHandle = blockButton.dataset.profileHandle;
-            const rect = blockButton.getBoundingClientRect();
-            const position = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2,
-            };
-
-            browser.runtime.sendMessage({
-                action: "blockUserFromContentScript",
-                userHandle: profileHandle,
-                position,
-            });
-        }
-    }
-
-    createBlockButton(profileHandle) {
-        const blockButton = document.createElement("button");
-        blockButton.textContent = "Block";
-        blockButton.className = "block-user-button";
-        blockButton.setAttribute("aria-label", `Block user ${profileHandle}`);
-        blockButton.dataset.profileHandle = profileHandle;
-        blockButton.style.marginLeft = "8px";
-        blockButton.style.border = "none";
-        blockButton.style.cursor = "pointer";
-
-        const handleBlockUser = (event) => {
+        const handleActionButtonClick = (event) => {
             event.preventDefault();
             event.stopPropagation();
 
-            const rect = blockButton.getBoundingClientRect();
+            const rect = button.getBoundingClientRect();
             const position = {
                 x: rect.left + rect.width / 2,
                 y: rect.top + rect.height / 2,
             };
 
-            browser.runtime.sendMessage({
-                action: "blockUserFromContentScript",
-                userHandle: profileHandle,
-                position,
-            });
+            if (type === "block") {
+                browser.runtime.sendMessage({
+                    action: "blockUserFromContentScript",
+                    userHandle: profileHandle,
+                    position,
+                });
+            } else if (type === "report") {
+                const reasonTypes = [
+                    { code: "com.atproto.moderation.defs#reasonSpam", label: "Spam" },
+                    { code: "com.atproto.moderation.defs#reasonViolation", label: "Violation" },
+                    { code: "com.atproto.moderation.defs#reasonMisleading", label: "Misleading" },
+                    { code: "com.atproto.moderation.defs#reasonSexual", label: "Sexual Content" },
+                    { code: "com.atproto.moderation.defs#reasonRude", label: "Rude Behavior" },
+                ];
+
+                let reasonOptions = reasonTypes.map((r, index) => `${index + 1}. ${r.label}`).join('\n');
+                let reasonInput = prompt(`Please select a reason for reporting this user:\n${reasonOptions}`);
+
+                if (reasonInput !== null) {
+                    let reasonIndex = parseInt(reasonInput) - 1;
+                    if (reasonIndex >= 0 && reasonIndex < reasonTypes.length) {
+                        let reasonType = reasonTypes[reasonIndex].code;
+                        let reasonLabel = reasonTypes[reasonIndex].label;
+                        browser.runtime.sendMessage({
+                            action: "reportUserFromContentScript",
+                            userHandle: profileHandle,
+                            reasonType: reasonType,
+                            reason: reasonLabel,
+                            position,
+                        });
+                    } else {
+                        alert("Invalid selection. Report cancelled.");
+                    }
+                }
+            }
         };
 
-        blockButton.addEventListener("click", handleBlockUser);
-        blockButton.addEventListener("touchend", handleBlockUser);
+        button.addEventListener("click", handleActionButtonClick);
+        button.addEventListener("touchend", handleActionButtonClick);
 
-        return blockButton;
+        return button;
     }
 
-    attachBlockButton(containerElement, profileHandle, insertBeforeElement = null) {
+    attachActionButtons(containerElement, profileHandle, insertBeforeElement = null) {
         // Prevent duplicate buttons
-        if (containerElement.querySelector('.block-user-button')) return;
+        if (containerElement.querySelector('.block-user-button') || containerElement.querySelector('.report-user-button')) return;
 
-        const blockButton = this.createBlockButton(profileHandle);
+        const blockButton = this.createActionButton("block", profileHandle);
+        const reportButton = this.createActionButton("report", profileHandle);
 
         if (insertBeforeElement) {
             containerElement.insertBefore(blockButton, insertBeforeElement);
+            containerElement.insertBefore(reportButton, insertBeforeElement);
         } else {
             containerElement.appendChild(blockButton);
+            containerElement.appendChild(reportButton);
         }
 
         // Ensure proper styling
@@ -106,7 +113,7 @@ class BlockUserManager {
     }
 
     // Inject "Block User" buttons next to user handles
-    injectBlockButtons() {
+    injectActionButtons() {
         const nameContainers = document.querySelectorAll('div[style*="flex-direction: row"][style*="gap: 4px"]');
 
         nameContainers.forEach(container => {
@@ -116,13 +123,13 @@ class BlockUserManager {
             const profileHandle = this.getProfileHandleFromLink(profileLink);
             if (!profileHandle) return;
 
-            this.attachBlockButton(container, profileHandle);
+            this.attachActionButtons(container, profileHandle);
         });
 
-        this.injectBlockButtonsForFollowButtons();
+        this.injectButtonsForFollowButtons();
     }
 
-    injectBlockButtonsForFollowButtons() {
+    injectButtonsForFollowButtons() {
         const allButtons = document.querySelectorAll('button');
 
         allButtons.forEach(button => {
@@ -131,7 +138,7 @@ class BlockUserManager {
             const containerElement = button.parentNode;
 
             // Skip if a "Block" button is already present in the parent container
-            if (containerElement.querySelector('.block-user-button')) return;
+            if (containerElement.querySelector('.block-user-button') || containerElement.querySelector('.report-user-button')) return;
 
             const profileLink = button.closest('a[href^="/profile/"]');
 
@@ -143,7 +150,7 @@ class BlockUserManager {
             const profileHandle = this.getProfileHandleFromLink(profileLink);
             if (!profileHandle) return;
 
-            this.attachBlockButton(containerElement, profileHandle, button);
+            this.attachActionButtons(containerElement, profileHandle, button);
         });
     }
 
@@ -151,7 +158,7 @@ class BlockUserManager {
         const observer = new MutationObserver(() => {
             clearTimeout(this.injectTimeout);
             this.injectTimeout = setTimeout(() => {
-                this.injectBlockButtons();
+                this.injectActionButtons();
             }, 300);
         });
         observer.observe(document.body, { childList: true, subtree: true });
@@ -160,13 +167,28 @@ class BlockUserManager {
     setupMessageListener() {
         browser.runtime.onMessage.addListener((message) => {
             if (message.action === "showEffect") {
-                const { blockListName, position } = message.data;
-                this.createCursorEffect(position, blockListName);
+                const { type, blockListName, position, userHandle, reason} = message.data;
+                this.createCursorEffect(position, { type, blockListName, userHandle, reason });
             }
         });
     }
 
-    createCursorEffect(position, blockListName) {
+    createCursorEffect(position, actionData) {
+        const { type, blockListName, userHandle, reason } = actionData;
+        let message = "";
+
+        if (type === "block") {
+            message = `@${Utilities.sanitizeInput(userHandle)} has been added to "${Utilities.sanitizeInput(blockListName)}".`;
+        } else if (type === "report") {
+            message = `@${Utilities.sanitizeInput(userHandle)} has been reported for ${Utilities.sanitizeInput(actionData.reason)}.`;
+        } else {
+            console.warn(`Unknown effect type: ${type}`);
+            return;
+        }
+        
+        // Determine the position where the effect should appear
+        const { x, y } = position || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
         const sanitizedBlockListName = Utilities.sanitizeInput(blockListName);
         const numParticles = 16;
         const angleStep = 360 / numParticles;
@@ -233,10 +255,10 @@ class BlockUserManager {
             setTimeout(() => particle.remove(), 1000);
         }
 
-        // Add animated block list text
-        const blockListText = document.createElement("div");
-        blockListText.className = "block-list-text";
-        blockListText.textContent = `Added to ${sanitizedBlockListName}`;
+        // Add animated text
+        const effectText = document.createElement("div");
+        effectText.className = "effect-text";
+        effectText.textContent = message;
 
         // Determine text position
         let textLeft = adjustedX + 30;
@@ -256,12 +278,12 @@ class BlockUserManager {
             textTop = 10;
         }
 
-        blockListText.style.setProperty("--blocklist-top", `${textTop}px`);
-        blockListText.style.setProperty("--blocklist-left", `${textLeft}px`);
+        effectText.style.setProperty("--blocklist-top", `${textTop}px`);
+        effectText.style.setProperty("--blocklist-left", `${textLeft}px`);
 
-        document.body.appendChild(blockListText);
+        document.body.appendChild(effectText);
 
-        setTimeout(() => blockListText.remove(), 1500);
+        setTimeout(() => effectText.remove(), 1500);
     }
 }
 
