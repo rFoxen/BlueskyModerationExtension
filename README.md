@@ -151,6 +151,8 @@ This project is licensed under the MIT License. See the LICENSE file for details
 *The extension popup interface showing login and block list selection.*
 
    ![Blocking Animation](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step4.png)
+   
+   ![Blocking Animation](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step5.png)
 
 *Dynamic particle explosion and animated text upon blocking a user.*
 

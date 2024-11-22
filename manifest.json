@@ -1,7 +1,7 @@
 ﻿{
   "manifest_version": 2,
   "name": "Bluesky Moderation Helper",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Assist with moderation on Bluesky by allowing users to block others and manage block lists.",
   "permissions": [
     "storage",
@@ -18,13 +18,28 @@
         "*://*.bsky.social/*",
         "*://*.bsky.app/*"
       ],
-      "js": ["Utilities.js", "content_scripts/moderation.js"],
+      "js": [
+        "utils/Utilities.js",
+        "content_scripts/BlockUserManager.js",
+        "content_scripts/BlockListSelector.js",
+        "content_scripts/moderation.js"
+      ],
       "css": ["content_scripts/effects.css"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "scripts": ["Utilities.js", "background.js"],
+    "scripts": [
+      "utils/Utilities.js",
+      "background/StorageService.js",
+      "background/AuthenticationService.js",
+      "background/ApiClient.js",
+      "background/IdentityService.js",
+      "background/NotificationManager.js",
+      "background/BlockListManager.js",
+      "background/ContextMenuManager.js",
+      "background/background.js"
+    ],
     "persistent": false
   },
   "browser_action": {
@@ -41,7 +56,7 @@
   "homepage_url": "https://github.com/rFoxen/BlueskyModerationExtension",
   "browser_specific_settings": {
     "gecko": {
-      "id": "bluesky-moderation-helper@example.com",
+      "id": "rotenfox@gmail.com",
       "strict_min_version": "91.0"
     }
   },
