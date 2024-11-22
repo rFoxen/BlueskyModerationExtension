@@ -95,8 +95,8 @@
     }
 
     updateUI() {
-        // Update toggle button icon
-        this.toggleButton.innerHTML = this.isVisible ? "&#x25C0;" : "&#x25B6;";
+        // Update toggle button icon safely
+        this.toggleButton.textContent = this.isVisible ? "◀" : "▶";
 
         // Update container visibility
         if (this.isVisible) {
