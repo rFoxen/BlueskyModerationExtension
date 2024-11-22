@@ -36,3 +36,4 @@ build/
 # Ignore the extension's personal storage (locally stored data)
 *.db
 *.sqlite
+*.xpi
