@@ -1,6 +1,3 @@
-// =============================== //
-// src/services/BlockedUsersService.ts
-
 import { EventEmitter } from '@src/utils/EventEmitter';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, ERRORS } from '@src/constants/Constants';
@@ -20,15 +17,12 @@ export class BlockedUsersService extends EventEmitter {
             if (cachedData) {
                 this.blockedUsersData = cachedData;
             } else {
-                const blockedUsers = await this.blueskyService.getBlockedUsers(
-                    listUri
-                );
+                const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
                 this.blockedUsersData = blockedUsers;
                 await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             }
             this.emit('blockedUsersLoaded', this.blockedUsersData);
-        } catch (error) {
-            console.error('Error loading blocked users:', error);
+        } catch {
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
         }
     }
@@ -39,8 +33,7 @@ export class BlockedUsersService extends EventEmitter {
             this.blockedUsersData = blockedUsers;
             await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             this.emit('blockedUsersRefreshed', this.blockedUsersData);
-        } catch (error) {
-            console.error('Failed to refresh blocked users:', error);
+        } catch {
             this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
         }
     }
@@ -51,66 +44,36 @@ export class BlockedUsersService extends EventEmitter {
         );
     }
 
-    public async addBlockedUser(
-        userHandle: string,
-        listUri: string
-    ): Promise<void> {
+    public async addBlockedUser(userHandle: string, listUri: string): Promise<void> {
         try {
-            const newItem = {
-                subject: {
-                    handle: userHandle,
-                    did: await this.blueskyService.resolveDidFromHandle(userHandle),
-                },
-            };
+            const did = await this.blueskyService.resolveDidFromHandle(userHandle);
+            const newItem = { subject: { handle: userHandle, did } };
             this.blockedUsersData.unshift(newItem);
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserAdded', newItem);
-        } catch (error) {
-            console.error('Failed to add blocked user:', error);
+        } catch {
             this.emit('error', 'Failed to add blocked user.');
         }
     }
 
-    public async removeBlockedUser(
-        userHandle: string,
-        listUri: string
-    ): Promise<void> {
+    public async removeBlockedUser(userHandle: string, listUri: string): Promise<void> {
         try {
             this.blockedUsersData = this.blockedUsersData.filter(
                 (item) => (item.subject.handle || item.subject.did) !== userHandle
             );
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserRemoved', userHandle);
-        } catch (error) {
-            console.error('Failed to remove blocked user:', error);
+        } catch {
             this.emit('error', 'Failed to remove blocked user.');
         }
     }
 
     public async resolveHandleFromDid(did: string): Promise<string> {
-        try {
-            const handle = await this.blueskyService.resolveHandleFromDid(did);
-            return handle;
-        } catch (error) {
-            console.error('Failed to resolve handle from DID:', error);
-            throw error;
-        }
+        return this.blueskyService.resolveHandleFromDid(did);
     }
 
-    public async unblockUser(
-        userHandle: string,
-        selectedUri: string
-    ): Promise<any> {
-        try {
-            const response = await this.blueskyService.unblockUser(
-                userHandle,
-                selectedUri
-            );
-            return response;
-        } catch (error) {
-            console.error('Failed to unblock user:', error);
-            throw error;
-        }
+    public async unblockUser(userHandle: string, selectedUri: string): Promise<any> {
+        return this.blueskyService.unblockUser(userHandle, selectedUri);
     }
 
     public getBlockedUsersData(): any[] {
@@ -128,34 +91,23 @@ export class BlockedUsersService extends EventEmitter {
         });
     }
 
-    // Methods to handle storage of blocked users data
-    private getBlockedUsersFromStorage(
-        listUri: string
-    ): Promise<any[] | null> {
+    private getBlockedUsersFromStorage(listUri: string): Promise<any[] | null> {
         return new Promise((resolve) => {
-            chrome.storage.local.get(
-                [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`],
-                (result: any) => {
-                    if (result[`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]) {
-                        resolve(result[`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]);
-                    } else {
-                        resolve(null);
-                    }
+            chrome.storage.local.get([`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`], (result: any) => {
+                if (result[`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]) {
+                    resolve(result[`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]);
+                } else {
+                    resolve(null);
                 }
-            );
+            });
         });
     }
 
-    private saveBlockedUsersToStorage(
-        listUri: string,
-        blockedUsers: any[]
-    ): Promise<void> {
+    private saveBlockedUsersToStorage(listUri: string, blockedUsers: any[]): Promise<void> {
         return new Promise((resolve) => {
             chrome.storage.local.set(
                 { [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers },
-                () => {
-                    resolve();
-                }
+                () => { resolve(); }
             );
         });
     }

@@ -1,6 +1,3 @@
-// =============================== //
-// src/constants/Constants.ts
-
 export const MESSAGES = {
     LOGIN_SUCCESS: 'Login successful!',
     LOGIN_FAILED: 'Login failed. Please check your credentials.',

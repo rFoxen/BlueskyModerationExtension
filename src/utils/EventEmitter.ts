@@ -1,6 +1,3 @@
-// =============================== //
-// src/utils/EventEmitter.ts
-
 type EventHandler = (...args: any[]) => void;
 
 export class EventEmitter {
@@ -23,4 +20,3 @@ export class EventEmitter {
         this.events[event].forEach((handler) => handler(...args));
     }
 }
-

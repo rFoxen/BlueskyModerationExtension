@@ -1,6 +1,3 @@
-// =============================== //
-// src/background.ts
-
 class Background {
     constructor() {
         this.initialize();

@@ -1,16 +1,10 @@
-// src/components/BlockedUsersUI.ts
-
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from './NotificationManager';
 import { BlockListDropdown } from './BlockListDropdown';
 import blockedUserItemTemplate from '@public/templates/blockedUserItem.hbs';
-import {
-    LABELS,
-    MESSAGES,
-    ERRORS,
-    STORAGE_KEYS, ARIA_LABELS,
-} from '@src/constants/Constants';
+import { LABELS, MESSAGES, ERRORS, STORAGE_KEYS, ARIA_LABELS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/EventListenerHelper';
+import { StorageHelper } from '@src/utils/StorageHelper';
 
 export class BlockedUsersUI {
     private blockedUsersSection: HTMLElement;
@@ -32,24 +26,12 @@ export class BlockedUsersUI {
         notificationManager: NotificationManager,
         blockListDropdown: BlockListDropdown
     ) {
-        this.blockedUsersSection = document.getElementById(
-            blockedUsersSectionId
-        )!;
-        this.blockedUsersList = this.blockedUsersSection.querySelector(
-            '#blocked-users-list'
-        )!;
-        this.blockedUsersLoadingIndicator = this.blockedUsersSection.querySelector(
-            '#blocked-users-loading'
-        )!;
-        this.blockedUsersToggleButton = this.blockedUsersSection.querySelector(
-            '#blocked-users-toggle'
-        )!;
-        this.blockedUsersContent = this.blockedUsersSection.querySelector(
-            '.content'
-        )!;
-        this.blockedUsersCount = this.blockedUsersSection.querySelector(
-            '#blocked-users-count'
-        )!;
+        this.blockedUsersSection = document.getElementById(blockedUsersSectionId)!;
+        this.blockedUsersList = this.blockedUsersSection.querySelector('#blocked-users-list')!;
+        this.blockedUsersLoadingIndicator = this.blockedUsersSection.querySelector('#blocked-users-loading')!;
+        this.blockedUsersToggleButton = this.blockedUsersSection.querySelector('#blocked-users-toggle')!;
+        this.blockedUsersContent = this.blockedUsersSection.querySelector('.content')!;
+        this.blockedUsersCount = this.blockedUsersSection.querySelector('#blocked-users-count')!;
         this.blockedUsersService = blockedUsersService;
         this.notificationManager = notificationManager;
         this.blockListDropdown = blockListDropdown;
@@ -60,47 +42,16 @@ export class BlockedUsersUI {
     }
 
     private addEventListeners(): void {
-        const blockedUsersPrev = this.blockedUsersSection.querySelector(
-            '#blocked-users-prev'
-        ) as HTMLElement;
-        const blockedUsersNext = this.blockedUsersSection.querySelector(
-            '#blocked-users-next'
-        ) as HTMLElement;
-        const blockedUsersSearchInput = this.blockedUsersSection.querySelector(
-            '#blocked-users-search'
-        ) as HTMLInputElement;
+        const blockedUsersPrev = this.blockedUsersSection.querySelector('#blocked-users-prev') as HTMLElement;
+        const blockedUsersNext = this.blockedUsersSection.querySelector('#blocked-users-next') as HTMLElement;
+        const blockedUsersSearchInput = this.blockedUsersSection.querySelector('#blocked-users-search') as HTMLInputElement;
+        const refreshBlockedUsersButton = this.blockedUsersSection.querySelector('#refresh-blocked-users') as HTMLElement;
 
-        EventListenerHelper.addEventListener(
-            blockedUsersPrev,
-            'click',
-            () => this.changeBlockedUsersPage(-1)
-        );
-        EventListenerHelper.addEventListener(
-            blockedUsersNext,
-            'click',
-            () => this.changeBlockedUsersPage(1)
-        );
-        EventListenerHelper.addEventListener(
-            blockedUsersSearchInput,
-            'input',
-            () => this.handleBlockedUsersSearch(blockedUsersSearchInput.value)
-        );
-
-        // Toggle button event
-        EventListenerHelper.addEventListener(
-            this.blockedUsersToggleButton,
-            'click',
-            () => this.toggleBlockedUsersSection()
-        );
-
-        const refreshBlockedUsersButton = this.blockedUsersSection.querySelector(
-            '#refresh-blocked-users'
-        ) as HTMLElement;
-        EventListenerHelper.addEventListener(
-            refreshBlockedUsersButton,
-            'click',
-            () => this.refreshBlockedUsers()
-        );
+        EventListenerHelper.addEventListener(blockedUsersPrev, 'click', () => this.changeBlockedUsersPage(-1));
+        EventListenerHelper.addEventListener(blockedUsersNext, 'click', () => this.changeBlockedUsersPage(1));
+        EventListenerHelper.addEventListener(blockedUsersSearchInput, 'input', () => this.handleBlockedUsersSearch(blockedUsersSearchInput.value));
+        EventListenerHelper.addEventListener(this.blockedUsersToggleButton, 'click', () => this.toggleBlockedUsersSection());
+        EventListenerHelper.addEventListener(refreshBlockedUsersButton, 'click', () => this.refreshBlockedUsers());
     }
 
     private subscribeToServiceEvents(): void {
@@ -119,10 +70,7 @@ export class BlockedUsersUI {
             this.blockedUsersPage = 1;
             this.populateBlockedUsersList();
             this.updateBlockedUsersCount();
-            this.notificationManager.displayNotification(
-                MESSAGES.BLOCKED_USERS_LIST_REFRESHED,
-                'success'
-            );
+            this.notificationManager.displayNotification(MESSAGES.BLOCKED_USERS_LIST_REFRESHED, 'success');
             this.setBlockedUsersLoadingState(false);
         });
 
@@ -154,10 +102,7 @@ export class BlockedUsersUI {
     public async refreshBlockedUsers(): Promise<void> {
         const selectedUri = this.blockListDropdown.getSelectedValue();
         if (!selectedUri) {
-            this.notificationManager.displayNotification(
-                MESSAGES.PLEASE_SELECT_BLOCK_LIST_TO_REFRESH,
-                'error'
-            );
+            this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST_TO_REFRESH, 'error');
             return;
         }
         this.setBlockedUsersLoadingState(true);
@@ -173,44 +118,22 @@ export class BlockedUsersUI {
     }
 
     private toggleBlockedUsersSection(): void {
-        const toggleButton = this.blockedUsersToggleButton;
-        const content = this.blockedUsersContent;
-
-        toggleButton.classList.toggle('active');
-        const isActive = toggleButton.classList.contains('active');
-        toggleButton.setAttribute('aria-expanded', isActive.toString());
+        this.blockedUsersToggleButton.classList.toggle('active');
+        const isActive = this.blockedUsersToggleButton.classList.contains('active');
+        this.blockedUsersToggleButton.setAttribute('aria-expanded', isActive.toString());
 
         if (isActive) {
-            content.classList.remove('d-none');
-            this.saveToggleState(true);
+            this.blockedUsersContent.classList.remove('d-none');
+            StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, true);
         } else {
-            content.classList.add('d-none');
-            this.saveToggleState(false);
-        }
-    }
-
-    private saveToggleState(isExpanded: boolean): void {
-        try {
-            localStorage.setItem(
-                STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE,
-                JSON.stringify(isExpanded)
-            );
-        } catch (error) {
-            console.error(
-                ERRORS.FAILED_TO_SAVE_BLOCKED_USERS_TOGGLE_STATE,
-                error
-            );
+            this.blockedUsersContent.classList.add('d-none');
+            StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, false);
         }
     }
 
     private applySavedToggleState(): void {
-        const savedState = this.getSavedToggleState();
-        if (savedState === null || savedState === undefined) {
-            // Default behavior: collapsed
-            this.blockedUsersContent.classList.add('d-none');
-            this.blockedUsersToggleButton.classList.remove('active');
-            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'false');
-        } else if (savedState) {
+        const savedState = StorageHelper.getBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, false);
+        if (savedState) {
             this.blockedUsersContent.classList.remove('d-none');
             this.blockedUsersToggleButton.classList.add('active');
             this.blockedUsersToggleButton.setAttribute('aria-expanded', 'true');
@@ -218,21 +141,6 @@ export class BlockedUsersUI {
             this.blockedUsersContent.classList.add('d-none');
             this.blockedUsersToggleButton.classList.remove('active');
             this.blockedUsersToggleButton.setAttribute('aria-expanded', 'false');
-        }
-    }
-
-    private getSavedToggleState(): boolean | null {
-        try {
-            const state = localStorage.getItem(
-                STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE
-            );
-            return state ? JSON.parse(state) : null;
-        } catch (error) {
-            console.error(
-                ERRORS.FAILED_TO_RETRIEVE_BLOCKED_USERS_TOGGLE_STATE,
-                error
-            );
-            return null;
         }
     }
 
@@ -266,52 +174,32 @@ export class BlockedUsersUI {
             userHandle = await this.blockedUsersService.resolveHandleFromDid(userDid);
         }
 
-        const htmlString = blockedUserItemTemplate({
-            labels: LABELS,
-            ariaLabels: ARIA_LABELS,
-            userHandle
-        });
+        const htmlString = blockedUserItemTemplate({ labels: LABELS, ariaLabels: ARIA_LABELS, userHandle });
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlString.trim();
         const listItem = tempDiv.firstElementChild as HTMLDivElement;
 
-        const unblockButton = listItem.querySelector(
-            '.unblock-button'
-        ) as HTMLButtonElement;
-        const reportButton = listItem.querySelector(
-            '.report-button'
-        ) as HTMLButtonElement;
+        const unblockButton = listItem.querySelector('.unblock-button') as HTMLButtonElement;
+        const reportButton = listItem.querySelector('.report-button') as HTMLButtonElement;
 
         EventListenerHelper.addEventListener(unblockButton, 'click', async () => {
             const selectedUri = this.blockListDropdown.getSelectedValue();
             if (!selectedUri) {
-                this.notificationManager.displayNotification(
-                    MESSAGES.PLEASE_SELECT_BLOCK_LIST,
-                    'error'
-                );
+                this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
                 return;
             }
             try {
                 await this.blockedUsersService.unblockUser(userHandle, selectedUri);
-                await this.blockedUsersService.removeBlockedUser(
-                    userHandle,
-                    selectedUri
-                );
-                this.notificationManager.displayNotification(
-                    MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
-                    'success'
-                );
+                await this.blockedUsersService.removeBlockedUser(userHandle, selectedUri);
+                this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
             } catch (error) {
                 console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
-                this.notificationManager.displayNotification(
-                    MESSAGES.FAILED_TO_UNBLOCK_USER,
-                    'error'
-                );
+                this.notificationManager.displayNotification(MESSAGES.FAILED_TO_UNBLOCK_USER, 'error');
             }
         });
 
         EventListenerHelper.addEventListener(reportButton, 'click', () => {
-            // Implement reporting logic if needed
+            // Reporting logic (kept as is)
         });
 
         return listItem;
@@ -319,32 +207,18 @@ export class BlockedUsersUI {
 
     private changeBlockedUsersPage(delta: number): void {
         const newPage = this.blockedUsersPage + delta;
-        const totalPages = Math.max(
-            1,
-            Math.ceil(this.currentBlockedUsersData.length / this.blockedUsersPageSize)
-        );
-
+        const totalPages = Math.max(1, Math.ceil(this.currentBlockedUsersData.length / this.blockedUsersPageSize));
         if (newPage < 1 || newPage > totalPages) return;
-
         this.blockedUsersPage = newPage;
         this.populateBlockedUsersList();
     }
 
     private updatePaginationControls(totalItems: number): void {
-        const blockedUsersPrev = this.blockedUsersSection.querySelector(
-            '#blocked-users-prev'
-        ) as HTMLButtonElement;
-        const blockedUsersNext = this.blockedUsersSection.querySelector(
-            '#blocked-users-next'
-        ) as HTMLButtonElement;
-        const pageInfo = this.blockedUsersSection.querySelector(
-            '#blocked-users-page-info'
-        ) as HTMLElement;
+        const blockedUsersPrev = this.blockedUsersSection.querySelector('#blocked-users-prev') as HTMLButtonElement;
+        const blockedUsersNext = this.blockedUsersSection.querySelector('#blocked-users-next') as HTMLButtonElement;
+        const pageInfo = this.blockedUsersSection.querySelector('#blocked-users-page-info') as HTMLElement;
 
-        const totalPages = Math.max(
-            1,
-            Math.ceil(totalItems / this.blockedUsersPageSize)
-        );
+        const totalPages = Math.max(1, Math.ceil(totalItems / this.blockedUsersPageSize));
 
         blockedUsersPrev.disabled = this.blockedUsersPage <= 1;
         blockedUsersNext.disabled = this.blockedUsersPage >= totalPages;
@@ -358,9 +232,7 @@ export class BlockedUsersUI {
             this.currentBlockedUsersData = this.blockedUsersService
                 .getBlockedUsersData()
                 .filter((item) => {
-                    const userHandle = (
-                        item.subject.handle || item.subject.did
-                    ).toLowerCase();
+                    const userHandle = (item.subject.handle || item.subject.did).toLowerCase();
                     return userHandle.includes(query);
                 });
         } else {
@@ -381,13 +253,9 @@ export class BlockedUsersUI {
 
     private updateBlockedUsersSectionTitle(): void {
         const selectedBlockListName = this.blockListDropdown.getSelectedText();
-        const blockedUsersToggle = this.blockedUsersSection.querySelector(
-            '#blocked-users-toggle'
-        ) as HTMLElement;
+        const blockedUsersToggle = this.blockedUsersSection.querySelector('#blocked-users-toggle') as HTMLElement;
         if (blockedUsersToggle && selectedBlockListName) {
-            blockedUsersToggle.textContent = LABELS.BLOCKED_USERS_IN_LIST(
-                selectedBlockListName
-            );
+            blockedUsersToggle.textContent = LABELS.BLOCKED_USERS_IN_LIST(selectedBlockListName);
         }
     }
 

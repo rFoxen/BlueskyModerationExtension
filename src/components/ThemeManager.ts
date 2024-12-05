@@ -1,10 +1,5 @@
-// =============================== //
-// src/components/ThemeManager.ts
-
-import {
-    ERRORS,
-    STORAGE_KEYS,
-} from '@src/constants/Constants';
+import { ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
+import { StorageHelper } from '@src/utils/StorageHelper';
 
 export class ThemeManager {
     private themeToggleButton: HTMLElement;
@@ -22,11 +17,11 @@ export class ThemeManager {
         body.classList.toggle('dark-mode');
         const isDarkMode = body.classList.contains('dark-mode');
         this.updateThemeToggleButton(isDarkMode);
-        this.saveThemePreference(isDarkMode);
+        StorageHelper.setString(STORAGE_KEYS.THEME_PREFERENCE, isDarkMode ? 'dark' : 'light');
     }
 
     public applySavedTheme(): void {
-        const theme = this.getSavedTheme();
+        const theme = StorageHelper.getString(STORAGE_KEYS.THEME_PREFERENCE, 'light');
         if (theme === 'dark') {
             document.body.classList.add('dark-mode');
             this.updateThemeToggleButton(true);
@@ -42,26 +37,6 @@ export class ThemeManager {
             'aria-label',
             isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'
         );
-    }
-
-    private saveThemePreference(isDarkMode: boolean): void {
-        try {
-            localStorage.setItem(
-                STORAGE_KEYS.THEME_PREFERENCE,
-                isDarkMode ? 'dark' : 'light'
-            );
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_SAVE_THEME_PREFERENCE, error);
-        }
-    }
-
-    private getSavedTheme(): string | null {
-        try {
-            return localStorage.getItem(STORAGE_KEYS.THEME_PREFERENCE);
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_RETRIEVE_THEME_PREFERENCE, error);
-            return null;
-        }
     }
 
     private isDarkMode(): boolean {

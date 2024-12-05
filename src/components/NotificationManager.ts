@@ -1,6 +1,3 @@
-// =============================== //
-// src/components/NotificationManager.ts
-
 import { ARIA_LABELS } from '@src/constants/Constants';
 
 export class NotificationManager {

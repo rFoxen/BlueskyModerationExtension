@@ -1,15 +1,8 @@
-// =============================== //
-// src/components/BlockListDropdown.ts
-
 import { AppBskyGraphDefs } from '@atproto/api';
 import { BlueskyService } from '@src/services/BlueskyService';
-import {
-    STORAGE_KEYS,
-    MESSAGES,
-    LABELS,
-    ERRORS,
-} from '@src/constants/Constants';
+import { STORAGE_KEYS, MESSAGES, LABELS, ERRORS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/EventListenerHelper';
+import { StorageHelper } from '@src/utils/StorageHelper';
 
 export class BlockListDropdown {
     private dropdownElement: HTMLSelectElement;
@@ -24,12 +17,7 @@ export class BlockListDropdown {
         this.dropdownElement = element as HTMLSelectElement;
         this.service = service;
 
-        // Register the event listener
-        EventListenerHelper.addEventListener(
-            this.dropdownElement,
-            'change',
-            this.handleSelectionChange.bind(this)
-        );
+        EventListenerHelper.addEventListener(this.dropdownElement, 'change', this.handleSelectionChange.bind(this));
     }
 
     public async loadBlockLists(): Promise<void> {
@@ -40,7 +28,6 @@ export class BlockListDropdown {
         } catch (error) {
             console.error(MESSAGES.FAILED_TO_LOAD_BLOCK_LISTS, error);
             this.populateDropdown([]);
-            // Optionally display an error message in the dropdown
             const option = document.createElement('option');
             option.text = MESSAGES.FAILED_TO_LOAD_BLOCK_LISTS;
             option.disabled = true;
@@ -50,11 +37,9 @@ export class BlockListDropdown {
             this.setLoadingState(false);
         }
 
-        // Restore the selected block list from localStorage
-        const savedSelectedUri = this.getSavedSelectedBlockList();
+        const savedSelectedUri = StorageHelper.getString(STORAGE_KEYS.SELECTED_BLOCK_LIST, '');
         if (savedSelectedUri) {
             this.dropdownElement.value = savedSelectedUri;
-            // Trigger the change event to update dependent UI
             this.dropdownElement.dispatchEvent(new Event('change'));
         }
     }
@@ -65,18 +50,14 @@ export class BlockListDropdown {
 
     public getSelectedValue(): string | null {
         const selectedValue = this.dropdownElement.value;
-        if (
-            selectedValue === MESSAGES.SELECT_BLOCK_LIST ||
-            selectedValue === MESSAGES.LOADING_BLOCK_LISTS
-        ) {
+        if (selectedValue === MESSAGES.SELECT_BLOCK_LIST || selectedValue === MESSAGES.LOADING_BLOCK_LISTS) {
             return null;
         }
         return selectedValue || null;
     }
 
     public getSelectedText(): string | null {
-        const selectedOption =
-            this.dropdownElement.options[this.dropdownElement.selectedIndex];
+        const selectedOption = this.dropdownElement.options[this.dropdownElement.selectedIndex];
         if (selectedOption && !selectedOption.disabled) {
             return selectedOption.textContent || null;
         }
@@ -90,16 +71,11 @@ export class BlockListDropdown {
         option.disabled = true;
         option.selected = true;
         this.dropdownElement.add(option);
-        // Clear the saved selection
-        this.saveSelectedBlockList('');
+        StorageHelper.setString(STORAGE_KEYS.SELECTED_BLOCK_LIST, '');
     }
 
     public clearSelection(): void {
-        try {
-            localStorage.removeItem(STORAGE_KEYS.SELECTED_BLOCK_LIST);
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_SAVE_SELECTED_BLOCK_LIST, error);
-        }
+        StorageHelper.setString(STORAGE_KEYS.SELECTED_BLOCK_LIST, '');
     }
 
     public onSelectionChange(callback: (selectedUri: string) => void): void {
@@ -135,8 +111,7 @@ export class BlockListDropdown {
     private handleSelectionChange(event: Event): void {
         const select = event.target as HTMLSelectElement;
         const selectedUri = select.value;
-        this.saveSelectedBlockList(selectedUri);
-
+        StorageHelper.setString(STORAGE_KEYS.SELECTED_BLOCK_LIST, selectedUri);
         if (this.selectionChangeCallback) {
             this.selectionChangeCallback(selectedUri);
         }
@@ -148,24 +123,6 @@ export class BlockListDropdown {
             this.dropdownElement.disabled = true;
         } else {
             this.dropdownElement.disabled = false;
-        }
-    }
-
-    private saveSelectedBlockList(uri: string): void {
-        try {
-            localStorage.setItem(STORAGE_KEYS.SELECTED_BLOCK_LIST, uri);
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_SAVE_SELECTED_BLOCK_LIST, error);
-        }
-    }
-
-    private getSavedSelectedBlockList(): string | null {
-        try {
-            const uri = localStorage.getItem(STORAGE_KEYS.SELECTED_BLOCK_LIST);
-            return uri || null;
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_RETRIEVE_SELECTED_BLOCK_LIST, error);
-            return null;
         }
     }
 }

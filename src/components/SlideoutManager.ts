@@ -1,14 +1,8 @@
-// src/components/SlideoutManager.ts
-
 import template from '@public/templates/loginSlideout.hbs';
 import { EventEmitter } from '@src/utils/EventEmitter';
-import {
-    LABELS,
-    ARIA_LABELS,
-    ERRORS,
-    STORAGE_KEYS,
-} from '@src/constants/Constants';
+import { LABELS, ARIA_LABELS, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/EventListenerHelper';
+import { StorageHelper } from '@src/utils/StorageHelper';
 
 export class SlideoutManager extends EventEmitter {
     private slideoutElement!: HTMLElement;
@@ -31,10 +25,7 @@ export class SlideoutManager extends EventEmitter {
     }
 
     private injectSlideout(): void {
-        const slideoutHTML = template({
-            labels: LABELS,
-            ariaLabels: ARIA_LABELS,
-        });
+        const slideoutHTML = template({ labels: LABELS, ariaLabels: ARIA_LABELS });
         const div = document.createElement('div');
         div.innerHTML = slideoutHTML;
         document.body.appendChild(div);
@@ -53,61 +44,23 @@ export class SlideoutManager extends EventEmitter {
     }
 
     private addEventListeners(): void {
-        EventListenerHelper.addEventListener(
-            this.closeSlideoutButton,
-            'click',
-            () => this.hideSlideout()
-        );
-        EventListenerHelper.addEventListener(this.loginForm, 'submit', (e) =>
-            this.handleLoginFormSubmit(e)
-        );
-        EventListenerHelper.addEventListener(this.logoutButton, 'click', () =>
-            this.emit('logout')
-        );
-        EventListenerHelper.addEventListener(this.toggleButton, 'click', () =>
-            this.showSlideout()
-        );
-        EventListenerHelper.addEventListener(this.overlayElement, 'click', () =>
-            this.hideSlideout()
-        );
-        EventListenerHelper.addEventListener(this.themeToggleButton, 'click', () =>
-            this.emit('themeToggle')
-        );
+        EventListenerHelper.addEventListener(this.closeSlideoutButton, 'click', () => this.hideSlideout());
+        EventListenerHelper.addEventListener(this.loginForm, 'submit', (e) => this.handleLoginFormSubmit(e));
+        EventListenerHelper.addEventListener(this.logoutButton, 'click', () => this.emit('logout'));
+        EventListenerHelper.addEventListener(this.toggleButton, 'click', () => this.showSlideout());
+        EventListenerHelper.addEventListener(this.overlayElement, 'click', () => this.hideSlideout());
+        EventListenerHelper.addEventListener(this.themeToggleButton, 'click', () => this.emit('themeToggle'));
         EventListenerHelper.addEventListener(this.blockButtonsToggle, 'change', () => {
             const isChecked = this.blockButtonsToggle.checked;
-            this.saveBlockButtonsToggleState(isChecked);
+            StorageHelper.setBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, isChecked);
             this.emit('blockButtonsToggle', isChecked);
         });
-    }
-    private saveBlockButtonsToggleState(isChecked: boolean): void {
-        try {
-            localStorage.setItem(
-                STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE,
-                JSON.stringify(isChecked)
-            );
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_SAVE_BLOCK_BUTTONS_TOGGLE_STATE, error);
-        }
-    }
-
-    public getBlockButtonsToggleState(): boolean {
-        try {
-            const state = localStorage.getItem(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE);
-            return state ? JSON.parse(state) : true; // Default to true (buttons shown)
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_RETRIEVE_BLOCK_BUTTONS_TOGGLE_STATE, error);
-            return true;
-        }
     }
 
     private async handleLoginFormSubmit(event: Event): Promise<void> {
         event.preventDefault();
-        const usernameInput = this.loginForm.querySelector(
-            '#username'
-        ) as HTMLInputElement;
-        const passwordInput = this.loginForm.querySelector(
-            '#password'
-        ) as HTMLInputElement;
+        const usernameInput = this.loginForm.querySelector('#username') as HTMLInputElement;
+        const passwordInput = this.loginForm.querySelector('#password') as HTMLInputElement;
         const username = usernameInput.value.trim();
         const password = passwordInput.value.trim();
 
@@ -141,13 +94,8 @@ export class SlideoutManager extends EventEmitter {
         this.blockListsSection.classList.add('d-none');
     }
 
-    public displayFormFeedback(
-        message: string,
-        type: 'success' | 'danger'
-    ): void {
-        let feedback = this.loginForm.querySelector(
-            '.form-feedback'
-        ) as HTMLElement;
+    public displayFormFeedback(message: string, type: 'success' | 'danger'): void {
+        let feedback = this.loginForm.querySelector('.form-feedback') as HTMLElement;
         if (!feedback) {
             feedback = document.createElement('div');
             feedback.className = 'form-feedback alert';
@@ -167,50 +115,30 @@ export class SlideoutManager extends EventEmitter {
         this.slideoutElement.classList.add('show');
         this.overlayElement.classList.add('show');
         this.toggleButton.classList.add('hidden');
-        this.saveSlideoutState(true);
+        StorageHelper.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, true);
     }
 
     public hideSlideout(): void {
         this.slideoutElement.classList.remove('show');
         this.overlayElement.classList.remove('show');
         this.toggleButton.classList.remove('hidden');
-        this.saveSlideoutState(false);
-    }
-
-    private saveSlideoutState(isVisible: boolean): void {
-        try {
-            localStorage.setItem(
-                STORAGE_KEYS.SLIDEOUT_STATE,
-                JSON.stringify(isVisible)
-            );
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_SAVE_SLIDEOUT_STATE, error);
-        }
+        StorageHelper.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, false);
     }
 
     private applySavedState(): void {
-        const savedState = this.getSavedSlideoutState();
-        if (savedState === null || savedState === undefined) {
-            this.showSlideout();
-        } else if (savedState) {
+        const savedState = StorageHelper.getBoolean(STORAGE_KEYS.SLIDEOUT_STATE, true);
+        if (savedState) {
             this.showSlideout();
         } else {
             this.hideSlideout();
         }
 
-        // Set initial state of block buttons toggle
-        const blockButtonsVisible = this.getBlockButtonsToggleState();
+        const blockButtonsVisible = StorageHelper.getBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, true);
         this.blockButtonsToggle.checked = blockButtonsVisible;
         this.emit('blockButtonsToggle', blockButtonsVisible);
     }
 
-    private getSavedSlideoutState(): boolean | null {
-        try {
-            const state = localStorage.getItem(STORAGE_KEYS.SLIDEOUT_STATE);
-            return state ? JSON.parse(state) : null;
-        } catch (error) {
-            console.error(ERRORS.FAILED_TO_RETRIEVE_SLIDEOUT_STATE, error);
-            return null;
-        }
+    public getBlockButtonsToggleState(): boolean {
+        return StorageHelper.getBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, true);
     }
 }

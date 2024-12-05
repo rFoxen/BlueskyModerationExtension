@@ -1,6 +1,3 @@
-// =============================== //
-// src/components/Button.ts
-
 import template from '@public/templates/button.hbs';
 
 type ButtonType = 'button' | 'submit' | 'reset';
@@ -18,13 +15,7 @@ export class Button {
 
     constructor(options: ButtonOptions) {
         const { id, classNames, text, type = 'button', ariaLabel } = options;
-        const buttonHTML = template({
-            id,
-            classNames,
-            text,
-            type,
-            ariaLabel,
-        });
+        const buttonHTML = template({ id, classNames, text, type, ariaLabel });
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = buttonHTML.trim();
         this.element = tempDiv.firstChild as HTMLButtonElement;
@@ -64,17 +55,11 @@ export class Button {
         }
     }
 
-    public addEventListener(
-        type: string,
-        listener: EventListenerOrEventListenerObject
-    ): void {
+    public addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
         this.element.addEventListener(type, listener);
     }
 
-    public removeEventListener(
-        type: string,
-        listener: EventListenerOrEventListenerObject
-    ): void {
+    public removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
         this.element.removeEventListener(type, listener);
     }
 }

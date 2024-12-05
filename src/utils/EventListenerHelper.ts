@@ -1,6 +1,3 @@
-// =============================== //
-// src/utils/EventListenerHelper.ts
-
 type EventTypes = keyof HTMLElementEventMap;
 type EventHandler = (event: Event) => void;
 
