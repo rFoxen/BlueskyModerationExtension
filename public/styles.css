@@ -46,6 +46,10 @@ body.dark-mode .btn-close {
     opacity: 1; /* Ensure full visibility */
 }
 
+body.no-scroll {
+    overflow: hidden;
+}
+
 body.dark-mode .btn-close:hover {
     filter: invert(1) brightness(2.5); /* Slightly brighter on hover */
 }
@@ -80,6 +84,7 @@ body.dark-mode .btn-close:hover {
     z-index: 1000;
     overflow-y: auto;
     padding: 20px;
+    -webkit-overflow-scrolling: touch;
 }
 
 .slideout.show {

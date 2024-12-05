@@ -55,6 +55,8 @@ export class SlideoutManager extends EventEmitter {
             StorageHelper.setBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, isChecked);
             this.emit('blockButtonsToggle', isChecked);
         });
+        EventListenerHelper.addEventListener(this.slideoutElement, 'wheel', (e) => e.stopPropagation());
+        EventListenerHelper.addEventListener(this.slideoutElement, 'touchmove', (e) => e.stopPropagation());
     }
 
     private async handleLoginFormSubmit(event: Event): Promise<void> {
@@ -115,6 +117,7 @@ export class SlideoutManager extends EventEmitter {
         this.slideoutElement.classList.add('show');
         this.overlayElement.classList.add('show');
         this.toggleButton.classList.add('hidden');
+        document.body.classList.add('no-scroll');
         StorageHelper.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, true);
     }
 
@@ -122,6 +125,7 @@ export class SlideoutManager extends EventEmitter {
         this.slideoutElement.classList.remove('show');
         this.overlayElement.classList.remove('show');
         this.toggleButton.classList.remove('hidden');
+        document.body.classList.remove('no-scroll');
         StorageHelper.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, false);
     }
 
