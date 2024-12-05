@@ -2,6 +2,9 @@ import { ARIA_LABELS } from '@src/constants/Constants';
 
 export class NotificationManager {
     private notificationContainer!: HTMLElement;
+    private readonly MAX_NOTIFICATIONS = 3;
+    private readonly DISPLAY_TIME = 3000; // shorter display time
+    private notifications: HTMLElement[] = [];
 
     constructor() {
         this.createNotificationContainer();
@@ -14,6 +17,25 @@ export class NotificationManager {
     }
 
     public displayNotification(message: string, type: 'success' | 'error' | 'info'): void {
+        // If we are at max capacity, remove the oldest first
+        if (this.notifications.length >= this.MAX_NOTIFICATIONS) {
+            const oldest = this.notifications.shift();
+            if (oldest) {
+                this.removeNotification(oldest);
+            }
+        }
+
+        const notification = this.createNotificationElement(message, type);
+        this.notifications.push(notification);
+        this.notificationContainer.insertBefore(notification, this.notificationContainer.firstChild);
+
+        // Automatically remove after DISPLAY_TIME
+        setTimeout(() => {
+            this.fadeOutNotification(notification);
+        }, this.DISPLAY_TIME);
+    }
+
+    private createNotificationElement(message: string, type: 'success' | 'error' | 'info'): HTMLElement {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
 
@@ -34,22 +56,15 @@ export class NotificationManager {
         notification.appendChild(messageSpan);
         notification.appendChild(closeButton);
 
-        // Add swipe to dismiss functionality
+        // Add swipe-to-dismiss
         this.addSwipeToDismiss(notification);
-
-        this.notificationContainer.appendChild(notification);
-
-        // Automatically remove the notification after 5 seconds
-        setTimeout(() => {
-            this.fadeOutNotification(notification);
-        }, 5000);
+        return notification;
     }
 
     private addSwipeToDismiss(notification: HTMLElement): void {
         let startX: number;
         let currentX: number;
         let touching: boolean = false;
-
         const threshold = 100; // Minimum swipe distance to trigger dismissal
 
         const touchStart = (e: TouchEvent) => {
@@ -87,8 +102,8 @@ export class NotificationManager {
             }
         };
 
-        notification.addEventListener('touchstart', touchStart);
-        notification.addEventListener('touchmove', touchMove);
+        notification.addEventListener('touchstart', touchStart, { passive: true });
+        notification.addEventListener('touchmove', touchMove, { passive: false });
         notification.addEventListener('touchend', touchEnd);
 
         // Prevent click events from propagating
@@ -98,14 +113,21 @@ export class NotificationManager {
     }
 
     private fadeOutNotification(notification: HTMLElement): void {
+        // If already fading out or removed, return
+        if (!this.notifications.includes(notification)) return;
+
         notification.classList.add('fade-out');
         notification.addEventListener('transitionend', () => {
             this.removeNotification(notification);
-        });
+        }, { once: true });
     }
 
     private removeNotification(notification: HTMLElement): void {
-        if (notification && notification.parentElement) {
+        const index = this.notifications.indexOf(notification);
+        if (index !== -1) {
+            this.notifications.splice(index, 1);
+        }
+        if (notification.parentElement) {
             notification.parentElement.removeChild(notification);
         }
     }
