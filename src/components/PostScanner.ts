@@ -228,7 +228,12 @@ export class PostScanner {
                 if (reasonIndex >= 0 && reasonIndex < reasonTypes.length) {
                     const selectedReasonType = reasonTypes[reasonIndex];
                     const userDid = await this.blueskyService.resolveDidFromHandle(profileHandle);
-                    await this.blueskyService.reportAccount(userDid, selectedReasonType.code, selectedReasonType.label);
+
+                    // New: Ask for additional comments
+                    const comments = prompt("Please enter additional comments (optional):") || "";
+
+                    await this.blueskyService.reportAccount(userDid, selectedReasonType.code, comments);
+
                     this.notificationManager.displayNotification(MESSAGES.USER_REPORTED_SUCCESS(profileHandle), 'success');
                 } else {
                     this.notificationManager.displayNotification(MESSAGES.INVALID_REPORT_SELECTION, 'error');
