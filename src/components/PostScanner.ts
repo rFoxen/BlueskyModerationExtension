@@ -15,6 +15,7 @@ export class PostScanner {
     private blockedUsersService: BlockedUsersService;
     private observer: MutationObserver | null = null;
     private blockButtonsVisible: boolean = true;
+    private processedElements: WeakSet<HTMLElement> = new WeakSet();
 
     constructor(
         notificationManager: NotificationManager,
@@ -78,18 +79,28 @@ export class PostScanner {
         const elements = document.querySelectorAll<HTMLElement>(
             `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
         );
-        elements.forEach((element) => this.injectBlockButton(element));
+        elements.forEach((element) => this.scanElement(element));
     }
 
     private scanElement(element: HTMLElement): void {
+        // If already processed, skip
+        if (this.processedElements.has(element)) return;
+
         if (element.matches(`div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`)) {
-            this.injectBlockButton(element);
+            if (this.injectBlockButton(element)) {
+                // Mark element as processed if successfully injected
+                this.processedElements.add(element);
+            }
         }
 
         const descendants = element.querySelectorAll<HTMLElement>(
-                `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
+            `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
         );
-        descendants.forEach((descendant) => this.injectBlockButton(descendant));
+        descendants.forEach((descendant) => {
+            if (!this.processedElements.has(descendant) && this.injectBlockButton(descendant)) {
+                this.processedElements.add(descendant);
+            }
+        });
     }
 
     public setBlockButtonsVisibility(visible: boolean): void {
@@ -109,21 +120,20 @@ export class PostScanner {
         });
     }
 
-    private injectBlockButton(element: HTMLElement): void {
-        // Performance: short-circuit early if we already have a button
-        if (element.querySelector('.toggle-block-button')) return;
+    private injectBlockButton(element: HTMLElement): boolean {
+        if (element.querySelector('.toggle-block-button')) return false;
 
         const profileLink = element.querySelector('a[href^="/profile/"]') as HTMLAnchorElement | null;
-        if (!profileLink) return;
+        if (!profileLink) return false;
 
         const profileHandle = this.getProfileHandleFromLink(profileLink);
-        if (!profileHandle) return;
+        if (!profileHandle) return false;
 
         const parent = element.parentElement;
         if (parent && parent.classList.contains('block-button-wrapper')) {
-            if (parent.querySelector('.toggle-block-button')) return;
+            if (parent.querySelector('.toggle-block-button')) return false;
             this.addBlockAndReportButtons(parent, profileHandle);
-            return;
+            return true;
         }
 
         const wrapper = document.createElement('div');
@@ -133,7 +143,9 @@ export class PostScanner {
         const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
         wrapper.classList.add(isUserBlocked ? 'blocked-post' : 'unblocked-post');
 
-        parent?.insertBefore(wrapper, element);
+        if (!parent) return false; // If no parent, can't insert
+
+        parent.insertBefore(wrapper, element);
         wrapper.appendChild(element);
         this.addBlockAndReportButtons(wrapper, profileHandle);
 
@@ -143,6 +155,8 @@ export class PostScanner {
                 blockButton.style.display = 'none';
             }
         }
+
+        return true;
     }
 
     private addBlockAndReportButtons(wrapper: HTMLElement, profileHandle: string): void {
@@ -170,7 +184,6 @@ export class PostScanner {
         buttonContainer.appendChild(reportButton.element);
         wrapper.appendChild(buttonContainer);
 
-        // Removed unnecessary `postElement` parameter since it's unused
         EventListenerHelper.addMultipleEventListeners(
             blockButton.element,
             ['click', 'touchend'],

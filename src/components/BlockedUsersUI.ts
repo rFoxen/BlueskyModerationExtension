@@ -61,8 +61,8 @@ export class BlockedUsersUI {
     }
 
     private subscribeToServiceEvents(): void {
-        this.blockedUsersService.on('blockedUsersLoaded', (data: any[]) => {
-            this.currentBlockedUsersData = data;
+        this.blockedUsersService.on('blockedUsersLoaded', () => {
+            this.syncBlockedUsersData();
             this.blockedUsersPage = 1;
             this.populateBlockedUsersList();
             this.updateBlockedUsersCount();
@@ -71,8 +71,8 @@ export class BlockedUsersUI {
             this.setBlockedUsersLoadingState(false);
         });
 
-        this.blockedUsersService.on('blockedUsersRefreshed', (data: any[]) => {
-            this.currentBlockedUsersData = data;
+        this.blockedUsersService.on('blockedUsersRefreshed', () => {
+            this.syncBlockedUsersData();
             this.blockedUsersPage = 1;
             this.populateBlockedUsersList();
             this.updateBlockedUsersCount();
@@ -80,17 +80,15 @@ export class BlockedUsersUI {
             this.setBlockedUsersLoadingState(false);
         });
 
-        this.blockedUsersService.on('blockedUserAdded', (newItem: any) => {
-            // Insert at the beginning for performance
-            this.currentBlockedUsersData.unshift(newItem);
+        // No direct array modifications here - always re-sync after add/remove
+        this.blockedUsersService.on('blockedUserAdded', () => {
+            this.syncBlockedUsersData();
             this.populateBlockedUsersList();
             this.updateBlockedUsersCount();
         });
 
-        this.blockedUsersService.on('blockedUserRemoved', (userHandle: string) => {
-            this.currentBlockedUsersData = this.currentBlockedUsersData.filter(
-                (item) => (item.subject.handle || item.subject.did) !== userHandle
-            );
+        this.blockedUsersService.on('blockedUserRemoved', () => {
+            this.syncBlockedUsersData();
             this.populateBlockedUsersList();
             this.updateBlockedUsersCount();
         });
@@ -99,6 +97,10 @@ export class BlockedUsersUI {
             this.notificationManager.displayNotification(message, 'error');
             this.setBlockedUsersLoadingState(false);
         });
+    }
+
+    private syncBlockedUsersData(): void {
+        this.currentBlockedUsersData = this.blockedUsersService.getBlockedUsersData();
     }
 
     public async loadBlockedUsers(selectedUri: string): Promise<void> {
@@ -166,8 +168,6 @@ export class BlockedUsersUI {
             noUsersItem.textContent = LABELS.NO_USERS_FOUND;
             fragment.appendChild(noUsersItem);
         } else {
-            // Pre-fetch all handles for performance if needed
-            // (Not strictly necessary, but we can resolve handles in parallel if needed)
             for (const item of currentPageData) {
                 const listItem = await this.createBlockedUserListItem(item);
                 fragment.appendChild(listItem);
@@ -182,7 +182,7 @@ export class BlockedUsersUI {
         const userDid = item.subject.did;
         let userHandle = item.subject.handle;
         if (!userHandle) {
-            // Only resolve if needed
+            // With caching in BlueskyService, this won't re-fetch unnecessarily
             userHandle = await this.blockedUsersService.resolveHandleFromDid(userDid);
         }
 
@@ -202,7 +202,7 @@ export class BlockedUsersUI {
             }
             try {
                 await this.blockedUsersService.unblockUser(userHandle!, selectedUri);
-                await this.blockedUsersService.removeBlockedUser(userHandle!, selectedUri);
+                // Removal handled by service event, no direct manipulation needed here
                 this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle!), 'success');
             } catch (error) {
                 console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
@@ -210,7 +210,7 @@ export class BlockedUsersUI {
             }
         });
 
-        // Report logic remains as is
+        // Report logic remains unchanged
         EventListenerHelper.addEventListener(reportButton, 'click', () => {
             // Reporting logic (unchanged)
         });
@@ -235,14 +235,14 @@ export class BlockedUsersUI {
 
     private handleBlockedUsersSearch(query: string): void {
         query = query.toLowerCase().trim();
+        const allData = this.blockedUsersService.getBlockedUsersData();
         if (query) {
-            const data = this.blockedUsersService.getBlockedUsersData();
-            this.currentBlockedUsersData = data.filter((item) => {
+            this.currentBlockedUsersData = allData.filter((item) => {
                 const uHandle = (item.subject.handle || item.subject.did).toLowerCase();
                 return uHandle.includes(query);
             });
         } else {
-            this.currentBlockedUsersData = this.blockedUsersService.getBlockedUsersData();
+            this.currentBlockedUsersData = allData;
         }
 
         this.blockedUsersPage = 1;

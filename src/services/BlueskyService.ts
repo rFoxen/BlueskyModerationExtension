@@ -7,6 +7,9 @@ interface FetchWithAuthOptions extends RequestInit {
 
 export class BlueskyService {
     private agent: BskyAgent;
+    // Caches to avoid repeated network calls:
+    private didToHandleCache: Map<string, string> = new Map();
+    private handleToDidCache: Map<string, string> = new Map();
 
     constructor(sessionData: any = null) {
         this.agent = new BskyAgent({
@@ -93,11 +96,30 @@ export class BlueskyService {
     }
 
     public async resolveHandleFromDid(did: string): Promise<string> {
+        if (this.didToHandleCache.has(did)) {
+            return this.didToHandleCache.get(did)!;
+        }
         const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_DID}?did=${encodeURIComponent(did)}`);
         if (response.handle) {
+            this.didToHandleCache.set(did, response.handle);
+            this.handleToDidCache.set(response.handle, did);
             return response.handle;
         } else {
             throw new Error(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+        }
+    }
+
+    public async resolveDidFromHandle(handle: string): Promise<string> {
+        if (this.handleToDidCache.has(handle)) {
+            return this.handleToDidCache.get(handle)!;
+        }
+        const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_HANDLE}?handle=${encodeURIComponent(handle)}`);
+        if (response.did) {
+            this.handleToDidCache.set(handle, response.did);
+            this.didToHandleCache.set(response.did, handle);
+            return response.did;
+        } else {
+            throw new Error('Failed to resolve DID');
         }
     }
 
@@ -151,15 +173,6 @@ export class BlueskyService {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-    }
-
-    public async resolveDidFromHandle(handle: string): Promise<string> {
-        const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_HANDLE}?handle=${encodeURIComponent(handle)}`);
-        if (response.did) {
-            return response.did;
-        } else {
-            throw new Error('Failed to resolve DID');
-        }
     }
 
     private async fetchWithAuth(url: string, options: FetchWithAuthOptions = {}): Promise<any> {
