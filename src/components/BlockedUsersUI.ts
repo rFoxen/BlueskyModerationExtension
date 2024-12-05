@@ -80,7 +80,7 @@ export class BlockedUsersUI {
             this.setBlockedUsersLoadingState(false);
         });
 
-        // No direct array modifications here - always re-sync after add/remove
+        // After add/remove, always re-sync
         this.blockedUsersService.on('blockedUserAdded', () => {
             this.syncBlockedUsersData();
             this.populateBlockedUsersList();
@@ -182,7 +182,6 @@ export class BlockedUsersUI {
         const userDid = item.subject.did;
         let userHandle = item.subject.handle;
         if (!userHandle) {
-            // With caching in BlueskyService, this won't re-fetch unnecessarily
             userHandle = await this.blockedUsersService.resolveHandleFromDid(userDid);
         }
 
@@ -202,7 +201,6 @@ export class BlockedUsersUI {
             }
             try {
                 await this.blockedUsersService.unblockUser(userHandle!, selectedUri);
-                // Removal handled by service event, no direct manipulation needed here
                 this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle!), 'success');
             } catch (error) {
                 console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
@@ -210,9 +208,8 @@ export class BlockedUsersUI {
             }
         });
 
-        // Report logic remains unchanged
         EventListenerHelper.addEventListener(reportButton, 'click', () => {
-            // Reporting logic (unchanged)
+            // Reporting logic remains unchanged
         });
 
         return listItem;
