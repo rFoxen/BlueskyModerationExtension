@@ -1,4 +1,4 @@
-﻿# Bluesky Moderation Helper
+﻿﻿# Bluesky Moderation Helper
 
 Bluesky Moderation Helper is a Firefox extension that enhances moderation on [Bluesky](https://bsky.app/). It allows moderators to quickly block users, manage block lists, and enjoy engaging visual feedback during the blocking process.
 
@@ -21,7 +21,7 @@ Bluesky Moderation Helper is a Firefox extension that enhances moderation on [Bl
 
 ### From the Firefox Add-ons Store
 
-1. Visit the [Bluesky Moderation Helper Add-on Page](https://addons.mozilla.org/).
+1. Visit the [Bluesky Moderation Helper Add-on Page](https://addons.mozilla.org/en-CA/firefox/addon/bluesky-moderation-extension/).
 2. Click "Add to Firefox" to install the extension.
 3. Follow the on-screen instructions to complete the installation.
 
@@ -30,58 +30,73 @@ Bluesky Moderation Helper is a Firefox extension that enhances moderation on [Bl
 1. **Clone the Repository**:
    ```bash
    git clone https://github.com/rFoxen/BlueskyModerationExtension.git
+   cd BlueskyModerationExtension
  
+2. **Install Dependencies: Ensure Node.js is installed. Then run**:
+   ```bash
+   npm install
+
+3. **Build the Extension**:
+    - For development
+    
+        ```bash
+        npm run build:dev
+
+    - For production
+        ```bash
+        npm run build:prod
+
+4. **Load the Extension in Firefox**:
+    - Open about:debugging#/runtime/this-firefox in Firefox.
+    - Click "Load Temporary Add-on" and select the manifest.json file in the dist folder.
+
 ## 🚀 **Usage**
 
 1. **Login**:
-   - Open the extension popup by clicking the icon in the toolbar.
+   - Open the extension slideout by clicking the new menu icon in the bsky.app website.
    - Enter your Bluesky credentials to log in.
 
-2. **Select a Block List**:
+2. **Logout**:
+   - Click the "Log Out" button in the popup to log out.
+   
+3. **Select a Block List**:
    - Choose a block list from the dropdown menu in the popup.
 
-3. **Block a User**:
-   - Right-click on a user or their content and select "Block User."
+4. **Block a User**:
+   - Click on the "Block" buttons beside the user you want to block.
+   
+5. **Unblock a User**:
+   - Click on the "Unblock" buttons beside the user you want to unblock.
+   
+5. **Report a User**:
+   - Click on the "Report" buttons beside the user you want to report.
 
-4. **Enjoy Visual Feedback**:
-   - Watch dynamic particle explosions and animated text when blocking users.
-
-5. **Logout**:
-   - Click the "Log Out" button in the popup to log out.
+6. **Hide block buttons**:
+   - Toggle the "Show Block Buttons" toggle.
+   
+   
+## 📂 File Structure
+1. **Clone the Repository**:
+    ```bash
+    BlueskyModerationHelper/
+    |-- dist/                   # Compiled files for distribution
+    |-- src/                    # Source code
+    |   |-- background.ts       # Background script
+    |   |-- content.ts          # Main content script
+    |   |-- components/         # Modular components (UI, utilities, etc.)
+    |-- public/                 # Static assets (manifest, icons, styles)
+    |-- webpack/                # Webpack configuration files
+    |-- package.json            # Dependencies and scripts
+    |-- tsconfig.json           # TypeScript configuration
      
 ## 🧩 **Development**
 
 ### Prerequisites
-- **Node.js** (for optional build tools and dependency management).
+- **Node.js** Version 16.0.0 or later.
+- **npm** Installed alongside Node.js.
 - **Firefox Browser** (for extension testing).
 - **Code Editor** (VSCode or Sublime Text recommended).
 
-### File Structure
-1. **Clone the Repository**:
-    ```bash
-    BlueskyModerationHelper/
-    |--- icons/
-    |   |-- icon-48.png
-    |   |-- icon-128.png
-    |   |-- icon.png
-    |-- content_scripts/
-    |   |-- moderation.js
-    |   |-- effects.css
-    |-- popup/
-    |   |-- popup.html
-    |   |-- popup.js
-    |   |-- popup.css
-    |-- manifest.json
-    |-- README.md
-    |-- LICENSE
-
-### Key Components
-
-- manifest.json: Defines the extension's metadata, permissions, and resources.
-- content_scripts/moderation.js: Handles interactions within Bluesky pages, including capturing cursor positions and triggering animations.
-- content_scripts/effects.css: Styles for animations and visual effects.
-- popup/: Contains the UI for logging in, selecting block lists, and managing sessions.
-- background.js: Manages background processes, API interactions, and communication between scripts.
 
 ### Development Workflow
 
@@ -159,6 +174,14 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ---
 
 ### 📝 **Changelog**
+
+### v1.5.0
+- Fixes: Better session management
+- Features: Adds searchable user menu
+- Features: Adds dark/light mode
+- Features: Adds toggle for block buttons
+- Features: Adds unblock functionality
+- Improvements: Implements official @atproto/api library for session management.
 
 ### v1.4.1
 - LoginFunction now part of the injected Moderation Helper slide-out

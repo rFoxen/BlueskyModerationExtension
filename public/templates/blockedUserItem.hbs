@@ -1,0 +1,19 @@
+<li class="list-group-item">
+    <a
+            href="https://bsky.app/profile/{{userHandle}}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="blocked-user-handle"
+            title="{{userHandle}}"
+    >
+        {{userHandle}}
+    </a>
+    <div class="btn-group">
+        <button class="btn btn-outline-secondary btn-sm unblock-button" data-user-handle="{{userHandle}}">
+            {{labels.UNBLOCK}}
+        </button>
+        <button class="btn btn-outline-danger btn-sm report-button" data-user-handle="{{userHandle}}">
+            {{labels.REPORT}}
+        </button>
+    </div>
+</li>
