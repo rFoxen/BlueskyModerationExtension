@@ -76,7 +76,7 @@ export class PostScanner {
 
     private scanForPosts(): void {
         const elements = document.querySelectorAll<HTMLElement>(
-                `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
+            `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
         );
         elements.forEach((element) => this.injectBlockButton(element));
     }
@@ -87,7 +87,7 @@ export class PostScanner {
         }
 
         const descendants = element.querySelectorAll<HTMLElement>(
-            `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
+                `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
         );
         descendants.forEach((descendant) => this.injectBlockButton(descendant));
     }
@@ -110,6 +110,7 @@ export class PostScanner {
     }
 
     private injectBlockButton(element: HTMLElement): void {
+        // Performance: short-circuit early if we already have a button
         if (element.querySelector('.toggle-block-button')) return;
 
         const profileLink = element.querySelector('a[href^="/profile/"]') as HTMLAnchorElement | null;
@@ -118,10 +119,10 @@ export class PostScanner {
         const profileHandle = this.getProfileHandleFromLink(profileLink);
         if (!profileHandle) return;
 
-        if (element.parentElement && element.parentElement.classList.contains('block-button-wrapper')) {
-            const wrapper = element.parentElement as HTMLElement;
-            if (wrapper.querySelector('.toggle-block-button')) return;
-            this.addBlockAndReportButtons(wrapper, profileHandle, element);
+        const parent = element.parentElement;
+        if (parent && parent.classList.contains('block-button-wrapper')) {
+            if (parent.querySelector('.toggle-block-button')) return;
+            this.addBlockAndReportButtons(parent, profileHandle);
             return;
         }
 
@@ -132,9 +133,9 @@ export class PostScanner {
         const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
         wrapper.classList.add(isUserBlocked ? 'blocked-post' : 'unblocked-post');
 
-        element.parentElement?.insertBefore(wrapper, element);
+        parent?.insertBefore(wrapper, element);
         wrapper.appendChild(element);
-        this.addBlockAndReportButtons(wrapper, profileHandle, element);
+        this.addBlockAndReportButtons(wrapper, profileHandle);
 
         if (!this.blockButtonsVisible) {
             const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
@@ -144,7 +145,7 @@ export class PostScanner {
         }
     }
 
-    private addBlockAndReportButtons(wrapper: HTMLElement, profileHandle: string, postElement: HTMLElement): void {
+    private addBlockAndReportButtons(wrapper: HTMLElement, profileHandle: string): void {
         const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
         const blockButtonText = isUserBlocked ? LABELS.UNBLOCK : LABELS.BLOCK;
         const blockButtonClasses = isUserBlocked
@@ -169,10 +170,11 @@ export class PostScanner {
         buttonContainer.appendChild(reportButton.element);
         wrapper.appendChild(buttonContainer);
 
+        // Removed unnecessary `postElement` parameter since it's unused
         EventListenerHelper.addMultipleEventListeners(
             blockButton.element,
             ['click', 'touchend'],
-            (event) => this.handleBlockUser(event, profileHandle, blockButton, postElement)
+            (event) => this.handleBlockUser(event, profileHandle, blockButton)
         );
 
         EventListenerHelper.addMultipleEventListeners(
@@ -184,7 +186,8 @@ export class PostScanner {
 
     private getProfileHandleFromLink(profileLink: HTMLAnchorElement): string | null {
         const href = profileLink.getAttribute('href');
-        const match = href?.match(/\/profile\/([^/?#]+)/);
+        if (!href) return null;
+        const match = href.match(/\/profile\/([^/?#]+)/);
         return match ? match[1] : null;
     }
 
@@ -211,7 +214,7 @@ export class PostScanner {
             const reasonInput = prompt(promptMessage);
 
             if (reasonInput !== null) {
-                const reasonIndex = parseInt(reasonInput.trim()) - 1;
+                const reasonIndex = parseInt(reasonInput.trim(), 10) - 1;
                 if (reasonIndex >= 0 && reasonIndex < reasonTypes.length) {
                     const selectedReasonType = reasonTypes[reasonIndex];
                     const userDid = await this.blueskyService.resolveDidFromHandle(profileHandle);
@@ -229,7 +232,7 @@ export class PostScanner {
         }
     }
 
-    private async handleBlockUser(event: Event, profileHandle: string, blockButton: Button, postElement: HTMLElement): Promise<void> {
+    private async handleBlockUser(event: Event, profileHandle: string, blockButton: Button): Promise<void> {
         event.preventDefault();
         event.stopPropagation();
 
@@ -248,8 +251,9 @@ export class PostScanner {
             const currentText = blockButton.getText();
             const isBlocking = currentText?.includes(LABELS.BLOCK);
 
+            let response;
             if (isBlocking) {
-                const response = await this.blueskyService.blockUser(profileHandle, selectedBlockList);
+                response = await this.blueskyService.blockUser(profileHandle, selectedBlockList);
                 if (response) {
                     await this.onUserBlocked(profileHandle);
                     this.updatePostsByUser(profileHandle, true);
@@ -259,7 +263,7 @@ export class PostScanner {
                     throw new Error(ERRORS.UNKNOWN_ERROR);
                 }
             } else {
-                const response = await this.blueskyService.unblockUser(profileHandle, selectedBlockList);
+                response = await this.blueskyService.unblockUser(profileHandle, selectedBlockList);
                 if (response) {
                     await this.onUserUnblocked(profileHandle);
                     this.updatePostsByUser(profileHandle, false);
@@ -277,20 +281,20 @@ export class PostScanner {
         const wrappers = document.querySelectorAll<HTMLElement>(`.block-button-wrapper[data-profile-handle="${profileHandle}"]`);
         wrappers.forEach((wrapper) => {
             const blockButtonElement = wrapper.querySelector('.toggle-block-button') as HTMLButtonElement;
-            if (blockButtonElement) {
-                if (isBlocked) {
-                    blockButtonElement.textContent = LABELS.UNBLOCK;
-                    blockButtonElement.classList.remove('block-user-button', 'btn-outline-secondary');
-                    blockButtonElement.classList.add('unblock-user-button', 'btn-danger');
-                    wrapper.classList.remove('unblocked-post');
-                    wrapper.classList.add('blocked-post');
-                } else {
-                    blockButtonElement.textContent = LABELS.BLOCK;
-                    blockButtonElement.classList.remove('unblock-user-button', 'btn-danger');
-                    blockButtonElement.classList.add('block-user-button', 'btn-outline-secondary');
-                    wrapper.classList.remove('blocked-post');
-                    wrapper.classList.add('unblocked-post');
-                }
+            if (!blockButtonElement) return;
+
+            if (isBlocked) {
+                blockButtonElement.textContent = LABELS.UNBLOCK;
+                blockButtonElement.classList.remove('block-user-button', 'btn-outline-secondary');
+                blockButtonElement.classList.add('unblock-user-button', 'btn-danger');
+                wrapper.classList.remove('unblocked-post');
+                wrapper.classList.add('blocked-post');
+            } else {
+                blockButtonElement.textContent = LABELS.BLOCK;
+                blockButtonElement.classList.remove('unblock-user-button', 'btn-danger');
+                blockButtonElement.classList.add('block-user-button', 'btn-outline-secondary');
+                wrapper.classList.remove('blocked-post');
+                wrapper.classList.add('unblocked-post');
             }
         });
     }
