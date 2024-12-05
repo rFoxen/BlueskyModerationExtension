@@ -77,18 +77,16 @@ export class PostScanner {
 
     private scanForPosts(): void {
         const elements = document.querySelectorAll<HTMLElement>(
-            `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
+                `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
         );
         elements.forEach((element) => this.scanElement(element));
     }
 
     private scanElement(element: HTMLElement): void {
-        // If already processed, skip
         if (this.processedElements.has(element)) return;
 
         if (element.matches(`div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`)) {
             if (this.injectBlockButton(element)) {
-                // Mark element as processed if successfully injected
                 this.processedElements.add(element);
             }
         }
@@ -136,14 +134,13 @@ export class PostScanner {
             return true;
         }
 
+        if (!parent) return false;
         const wrapper = document.createElement('div');
         wrapper.classList.add('block-button-wrapper');
         wrapper.setAttribute('data-profile-handle', profileHandle);
 
         const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
         wrapper.classList.add(isUserBlocked ? 'blocked-post' : 'unblocked-post');
-
-        if (!parent) return false; // If no parent, can't insert
 
         parent.insertBefore(wrapper, element);
         wrapper.appendChild(element);
@@ -232,7 +229,6 @@ export class PostScanner {
                     const selectedReasonType = reasonTypes[reasonIndex];
                     const userDid = await this.blueskyService.resolveDidFromHandle(profileHandle);
                     await this.blueskyService.reportAccount(userDid, selectedReasonType.code, selectedReasonType.label);
-
                     this.notificationManager.displayNotification(MESSAGES.USER_REPORTED_SUCCESS(profileHandle), 'success');
                 } else {
                     this.notificationManager.displayNotification(MESSAGES.INVALID_REPORT_SELECTION, 'error');
@@ -312,3 +308,4 @@ export class PostScanner {
         });
     }
 }
+
