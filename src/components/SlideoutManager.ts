@@ -17,6 +17,9 @@ export class SlideoutManager extends EventEmitter {
     private closeSlideoutButton!: HTMLElement;
     private blockButtonsToggle!: HTMLInputElement;
 
+    // Store references to event handlers for cleanup
+    private eventHandlers: { [key: string]: EventListener } = {};
+
     constructor() {
         super();
         this.injectSlideout();
@@ -44,19 +47,48 @@ export class SlideoutManager extends EventEmitter {
     }
 
     private addEventListeners(): void {
-        EventListenerHelper.addEventListener(this.closeSlideoutButton, 'click', () => this.hideSlideout());
-        EventListenerHelper.addEventListener(this.loginForm, 'submit', (e) => this.handleLoginFormSubmit(e));
-        EventListenerHelper.addEventListener(this.logoutButton, 'click', () => this.emit('logout'));
-        EventListenerHelper.addEventListener(this.toggleButton, 'click', () => this.showSlideout());
-        EventListenerHelper.addEventListener(this.overlayElement, 'click', () => this.hideSlideout());
-        EventListenerHelper.addEventListener(this.themeToggleButton, 'click', () => this.emit('themeToggle'));
-        EventListenerHelper.addEventListener(this.blockButtonsToggle, 'change', () => {
+        // Define handlers
+        const closeSlideoutHandler = () => this.hideSlideout();
+        const loginFormSubmitHandler = (e: Event) => this.handleLoginFormSubmit(e);
+        const logoutHandler = () => this.emit('logout');
+        const toggleSlideoutHandler = () => this.showSlideout();
+        const overlayClickHandler = () => this.hideSlideout();
+        const themeToggleHandler = () => this.emit('themeToggle');
+        const blockButtonsToggleHandler = () => {
             const isChecked = this.blockButtonsToggle.checked;
             StorageHelper.setBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, isChecked);
             this.emit('blockButtonsToggle', isChecked);
-        });
-        EventListenerHelper.addEventListener(this.slideoutElement, 'wheel', (e) => e.stopPropagation());
-        EventListenerHelper.addEventListener(this.slideoutElement, 'touchmove', (e) => e.stopPropagation());
+        };
+        const preventScrollWheel = (e: Event) => {
+            e.stopPropagation();
+        };
+        const preventScrollTouchMove = (e: Event) => {
+            e.stopPropagation();
+        };
+
+        // Assign to eventHandlers for later removal
+        this.eventHandlers['closeSlideout'] = closeSlideoutHandler;
+        this.eventHandlers['loginFormSubmit'] = loginFormSubmitHandler;
+        this.eventHandlers['logout'] = logoutHandler;
+        this.eventHandlers['toggleSlideout'] = toggleSlideoutHandler;
+        this.eventHandlers['overlayClick'] = overlayClickHandler;
+        this.eventHandlers['themeToggle'] = themeToggleHandler;
+        this.eventHandlers['blockButtonsToggle'] = blockButtonsToggleHandler;
+        this.eventHandlers['preventScrollWheel'] = preventScrollWheel;
+        this.eventHandlers['preventScrollTouchMove'] = preventScrollTouchMove;
+
+        // Add event listeners
+        EventListenerHelper.addEventListener(this.closeSlideoutButton, 'click', closeSlideoutHandler);
+        EventListenerHelper.addEventListener(this.loginForm, 'submit', loginFormSubmitHandler);
+        EventListenerHelper.addEventListener(this.logoutButton, 'click', logoutHandler);
+        EventListenerHelper.addEventListener(this.toggleButton, 'click', toggleSlideoutHandler);
+        EventListenerHelper.addEventListener(this.overlayElement, 'click', overlayClickHandler);
+        EventListenerHelper.addEventListener(this.themeToggleButton, 'click', themeToggleHandler);
+        EventListenerHelper.addEventListener(this.blockButtonsToggle, 'change', blockButtonsToggleHandler);
+
+        // Prevent scroll propagation
+        EventListenerHelper.addEventListener(this.slideoutElement, 'wheel', preventScrollWheel, { passive: true });
+        EventListenerHelper.addEventListener(this.slideoutElement, 'touchmove', preventScrollTouchMove, { passive: true });
     }
 
     private async handleLoginFormSubmit(event: Event): Promise<void> {
@@ -144,5 +176,49 @@ export class SlideoutManager extends EventEmitter {
 
     public getBlockButtonsToggleState(): boolean {
         return StorageHelper.getBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, true);
+    }
+
+    // New method to clean up event listeners
+    public destroy(): void {
+        // Remove all event listeners
+        Object.keys(this.eventHandlers).forEach((key) => {
+            const handler = this.eventHandlers[key];
+            switch (key) {
+                case 'closeSlideout':
+                    EventListenerHelper.removeEventListener(this.closeSlideoutButton, 'click', handler);
+                    break;
+                case 'loginFormSubmit':
+                    EventListenerHelper.removeEventListener(this.loginForm, 'submit', handler);
+                    break;
+                case 'logout':
+                    EventListenerHelper.removeEventListener(this.logoutButton, 'click', handler);
+                    break;
+                case 'toggleSlideout':
+                    EventListenerHelper.removeEventListener(this.toggleButton, 'click', handler);
+                    break;
+                case 'overlayClick':
+                    EventListenerHelper.removeEventListener(this.overlayElement, 'click', handler);
+                    break;
+                case 'themeToggle':
+                    EventListenerHelper.removeEventListener(this.themeToggleButton, 'click', handler);
+                    break;
+                case 'blockButtonsToggle':
+                    EventListenerHelper.removeEventListener(this.blockButtonsToggle, 'change', handler);
+                    break;
+                case 'preventScrollWheel':
+                    EventListenerHelper.removeEventListener(this.slideoutElement, 'wheel', handler);
+                    break;
+                case 'preventScrollTouchMove':
+                    EventListenerHelper.removeEventListener(this.slideoutElement, 'touchmove', handler);
+                    break;
+            }
+        });
+
+        // Clear eventHandlers object
+        this.eventHandlers = {};
+
+        // Optionally: Remove the slideout and overlay from the DOM
+        // document.body.removeChild(this.slideoutElement);
+        // document.body.removeChild(this.overlayElement);
     }
 }

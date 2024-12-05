@@ -9,6 +9,9 @@ export class BlockListDropdown {
     private service: BlueskyService;
     private selectionChangeCallback: ((selectedUri: string) => void) | null = null;
 
+    // Store event handler references for cleanup
+    private eventHandlers: { [key: string]: EventListener } = {};
+
     constructor(dropdownId: string, service: BlueskyService) {
         const element = document.getElementById(dropdownId);
         if (!element) {
@@ -17,7 +20,9 @@ export class BlockListDropdown {
         this.dropdownElement = element as HTMLSelectElement;
         this.service = service;
 
-        EventListenerHelper.addEventListener(this.dropdownElement, 'change', this.handleSelectionChange.bind(this));
+        const selectionChangeHandler = (event: Event) => this.handleSelectionChange(event);
+        this.eventHandlers['selectionChange'] = selectionChangeHandler;
+        EventListenerHelper.addEventListener(this.dropdownElement, 'change', selectionChangeHandler);
     }
 
     public async loadBlockLists(): Promise<void> {
@@ -50,7 +55,7 @@ export class BlockListDropdown {
 
     public getSelectedValue(): string | null {
         const selectedValue = this.dropdownElement.value;
-        if (selectedValue === MESSAGES.SELECT_BLOCK_LIST || selectedValue === MESSAGES.LOADING_BLOCK_LISTS) {
+        if (selectedValue === LABELS.SELECT_BLOCK_LIST_PLACEHOLDER || selectedValue === MESSAGES.LOADING_BLOCK_LISTS) {
             return null;
         }
         return selectedValue || null;
@@ -123,6 +128,15 @@ export class BlockListDropdown {
             this.dropdownElement.disabled = true;
         } else {
             this.dropdownElement.disabled = false;
+        }
+    }
+
+    // New method to clean up event listeners
+    public destroy(): void {
+        const selectionChangeHandler = this.eventHandlers['selectionChange'];
+        if (selectionChangeHandler) {
+            EventListenerHelper.removeEventListener(this.dropdownElement, 'change', selectionChangeHandler);
+            delete this.eventHandlers['selectionChange'];
         }
     }
 }

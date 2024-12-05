@@ -41,6 +41,9 @@ class Content {
         console.log('Content script initialized.');
         this.isLoggedIn = this.blueskyService.isLoggedIn();
         this.checkWebsite();
+
+        // Listen for the window unload event to perform cleanup
+        window.addEventListener('unload', () => this.destroy(), { once: true });
     }
 
     private checkWebsite(): void {
@@ -94,7 +97,8 @@ class Content {
                     'blocked-users-section',
                     this.blockedUsersService,
                     this.notificationManager,
-                    this.blockListDropdown!
+                    this.blockListDropdown!,
+                    () => this.isLoggedIn
                 );
             }
         } else {
@@ -138,6 +142,19 @@ class Content {
             return;
         }
         await this.blockedUsersUI?.loadBlockedUsers(selectedUri);
+    }
+
+    // New method to clean up all components
+    private destroy(): void {
+        this.slideoutManager.destroy();
+        this.blockedUsersUI?.destroy();
+        this.postScanner?.destroy();
+        this.blockedUsersService.destroy();
+        this.blockListDropdown?.destroy();
+        this.notificationManager.destroy();
+        // Optionally: Remove injected DOM elements
+        // document.body.removeChild(this.slideoutManager.slideoutElement);
+        // document.body.removeChild(this.slideoutManager.overlayElement);
     }
 }
 

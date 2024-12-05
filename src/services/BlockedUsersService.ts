@@ -1,3 +1,5 @@
+// src/services/BlockedUsersService.ts
+
 import { EventEmitter } from '@src/utils/EventEmitter';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, ERRORS } from '@src/constants/Constants';
@@ -72,8 +74,12 @@ export class BlockedUsersService extends EventEmitter {
         return this.blueskyService.resolveHandleFromDid(did);
     }
 
-    public async unblockUser(userHandle: string, selectedUri: string): Promise<any> {
-        return this.blueskyService.unblockUser(userHandle, selectedUri);
+    public async resolveDidFromHandle(handle: string): Promise<string> {
+        return this.blueskyService.resolveDidFromHandle(handle);
+    }
+
+    public async reportAccount(userDid: string, reasonType: string, reason: string = ""): Promise<void> {
+        await this.blueskyService.reportAccount(userDid, reasonType, reason);
     }
 
     public getBlockedUsersData(): any[] {
@@ -110,5 +116,10 @@ export class BlockedUsersService extends EventEmitter {
                 () => { resolve(); }
             );
         });
+    }
+
+    public destroy(): void {
+        this.blockedUsersData = [];
+        this.removeAllListeners();
     }
 }

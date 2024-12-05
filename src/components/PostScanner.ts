@@ -92,7 +92,7 @@ export class PostScanner {
         }
 
         const descendants = element.querySelectorAll<HTMLElement>(
-            `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
+                `div[role="link"][tabindex="0"], div.css-175oi2r a[href^="/profile/"]`
         );
         descendants.forEach((descendant) => {
             if (!this.processedElements.has(descendant) && this.injectBlockButton(descendant)) {
@@ -181,17 +181,25 @@ export class PostScanner {
         buttonContainer.appendChild(reportButton.element);
         wrapper.appendChild(buttonContainer);
 
+        // Bind event listeners with references for cleanup
+        const blockHandler = async (event: Event) => this.handleBlockUser(event, profileHandle, blockButton);
+        const reportHandler = (event: Event) => this.handleReportUser(event, profileHandle);
+
         EventListenerHelper.addMultipleEventListeners(
             blockButton.element,
             ['click', 'touchend'],
-            (event) => this.handleBlockUser(event, profileHandle, blockButton)
+            blockHandler
         );
 
         EventListenerHelper.addMultipleEventListeners(
             reportButton.element,
             ['click', 'touchend'],
-            (event) => this.handleReportUser(event, profileHandle)
+            reportHandler
         );
+
+        // Store handlers for potential removal
+        (blockButton as any)._handler = blockHandler;
+        (reportButton as any)._handler = reportHandler;
     }
 
     private getProfileHandleFromLink(profileLink: HTMLAnchorElement): string | null {
@@ -312,5 +320,15 @@ export class PostScanner {
             }
         });
     }
-}
 
+    // New method to disconnect observer and clean up
+    public destroy(): void {
+        if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+        }
+        this.blockedUsersService.off('blockedUserAdded', this.updatePostsByUser);
+        this.blockedUsersService.off('blockedUserRemoved', this.updatePostsByUser);
+        this.processedElements = new WeakSet();
+    }
+}

@@ -12,6 +12,7 @@ interface ButtonOptions {
 
 export class Button {
     public element: HTMLButtonElement;
+    private eventHandlers: { [key: string]: EventListener } = {};
 
     constructor(options: ButtonOptions) {
         const { id, classNames, text, type = 'button', ariaLabel } = options;
@@ -55,11 +56,29 @@ export class Button {
         }
     }
 
-    public addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
-        this.element.addEventListener(type, listener);
+    public addEventListener(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void {
+        this.element.addEventListener(type, listener, options);
+        // Store reference for potential removal
+        if (!this.eventHandlers[type]) {
+            this.eventHandlers[type] = listener;
+        }
     }
 
-    public removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
-        this.element.removeEventListener(type, listener);
+    public removeEventListener(type: string, listener: EventListener, options?: boolean | EventListenerOptions): void {
+        this.element.removeEventListener(type, listener, options);
+        // Remove from stored handlers if matches
+        if (this.eventHandlers[type] === listener) {
+            delete this.eventHandlers[type];
+        }
+    }
+
+    // New method to remove all event listeners
+    public removeAllEventListeners(): void {
+        for (const type in this.eventHandlers) {
+            if (this.eventHandlers.hasOwnProperty(type)) {
+                this.element.removeEventListener(type, this.eventHandlers[type]);
+            }
+        }
+        this.eventHandlers = {};
     }
 }

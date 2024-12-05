@@ -48,10 +48,17 @@ export class NotificationManager {
         closeButton.innerHTML = '&times;';
         closeButton.setAttribute('aria-label', ARIA_LABELS.CLOSE_NOTIFICATION);
 
-        closeButton.addEventListener('click', (e) => {
+        // Define handler for closing notification
+        const closeHandler = (e: Event) => {
             e.stopPropagation();
             this.fadeOutNotification(notification);
-        });
+        };
+
+        // Add event listener
+        closeButton.addEventListener('click', closeHandler);
+
+        // Store handler reference for cleanup
+        (closeButton as any)._handler = closeHandler;
 
         notification.appendChild(messageSpan);
         notification.appendChild(closeButton);
@@ -125,7 +132,26 @@ export class NotificationManager {
             this.notifications.splice(index, 1);
         }
         if (notification.parentElement) {
+            // Remove event listeners before removing from DOM
+            const closeButton = notification.querySelector('.notification-close') as HTMLButtonElement | null;
+            if (closeButton && (closeButton as any)._handler) {
+                closeButton.removeEventListener('click', (closeButton as any)._handler);
+            }
             notification.parentElement.removeChild(notification);
         }
+    }
+
+    // New method to clean up all notifications and their event listeners
+    public destroy(): void {
+        this.notifications.forEach((notification) => {
+            const closeButton = notification.querySelector('.notification-close') as HTMLButtonElement | null;
+            if (closeButton && (closeButton as any)._handler) {
+                closeButton.removeEventListener('click', (closeButton as any)._handler);
+            }
+            if (notification.parentElement) {
+                notification.parentElement.removeChild(notification);
+            }
+        });
+        this.notifications = [];
     }
 }
