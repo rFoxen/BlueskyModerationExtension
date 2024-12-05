@@ -17,7 +17,7 @@ export class NotificationManager {
     }
 
     public displayNotification(message: string, type: 'success' | 'error' | 'info'): void {
-        // If we are at max capacity, remove the oldest first
+        // If at max capacity, remove the oldest
         if (this.notifications.length >= this.MAX_NOTIFICATIONS) {
             const oldest = this.notifications.shift();
             if (oldest) {
@@ -56,33 +56,32 @@ export class NotificationManager {
         notification.appendChild(messageSpan);
         notification.appendChild(closeButton);
 
-        // Add swipe-to-dismiss
         this.addSwipeToDismiss(notification);
         return notification;
     }
 
     private addSwipeToDismiss(notification: HTMLElement): void {
-        let startX: number;
-        let currentX: number;
+        let startX: number = 0;
+        let currentX: number = 0;
         let touching: boolean = false;
-        const threshold = 100; // Minimum swipe distance to trigger dismissal
+        const threshold = 100; // Minimum swipe distance to dismiss
 
         const touchStart = (e: TouchEvent) => {
             e.stopPropagation();
-            startX = e.touches[0].clientX;
-            touching = true;
-            notification.classList.remove('no-transition');
+            if (e.touches.length > 0) {
+                startX = e.touches[0].clientX;
+                touching = true;
+                notification.classList.remove('no-transition');
+            }
         };
 
         const touchMove = (e: TouchEvent) => {
-            if (!touching) return;
+            if (!touching || e.touches.length === 0) return;
             e.stopPropagation();
-            e.preventDefault(); // Prevent background scrolling
-
+            e.preventDefault();
             currentX = e.touches[0].clientX;
             const change = currentX - startX;
-            if (change < 0) return; // Ignore left swipes
-
+            if (change < 0) return; // only swipe right
             notification.style.transform = `translateX(${change}px)`;
             notification.style.opacity = `${1 - change / threshold}`;
         };
@@ -91,7 +90,6 @@ export class NotificationManager {
             if (!touching) return;
             touching = false;
             e.stopPropagation();
-
             const change = currentX - startX;
             if (change > threshold) {
                 this.fadeOutNotification(notification);
@@ -106,14 +104,13 @@ export class NotificationManager {
         notification.addEventListener('touchmove', touchMove, { passive: false });
         notification.addEventListener('touchend', touchEnd);
 
-        // Prevent click events from propagating
         notification.addEventListener('click', (e) => {
             e.stopPropagation();
         });
     }
 
     private fadeOutNotification(notification: HTMLElement): void {
-        // If already fading out or removed, return
+        // If not currently in notifications array, it's already removed
         if (!this.notifications.includes(notification)) return;
 
         notification.classList.add('fade-out');
