@@ -1,4 +1,7 @@
 ﻿// src/services/BlueskyService.ts
+import { encodeURIComponentSafe } from '@src/utils/encodeURIComponent';
+import { sanitizeHTML } from '@src/utils/sanitize';
+
 import { EventEmitter } from '@src/utils/EventEmitter';
 import { APP_BSKY_GRAPH, AppBskyGraphDefs, BskyAgent } from '@atproto/api';
 import { API_ENDPOINTS, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
@@ -70,13 +73,13 @@ export class BlueskyService extends EventEmitter {
 
     public async getBlockLists(): Promise<AppBskyGraphDefs.ListView[]> {
         if (!this.agent.session) return [];
-        const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LISTS}?actor=${encodeURIComponent(this.agent.session.did)}`);
+        const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LISTS}?actor=${encodeURIComponentSafe(this.agent.session.did)}`);
         return response.lists.filter((list: AppBskyGraphDefs.ListView) => list.purpose === APP_BSKY_GRAPH.DefsModlist);
     }
 
     public async getBlockListName(listUri: string): Promise<string> {
         if (!this.agent.session) return '';
-        const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`);
+        const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponentSafe(listUri)}`);
         return response.list.name || 'Unnamed List';
     }
 
@@ -89,7 +92,7 @@ export class BlueskyService extends EventEmitter {
         do {
             // @ts-ignore
             const response = await this.fetchWithAuth(
-                `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}&limit=${MAX_LIMIT}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+                `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponentSafe(listUri)}&limit=${MAX_LIMIT}${cursor ? `&cursor=${encodeURIComponentSafe(cursor)}` : ''}`
             );
             items = items.concat(response.items || []);
             cursor = response.cursor || null;
@@ -103,7 +106,7 @@ export class BlueskyService extends EventEmitter {
             return this.didToHandleCache.get(did)!;
         }
 
-        const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_DID}?did=${encodeURIComponent(did)}`);
+        const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_DID}?did=${encodeURIComponentSafe(did)}`);
         if (response.handle) {
             this.didToHandleCache.set(did, response.handle);
             this.handleToDidCache.set(response.handle, did);
@@ -118,7 +121,7 @@ export class BlueskyService extends EventEmitter {
             return this.handleToDidCache.get(handle)!;
         }
 
-        const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_HANDLE}?handle=${encodeURIComponent(handle)}`);
+        const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_HANDLE}?handle=${encodeURIComponentSafe(handle)}`);
         if (response.did) {
             this.handleToDidCache.set(handle, response.did);
             this.didToHandleCache.set(response.did, handle);
@@ -154,7 +157,7 @@ export class BlueskyService extends EventEmitter {
     public async unblockUser(userHandle: string, listUri: string): Promise<any> {
         if (!this.agent.session) return;
         const userDid = await this.resolveDidFromHandle(userHandle);
-        const listItemsResponse = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`);
+        const listItemsResponse = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponentSafe(listUri)}`);
         const itemToDelete = listItemsResponse.items.find((item: any) => item.subject.did === userDid);
         if (!itemToDelete) {
             throw new Error('User is not in the block list.');
