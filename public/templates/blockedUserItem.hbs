@@ -1,19 +1,19 @@
 <li class="list-group-item">
-    <a
-            href="https://bsky.app/profile/{{userHandle}}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="blocked-user-handle"
-            title="{{userHandle}}"
-    >
+    <a href="https://bsky.app/profile/{{userHandle}}" target="_blank" rel="noopener noreferrer" class="blocked-user-handle" title="{{userHandle}}">
         {{userHandle}}
     </a>
     <div class="btn-group">
-        <button class="btn btn-outline-secondary btn-sm unblock-button" data-user-handle="{{userHandle}}" aria-label="{{ariaLabels.UNBLOCK_USER userHandle}}">
-            {{labels.UNBLOCK}}
-        </button>
-        <button class="btn btn-outline-danger btn-sm report-button" data-user-handle="{{userHandle}}" aria-label="{{ariaLabels.REPORT_USER userHandle}}">
-            {{labels.REPORT}}
-        </button>
+        {{> button
+                id="unblock-{{userHandle}}"
+                classNames="btn btn-outline-secondary btn-sm unblock-button"
+                text=labels.UNBLOCK
+                ariaLabel=ariaLabels.unblockUserLabel
+        }}
+        {{> button
+                id="report-{{userHandle}}"
+                classNames="btn btn-outline-danger btn-sm report-button"
+                text=labels.REPORT
+                ariaLabel=ariaLabels.reportUserLabel
+        }}
     </div>
 </li>

@@ -22,11 +22,9 @@ export class BlockedUsersUI {
     private blockedUsersPage: number = 1;
     private readonly blockedUsersPageSize: number = 10;
     private currentBlockedUsersData: any[] = [];
-
     private blockedUsersService: BlockedUsersService;
     private notificationManager: NotificationManager;
     private blockListDropdown: BlockListDropdown;
-
     private blockedUsersToggleButton: HTMLElement;
     private blockedUsersContent: HTMLElement;
     private blockedUsersCount: HTMLElement;
@@ -218,7 +216,6 @@ export class BlockedUsersUI {
         const startIndex = (this.blockedUsersPage - 1) * this.blockedUsersPageSize;
         const endIndex = startIndex + this.blockedUsersPageSize;
         const currentPageData = data.slice(startIndex, endIndex);
-
         const fragment = document.createDocumentFragment();
 
         if (currentPageData.length === 0) {
@@ -249,7 +246,18 @@ export class BlockedUsersUI {
             }
         }
 
-        const htmlString = blockedUserItemTemplate({ labels: LABELS, ariaLabels: ARIA_LABELS, userHandle });
+        // Precompute ariaLabels
+        const ariaLabels = {
+            unblockUserLabel: ARIA_LABELS.UNBLOCK_USER(userHandle),
+            reportUserLabel: ARIA_LABELS.REPORT_USER(userHandle),
+        };
+
+        const htmlString = blockedUserItemTemplate({
+            labels: LABELS,
+            ariaLabels,
+            userHandle,
+        });
+
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlString.trim();
         const listItem = tempDiv.firstElementChild as HTMLDivElement;
@@ -259,15 +267,17 @@ export class BlockedUsersUI {
         const reportButton = listItem.querySelector('.report-button') as HTMLButtonElement;
 
         const unblockBtn = new Button({
+            id: `unblock-${userHandle}`,
             classNames: 'btn btn-outline-secondary btn-sm unblock-button',
             text: LABELS.UNBLOCK,
-            ariaLabel: ARIA_LABELS.UNBLOCK_USER(userHandle),
+            ariaLabel: ariaLabels.unblockUserLabel,
         });
 
         const reportBtn = new Button({
+            id: `report-${userHandle}`,
             classNames: 'btn btn-outline-danger btn-sm report-button',
             text: LABELS.REPORT,
-            ariaLabel: ARIA_LABELS.REPORT_USER(userHandle),
+            ariaLabel: ariaLabels.reportUserLabel,
         });
 
         // Replace existing buttons with new Button instances
