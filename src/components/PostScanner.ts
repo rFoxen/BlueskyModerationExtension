@@ -1,11 +1,10 @@
-// src/components/PostScanner.ts
-
 import { NotificationManager } from './NotificationManager';
 import { Button } from './Button';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { LABELS, MESSAGES, ERRORS, ARIA_LABELS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/EventListenerHelper';
+import { MutationObserverManager } from '@src/utils/MutationObserverManager';
 
 type PostType =
     | 'post'
@@ -32,9 +31,10 @@ export class PostScanner {
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
 
     // Throttling fields
+    private mutationManager: MutationObserverManager;
     private mutationQueue: MutationRecord[] = [];
     private mutationThrottleTimer: number | null = null;
-    private MUTATION_THROTTLE_DELAY = 300;
+    private readonly MUTATION_THROTTLE_DELAY = 300;
 
     // CSS selectors for allowed list containers
     private listContainerSelectors = [
@@ -72,7 +72,12 @@ export class PostScanner {
         this.onUserBlocked = onUserBlocked;
         this.onUserUnblocked = onUserUnblocked;
         this.blockButtonsVisible = getBlockButtonsToggleState();
-
+        
+        this.mutationManager = new MutationObserverManager(
+            this.handleMutations.bind(this),
+            { childList: true, subtree: true }
+        );
+        
         this.subscribeToBlockedUsersServiceEvents();
         this.start();
     }
@@ -88,22 +93,13 @@ export class PostScanner {
     }
 
     public start(): void {
-        this.setupObserver();
+        this.mutationManager.start(document.body);
         this.scanForPosts();
     }
 
-    private setupObserver(): void {
-        const targetNode = document.body;
-        const config: MutationObserverInit = {
-            childList: true,
-            subtree: true,
-        };
-        this.observer = new MutationObserver((mutationsList) => {
-            // Accumulate mutations and schedule processing
-            this.mutationQueue.push(...mutationsList);
-            this.scheduleMutationProcessing();
-        });
-        this.observer.observe(targetNode, config);
+    private handleMutations(mutations: MutationRecord[]): void {
+        this.mutationQueue.push(...mutations);
+        this.scheduleMutationProcessing();
     }
 
     private scheduleMutationProcessing(): void {
@@ -496,10 +492,7 @@ export class PostScanner {
     }
 
     public destroy(): void {
-        if (this.observer) {
-            this.observer.disconnect();
-            this.observer = null;
-        }
+        this.mutationManager.destroy();
         // Clear eventHandlers as PostScanner no longer has references to external elements
         this.eventHandlers = {};
 

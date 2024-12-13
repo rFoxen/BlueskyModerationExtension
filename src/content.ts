@@ -165,8 +165,6 @@ class Content {
         this.notificationManager.destroy();
         this.blueskyService.off('sessionExpired', this.handleSessionExpired.bind(this));
         // Optionally: Remove injected DOM elements
-        // document.body.removeChild(this.slideoutManager.slideoutElement);
-        // document.body.removeChild(this.slideoutManager.overlayElement);
     }
 }
 
