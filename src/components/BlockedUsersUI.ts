@@ -54,7 +54,7 @@ export class BlockedUsersUI {
     ) {
         this.blockedUsersSection = document.getElementById(blockedUsersSectionId)!;
         this.blockedUsersList = this.blockedUsersSection.querySelector('#blocked-users-list')!;
-        this.blockedUsersLoadingIndicator = this.blockedUsersSection.querySelector('#blocked-users-loading')!;
+        this.blockedUsersLoadingIndicator = document.querySelector('#blocked-users-loading')!;
         this.blockedUsersToggleButton = this.blockedUsersSection.querySelector('#blocked-users-toggle')!;
         this.blockedUsersContent = this.blockedUsersSection.querySelector('#blocked-users-content')!;
         this.blockedUsersCount = this.blockedUsersSection.querySelector('#blocked-users-count')!;

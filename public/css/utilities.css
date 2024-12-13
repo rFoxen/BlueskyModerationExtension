@@ -144,7 +144,6 @@
 /* Hover Effects */
 #blocked-users-toggle:hover {
     background-color: var(--input-bg); /* Subtle background change on hover */
-    transform: scale(1.02);
 }
 
 /* Blocked Users Count */

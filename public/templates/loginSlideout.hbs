@@ -55,17 +55,17 @@
                 </button>
             </div>
         </div>
+        <div id="blocked-users-loading" class="text-center d-none">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            {{labels.LOADING_BLOCKED_USERS}}
+        </div>
         <!-- Blocked Users Accordion Section -->
         <div id="blocked-users-section" class="mt-3 d-none accordion">
-            <button type="button" id="blocked-users-toggle" class="accordion-header d-flex justify-content-between align-items-center" aria-expanded="false" aria-controls="blocked-users-content">
+            <button type="button" id="blocked-users-toggle" class="accordion-header d-flex justify-content-between align-items-center" aria-expanded="true" aria-controls="blocked-users-content">
                 <span>{{labels.BLOCKED_USERS}}</span>
                 <span id="blocked-users-count" class="badge bg-primary ms-2" aria-live="polite">0</span>
                 <span class="accordion-icon"></span>
             </button>
-            <div id="blocked-users-loading" class="text-center d-none">
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                {{labels.LOADING_BLOCKED_USERS}}
-            </div>
             <div id="blocked-users-content" class="accordion-content d-none">
                 <div class="d-flex align-items-center mb-2">
                     <input type="text" id="blocked-users-search" class="form-control me-2" placeholder="{{labels.SEARCH_BLOCKED_USERS}}">

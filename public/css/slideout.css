@@ -163,6 +163,7 @@
 
 #blocked-users-section {
     margin: 0 auto; /* Center the section */
+    padding: 1px;
 }
 
 #blocked-users-content {

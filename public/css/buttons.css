@@ -3,12 +3,18 @@
     padding: var(--btn-padding, 6px 12px);
     font-size: var(--font-size-sm);
     border-radius: var(--border-radius);
-    transition: padding var(--transition-duration) ease, font-size var(--transition-duration) ease, transform var(--transition-duration) ease, box-shadow var(--transition-duration) ease;
+    transition:
+            padding var(--transition-duration) ease,
+            font-size var(--transition-duration) ease,
+            transform var(--transition-duration) ease,
+            box-shadow var(--transition-duration) ease;
     cursor: pointer;
     border: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    background-color: var(--button-bg);
+    color: var(--button-text);
 }
 
 .btn:focus {
@@ -59,13 +65,14 @@
     font-size: 1rem;
     background: transparent;
     border: none;
+    cursor: pointer;
 }
 
 .btn-close:hover {
     filter: invert(1) brightness(2.5);
 }
 
-/* Utility Classes */
+/* Utility Button Classes */
 .btn-sm {
     padding: var(--btn-sm-padding, 4px 8px);
     font-size: var(--font-size-xs, 0.75rem);
@@ -82,6 +89,7 @@
     border-color: var(--button-bg);
 }
 
+/* Toggle Slideout Button */
 .toggle-slideout {
     width: 40px;
     height: 40px;
@@ -89,13 +97,16 @@
     background-image: linear-gradient(135deg, rgb(90, 113, 250), rgb(0, 133, 255));
     color: #ffffff;
     font-size: 1rem;
-    transition: background-color var(--transition-duration), color var(--transition-duration);
+    transition:
+            background-color var(--transition-duration),
+            color var(--transition-duration);
 }
 
 .toggle-slideout.hidden {
     display: none;
 }
 
+/* Theme Toggle Button */
 .theme-toggle {
     font-size: 0.9rem;
     padding: 2px 6px;
@@ -128,4 +139,40 @@
 
 .report-user-button:hover {
     background-color: var(--report-button-hover-bg);
+}
+
+/* Button Container */
+.button-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem;
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap; /* Allow buttons to wrap if necessary */
+}
+
+.button-container .btn {
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: 0.75rem; /* Smaller font size */
+    padding: 0.3rem 0.6rem; /* Reduced padding */
+    max-width: 80px; /* Limit button width */
+    box-sizing: border-box;
+}
+
+/* Focus Styles for Buttons within Button Container */
+.button-container .btn:focus {
+    outline: 2px solid var(--input-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block !important;
 }
