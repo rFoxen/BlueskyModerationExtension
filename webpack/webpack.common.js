@@ -1,5 +1,4 @@
 ﻿// webpack/webpack.common.js
-
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
@@ -14,12 +13,12 @@ module.exports = {
         chunkFilename: '[name].bundle.js',
     },
     resolve: {
-        extensions: ['.ts', '.js', '.hbs'],
         alias: {
+            '@public': path.resolve(__dirname, '../public/'),
             '@src': path.resolve(__dirname, '../src/'),
             '@types': path.resolve(__dirname, '../types/'),
-            '@public': path.resolve(__dirname, '../public/'),
         },
+        extensions: ['.ts', '.js', '.hbs', '.css'],
     },
     module: {
         rules: [
@@ -32,10 +31,13 @@ module.exports = {
                 test: /\.hbs$/,
                 loader: 'handlebars-loader',
                 options: {
-                    helperDirs: path.join(__dirname, '../src/helpers'),
+                    helperDirs: [
+                        path.resolve(__dirname, '../src/helpers')
+                    ],
                 },
             },
-            // Note: CSS rule is now defined in webpack.dev.js and webpack.prod.js
+
+            // CSS and Font Rules...
             {
                 test: /\.(woff(2)?|eot|ttf|otf|svg)$/,
                 type: 'asset/resource',
@@ -48,7 +50,8 @@ module.exports = {
     plugins: [
         new CopyWebpackPlugin({
             patterns: [
-                { from: 'public', to: '.' }, // Copy everything from public
+                { from: 'public', to: '.' },
+                // Copy everything from public
             ],
         }),
     ],

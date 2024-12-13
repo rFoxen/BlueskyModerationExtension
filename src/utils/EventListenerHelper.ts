@@ -1,44 +1,77 @@
-type EventTypes = keyof HTMLElementEventMap;
-type EventHandler = (event: Event) => void;
+// src/utils/EventListenerHelper.ts
+
+type EventMap = HTMLElementEventMap & DocumentEventMap & WindowEventMap;
 
 export class EventListenerHelper {
-    static addEventListener(
+    /**
+     * Adds an event listener with the correct event type.
+     *
+     * @param element - The target element.
+     * @param type - The event type.
+     * @param handler - The event handler with the correct event type.
+     * @param options - Optional event listener options.
+     */
+    static addEventListener<K extends keyof EventMap>(
         element: HTMLElement | Document | Window,
-        type: EventTypes,
-        handler: EventHandler,
+        type: K,
+        handler: (event: EventMap[K]) => void,
         options?: boolean | AddEventListenerOptions
     ): void {
-        element.addEventListener(type, handler, options);
+        element.addEventListener(type, handler as EventListener, options);
     }
 
-    static removeEventListener(
+    /**
+     * Removes an event listener with the correct event type.
+     *
+     * @param element - The target element.
+     * @param type - The event type.
+     * @param handler - The event handler to remove.
+     * @param options - Optional event listener options.
+     */
+    static removeEventListener<K extends keyof EventMap>(
         element: HTMLElement | Document | Window,
-        type: EventTypes,
-        handler: EventHandler,
+        type: K,
+        handler: (event: EventMap[K]) => void,
         options?: boolean | EventListenerOptions
     ): void {
-        element.removeEventListener(type, handler, options);
+        element.removeEventListener(type, handler as EventListener, options);
     }
 
-    static addMultipleEventListeners(
+    /**
+     * Adds multiple event listeners with the correct event types.
+     *
+     * @param element - The target element.
+     * @param types - An array of event types.
+     * @param handler - The event handler for all event types.
+     * @param options - Optional event listener options.
+     */
+    static addMultipleEventListeners<K extends keyof EventMap>(
         element: HTMLElement | Document | Window,
-        types: EventTypes[],
-        handler: EventHandler,
+        types: K[],
+        handler: (event: EventMap[K]) => void,
         options?: boolean | AddEventListenerOptions
     ): void {
         types.forEach((type) => {
-            element.addEventListener(type, handler, options);
+            element.addEventListener(type, handler as EventListener, options);
         });
     }
 
-    static removeMultipleEventListeners(
+    /**
+     * Removes multiple event listeners with the correct event types.
+     *
+     * @param element - The target element.
+     * @param types - An array of event types.
+     * @param handler - The event handler to remove.
+     * @param options - Optional event listener options.
+     */
+    static removeMultipleEventListeners<K extends keyof EventMap>(
         element: HTMLElement | Document | Window,
-        types: EventTypes[],
-        handler: EventHandler,
+        types: K[],
+        handler: (event: EventMap[K]) => void,
         options?: boolean | EventListenerOptions
     ): void {
         types.forEach((type) => {
-            element.removeEventListener(type, handler, options);
+            element.removeEventListener(type, handler as EventListener, options);
         });
     }
 }

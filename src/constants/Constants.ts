@@ -30,6 +30,7 @@ export const MESSAGES = {
 };
 
 export const LABELS = {
+    EXTENSION_TITLE: 'Bluesky Moderation Helper',
     LOGIN_TO_BSKY_APP: 'Login to bsky.app',
     USERNAME: 'Username',
     PASSWORD: 'Password',
@@ -54,6 +55,9 @@ export const LABELS = {
     SEARCH_BLOCKED_USERS: 'Search blocked users',
     SELECT_BLOCK_LIST_PLACEHOLDER: 'Select a block list',
     SHOW_BLOCK_BUTTONS: 'Show Block Buttons',
+    UNNAMED_LIST: 'Unnamed List',
+    UNKNOWN_USER: 'Unknown User',
+    PROMPT_ADDITIONAL_COMMENTS: 'Please enter additional comments (optional):',
 };
 
 export const ARIA_LABELS = {
@@ -118,4 +122,5 @@ export const API_ENDPOINTS = {
     DELETE_RECORD: 'https://bsky.social/xrpc/com.atproto.repo.deleteRecord',
     RESOLVE_HANDLE: 'https://bsky.social/xrpc/com.atproto.identity.resolveHandle',
     RESOLVE_DID: 'https://bsky.social/xrpc/com.atproto.identity.resolveDid',
+    REPORT_ACCOUNT: 'https://bsky.social/xrpc/com.atproto.moderation.createReport',
 };

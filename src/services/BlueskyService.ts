@@ -1,21 +1,24 @@
-﻿import { APP_BSKY_GRAPH, AppBskyGraphDefs, BskyAgent } from '@atproto/api';
+﻿// src/services/BlueskyService.ts
+import { EventEmitter } from '@src/utils/EventEmitter';
+import { APP_BSKY_GRAPH, AppBskyGraphDefs, BskyAgent } from '@atproto/api';
 import { API_ENDPOINTS, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
 
 interface FetchWithAuthOptions extends RequestInit {
     headers?: HeadersInit;
 }
 
-export class BlueskyService {
+export class BlueskyService extends EventEmitter {
     private agent: BskyAgent;
-    // Caches to avoid repeated network calls:
     private didToHandleCache: Map<string, string> = new Map();
     private handleToDidCache: Map<string, string> = new Map();
 
     constructor(sessionData: any = null) {
+        super();
         this.agent = new BskyAgent({
             service: API_ENDPOINTS.SERVICE,
             persistSession: this.handleSession.bind(this),
         });
+
         if (sessionData) {
             this.agent.resumeSession(sessionData);
         } else {
@@ -99,6 +102,7 @@ export class BlueskyService {
         if (this.didToHandleCache.has(did)) {
             return this.didToHandleCache.get(did)!;
         }
+
         const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_DID}?did=${encodeURIComponent(did)}`);
         if (response.handle) {
             this.didToHandleCache.set(did, response.handle);
@@ -113,6 +117,7 @@ export class BlueskyService {
         if (this.handleToDidCache.has(handle)) {
             return this.handleToDidCache.get(handle)!;
         }
+
         const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_HANDLE}?handle=${encodeURIComponent(handle)}`);
         if (response.did) {
             this.handleToDidCache.set(handle, response.did);
@@ -125,7 +130,6 @@ export class BlueskyService {
 
     public async blockUser(userHandle: string, listUri: string): Promise<any> {
         if (!this.agent.session) return;
-
         const userDid = await this.resolveDidFromHandle(userHandle);
         if (userDid === this.agent.session.did) throw new Error('Cannot block yourself.');
 
@@ -149,7 +153,6 @@ export class BlueskyService {
 
     public async unblockUser(userHandle: string, listUri: string): Promise<any> {
         if (!this.agent.session) return;
-
         const userDid = await this.resolveDidFromHandle(userHandle);
         const listItemsResponse = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`);
         const itemToDelete = listItemsResponse.items.find((item: any) => item.subject.did === userDid);
@@ -179,18 +182,66 @@ export class BlueskyService {
         const accessJwt = this.agent.session?.accessJwt || '';
         if (!accessJwt) throw new Error(ERRORS.USER_NOT_AUTHENTICATED);
 
-        options.headers = { ...options.headers, Authorization: `Bearer ${accessJwt}` };
-        const response = await fetch(url, options);
+        options.headers = {
+            ...options.headers,
+            Authorization: `Bearer ${accessJwt}`,
+        };
 
-        if (!response.ok) {
-            if (response.status === 401) {
-                throw new Error(ERRORS.SESSION_EXPIRED);
-            }
-            const errorData = await response.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
-            throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
+        const response = await fetch(url, options);
+        if (response.ok) {
+            return response.json();
         }
 
-        return response.json();
+        // If we hit a 401, try to refresh the session first
+        if (response.status === 401) {
+            // Attempt to refresh session
+            const refreshed = await this.tryRefreshSession();
+            if (refreshed) {
+                // If refresh succeeded, retry the request with the new access token
+                const newAccessJwt = this.agent.session?.accessJwt || '';
+                if (!newAccessJwt) {
+                    // Should never happen if refresh succeeded, but just in case
+                    this.emit('sessionExpired');
+                    throw new Error(ERRORS.SESSION_EXPIRED);
+                }
+
+                const retryOptions = {
+                    ...options,
+                    headers: {
+                        ...options.headers,
+                        Authorization: `Bearer ${newAccessJwt}`,
+                    },
+                };
+                const retryResponse = await fetch(url, retryOptions);
+                if (!retryResponse.ok) {
+                    // If retry still fails, we consider it a normal error
+                    const errorData = await retryResponse.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
+                    throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
+                }
+                return retryResponse.json();
+            } else {
+                // Refresh failed
+                this.emit('sessionExpired');
+                throw new Error(ERRORS.SESSION_EXPIRED);
+            }
+        }
+
+        // Handle other non-OK statuses
+        const errorData = await response.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
+        throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
+    }
+
+    private async tryRefreshSession(): Promise<boolean> {
+        if (!this.agent.session?.refreshJwt) return false;
+        try {
+            // The agent exposes a method for session refresh if you've implemented it.
+            await (this.agent as any).sessionManager.refreshSession();
+            // If no error was thrown, refresh succeeded
+            return true;
+        } catch {
+            // Refresh failed
+            return false;
+        }
     }
 
     public async reportAccount(userDid: string, reasonType: string, reason: string = ""): Promise<void> {
@@ -199,11 +250,24 @@ export class BlueskyService {
             did: userDid,
             type: "account",
         };
-        const body = { reason, reasonType, subject };
-        await this.fetchWithAuth("https://bsky.social/xrpc/com.atproto.moderation.createReport", {
+
+        const body = {
+            reason: reason,
+            reasonType: reasonType,
+            subject: subject,
+        };
+
+        const result = await this.fetchWithAuth("https://bsky.social/xrpc/com.atproto.moderation.createReport", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
         });
+        return result;
+    }
+
+    public destroy(): void {
+        this.didToHandleCache.clear();
+        this.handleToDidCache.clear();
+        this.removeAllListeners();
     }
 }

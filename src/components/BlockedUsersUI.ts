@@ -1,5 +1,3 @@
-// src/components/BlockedUsersUI.ts
-
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from './NotificationManager';
 import { BlockListDropdown } from './BlockListDropdown';
@@ -7,6 +5,7 @@ import blockedUserItemTemplate from '@public/templates/blockedUserItem.hbs';
 import { LABELS, MESSAGES, ERRORS, STORAGE_KEYS, ARIA_LABELS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/EventListenerHelper';
 import { StorageHelper } from '@src/utils/StorageHelper';
+import { Button } from './Button';
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
     let timeout: number | null = null;
@@ -23,9 +22,11 @@ export class BlockedUsersUI {
     private blockedUsersPage: number = 1;
     private readonly blockedUsersPageSize: number = 10;
     private currentBlockedUsersData: any[] = [];
+
     private blockedUsersService: BlockedUsersService;
     private notificationManager: NotificationManager;
     private blockListDropdown: BlockListDropdown;
+
     private blockedUsersToggleButton: HTMLElement;
     private blockedUsersContent: HTMLElement;
     private blockedUsersCount: HTMLElement;
@@ -34,9 +35,6 @@ export class BlockedUsersUI {
     private blockedUsersNext: HTMLButtonElement;
     private pageInfo: HTMLElement;
     private refreshBlockedUsersButton: HTMLElement;
-
-    // For lazy loading:
-    private isLoadingNextPage = false;
 
     // Store event handler references for cleanup
     private eventHandlers: { [key: string]: (...args: any[]) => void } = {};
@@ -58,18 +56,18 @@ export class BlockedUsersUI {
         this.blockedUsersList = this.blockedUsersSection.querySelector('#blocked-users-list')!;
         this.blockedUsersLoadingIndicator = this.blockedUsersSection.querySelector('#blocked-users-loading')!;
         this.blockedUsersToggleButton = this.blockedUsersSection.querySelector('#blocked-users-toggle')!;
-        this.blockedUsersContent = this.blockedUsersSection.querySelector('.content')!;
+        this.blockedUsersContent = this.blockedUsersSection.querySelector('#blocked-users-content')!;
         this.blockedUsersCount = this.blockedUsersSection.querySelector('#blocked-users-count')!;
+        this.blockedUsersPrev = this.blockedUsersSection.querySelector('#blocked-users-prev') as HTMLButtonElement;
+        this.blockedUsersNext = this.blockedUsersSection.querySelector('#blocked-users-next') as HTMLButtonElement;
+        this.pageInfo = this.blockedUsersSection.querySelector('#blocked-users-page-info') as HTMLElement;
+        this.blockedUsersSearchInput = this.blockedUsersSection.querySelector('#blocked-users-search') as HTMLInputElement;
+        this.refreshBlockedUsersButton = this.blockedUsersSection.querySelector('#refresh-blocked-users') as HTMLElement;
+
         this.blockedUsersService = blockedUsersService;
         this.notificationManager = notificationManager;
         this.blockListDropdown = blockListDropdown;
         this.isLoggedIn = isLoggedIn;
-
-        this.blockedUsersPrev = this.blockedUsersSection.querySelector('#blocked-users-prev') as HTMLButtonElement;
-        this.blockedUsersNext = this.blockedUsersSection.querySelector('#blocked-users-next') as HTMLButtonElement;
-        this.blockedUsersSearchInput = this.blockedUsersSection.querySelector('#blocked-users-search') as HTMLInputElement;
-        this.refreshBlockedUsersButton = this.blockedUsersSection.querySelector('#refresh-blocked-users') as HTMLElement;
-        this.pageInfo = this.blockedUsersSection.querySelector('#blocked-users-page-info') as HTMLElement;
 
         this.addEventListeners();
         this.applySavedToggleState();
@@ -77,112 +75,86 @@ export class BlockedUsersUI {
     }
 
     private addEventListeners(): void {
-        // Corrected: All handlers now accept correct parameters
-        const prevHandler = (data: any[]) => {
-            this.changeBlockedUsersPage(-1);
-        };
-        const nextHandler = (data: any[]) => {
-            this.changeBlockedUsersPage(1);
-        };
-        const searchHandler = debounce((data: any[]) => {
-            const input = this.blockedUsersSearchInput;
-            const value = input.value;
-            this.handleBlockedUsersSearch(value);
-        }, 300);
-        const toggleSectionHandler = (data: any[]) => {
+        // Toggle Blocked Users Section
+        const toggleHandler = (event: Event) => {
+            event.preventDefault();
             this.toggleBlockedUsersSection();
         };
-        const refreshHandler = (data: any[]) => {
-            this.refreshBlockedUsers();
-        };
-        const scrollHandler = (data: any[]) => {
-            this.checkLazyLoadCondition();
-        };
+        this.eventHandlers['toggle'] = toggleHandler;
+        EventListenerHelper.addEventListener(this.blockedUsersToggleButton, 'click', toggleHandler);
 
-        this.eventHandlers['blockedUsersLoaded'] = prevHandler;
-        this.eventHandlers['blockedUsersRefreshed'] = nextHandler;
-        this.eventHandlers['blockedUserAdded'] = searchHandler;
-        this.eventHandlers['blockedUserRemoved'] = toggleSectionHandler;
-        this.eventHandlers['error'] = refreshHandler;
-        // Note: 'scroll' handler is not stored in eventHandlers as it's not a custom event
-
-        // Add DOM event listeners
-        EventListenerHelper.addEventListener(this.blockedUsersPrev, 'click', (event: Event) => {
+        // Previous Page
+        const prevPageHandler = (event: Event) => {
             event.preventDefault();
             this.changeBlockedUsersPage(-1);
-        });
-        EventListenerHelper.addEventListener(this.blockedUsersNext, 'click', (event: Event) => {
+        };
+        this.eventHandlers['prevPage'] = prevPageHandler;
+        EventListenerHelper.addEventListener(this.blockedUsersPrev, 'click', prevPageHandler);
+
+        // Next Page
+        const nextPageHandler = (event: Event) => {
             event.preventDefault();
             this.changeBlockedUsersPage(1);
-        });
-        EventListenerHelper.addEventListener(this.blockedUsersSearchInput, 'input', (event: Event) => {
+        };
+        this.eventHandlers['nextPage'] = nextPageHandler;
+        EventListenerHelper.addEventListener(this.blockedUsersNext, 'click', nextPageHandler);
+
+        // Search Input
+        const searchHandler = debounce((event: Event) => {
             const input = event.target as HTMLInputElement;
             const value = input.value;
             this.handleBlockedUsersSearch(value);
-        });
-        EventListenerHelper.addEventListener(this.blockedUsersToggleButton, 'click', (event: Event) => {
-            event.preventDefault();
-            this.toggleBlockedUsersSection();
-        });
-        EventListenerHelper.addEventListener(this.refreshBlockedUsersButton, 'click', (event: Event) => {
+        }, 300);
+        this.eventHandlers['search'] = searchHandler;
+        EventListenerHelper.addEventListener(this.blockedUsersSearchInput, 'input', searchHandler);
+
+        // Refresh Blocked Users
+        const refreshHandler = (event: Event) => {
             event.preventDefault();
             this.refreshBlockedUsers();
-        });
-        EventListenerHelper.addEventListener(this.blockedUsersList, 'scroll', (event: Event) => {
-            this.checkLazyLoadCondition();
-        });
+        };
+        this.eventHandlers['refresh'] = refreshHandler;
+        EventListenerHelper.addEventListener(this.refreshBlockedUsersButton, 'click', refreshHandler);
     }
 
     private subscribeToServiceEvents(): void {
-        const blockedUsersLoadedHandler = (data: any[]) => {
-            this.syncBlockedUsersData();
-            this.blockedUsersPage = 1;
-            this.populateBlockedUsersList();
-            this.updateBlockedUsersCount();
-            this.updateBlockedUsersSectionTitle();
-            this.showBlockedUsersSection();
-            this.setBlockedUsersLoadingState(false);
+        const handlers = {
+            blockedUsersLoaded: () => {
+                this.syncBlockedUsersData();
+                this.blockedUsersPage = 1;
+                this.populateBlockedUsersList();
+                this.updateBlockedUsersCount();
+                this.showBlockedUsersSection();
+                this.setBlockedUsersLoadingState(false);
+            },
+            blockedUsersRefreshed: () => {
+                this.syncBlockedUsersData();
+                this.blockedUsersPage = 1;
+                this.populateBlockedUsersList();
+                this.updateBlockedUsersCount();
+                this.notificationManager.displayNotification(MESSAGES.BLOCKED_USERS_LIST_REFRESHED, 'success');
+                this.setBlockedUsersLoadingState(false);
+            },
+            blockedUserAdded: (newItem: any) => {
+                this.syncBlockedUsersData();
+                this.populateBlockedUsersList();
+                this.updateBlockedUsersCount();
+            },
+            blockedUserRemoved: (userHandle: string) => {
+                this.syncBlockedUsersData();
+                this.populateBlockedUsersList();
+                this.updateBlockedUsersCount();
+            },
+            error: (message: string) => {
+                this.notificationManager.displayNotification(message, 'error');
+                this.setBlockedUsersLoadingState(false);
+            },
         };
 
-        const blockedUsersRefreshedHandler = (data: any[]) => {
-            this.syncBlockedUsersData();
-            this.blockedUsersPage = 1;
-            this.populateBlockedUsersList();
-            this.updateBlockedUsersCount();
-            this.notificationManager.displayNotification(MESSAGES.BLOCKED_USERS_LIST_REFRESHED, 'success');
-            this.setBlockedUsersLoadingState(false);
-        };
-
-        const blockedUserAddedHandler = (newItem: any) => {
-            this.syncBlockedUsersData();
-            this.populateBlockedUsersList();
-            this.updateBlockedUsersCount();
-        };
-
-        const blockedUserRemovedHandler = (userHandle: string) => {
-            this.syncBlockedUsersData();
-            this.populateBlockedUsersList();
-            this.updateBlockedUsersCount();
-        };
-
-        const errorHandler = (message: string) => {
-            this.notificationManager.displayNotification(message, 'error');
-            this.setBlockedUsersLoadingState(false);
-        };
-
-        // Store references for cleanup
-        this.eventHandlers['blockedUsersLoaded'] = blockedUsersLoadedHandler;
-        this.eventHandlers['blockedUsersRefreshed'] = blockedUsersRefreshedHandler;
-        this.eventHandlers['blockedUserAdded'] = blockedUserAddedHandler;
-        this.eventHandlers['blockedUserRemoved'] = blockedUserRemovedHandler;
-        this.eventHandlers['error'] = errorHandler;
-
-        // Use .on() from EventEmitter for custom events
-        this.blockedUsersService.on('blockedUsersLoaded', blockedUsersLoadedHandler);
-        this.blockedUsersService.on('blockedUsersRefreshed', blockedUsersRefreshedHandler);
-        this.blockedUsersService.on('blockedUserAdded', blockedUserAddedHandler);
-        this.blockedUsersService.on('blockedUserRemoved', blockedUserRemovedHandler);
-        this.blockedUsersService.on('error', errorHandler);
+        Object.entries(handlers).forEach(([event, handler]) => {
+            this.eventHandlers[event] = handler;
+            (this.blockedUsersService as any).on(event, handler);
+        });
     }
 
     private syncBlockedUsersData(): void {
@@ -213,29 +185,30 @@ export class BlockedUsersUI {
     }
 
     private toggleBlockedUsersSection(): void {
-        this.blockedUsersToggleButton.classList.toggle('active');
-        const isActive = this.blockedUsersToggleButton.classList.contains('active');
-        this.blockedUsersToggleButton.setAttribute('aria-expanded', String(isActive));
-
-        if (isActive) {
-            this.blockedUsersContent.classList.remove('d-none');
-            StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, true);
-        } else {
+        const isExpanded = this.blockedUsersToggleButton.getAttribute('aria-expanded') === 'true';
+        if (isExpanded) {
+            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'false');
             this.blockedUsersContent.classList.add('d-none');
+            this.blockedUsersToggleButton.classList.remove('active');
             StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, false);
+        } else {
+            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'true');
+            this.blockedUsersContent.classList.remove('d-none');
+            this.blockedUsersToggleButton.classList.add('active');
+            StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, true);
         }
     }
 
     private applySavedToggleState(): void {
         const savedState = StorageHelper.getBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, false);
         if (savedState) {
+            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'true');
             this.blockedUsersContent.classList.remove('d-none');
             this.blockedUsersToggleButton.classList.add('active');
-            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'true');
         } else {
+            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'false');
             this.blockedUsersContent.classList.add('d-none');
             this.blockedUsersToggleButton.classList.remove('active');
-            this.blockedUsersToggleButton.setAttribute('aria-expanded', 'false');
         }
     }
 
@@ -272,7 +245,7 @@ export class BlockedUsersUI {
                 userHandle = await this.blockedUsersService.resolveHandleFromDid(userDid);
             } catch (error) {
                 console.error('Failed to resolve user handle from DID:', error);
-                userHandle = 'Unknown User';
+                userHandle = LABELS.UNKNOWN_USER;
             }
         }
 
@@ -281,50 +254,66 @@ export class BlockedUsersUI {
         tempDiv.innerHTML = htmlString.trim();
         const listItem = tempDiv.firstElementChild as HTMLDivElement;
 
+        // Replace buttons with Button components
         const unblockButton = listItem.querySelector('.unblock-button') as HTMLButtonElement;
         const reportButton = listItem.querySelector('.report-button') as HTMLButtonElement;
 
-        // Define handlers
-        const unblockHandler = async (event: Event) => {
+        const unblockBtn = new Button({
+            classNames: 'btn btn-outline-secondary btn-sm unblock-button',
+            text: LABELS.UNBLOCK,
+            ariaLabel: ARIA_LABELS.UNBLOCK_USER(userHandle),
+        });
+
+        const reportBtn = new Button({
+            classNames: 'btn btn-outline-danger btn-sm report-button',
+            text: LABELS.REPORT,
+            ariaLabel: ARIA_LABELS.REPORT_USER(userHandle),
+        });
+
+        // Replace existing buttons with new Button instances
+        unblockButton.replaceWith(unblockBtn.element);
+        reportButton.replaceWith(reportBtn.element);
+
+        // Add event listeners using Button class methods
+        unblockBtn.addEventListener('click', async (event: Event) => {
             event.preventDefault();
-            event.stopPropagation();
-            const selectedUri = this.blockListDropdown.getSelectedValue();
-            if (!selectedUri) {
-                this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
-                return;
-            }
-            try {
-                await this.blockedUsersService.removeBlockedUser(userHandle, selectedUri);
-                this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
-            } catch (error) {
-                console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
-                this.notificationManager.displayNotification(MESSAGES.FAILED_TO_UNBLOCK_USER, 'error');
-            }
-        };
+            await this.handleUnblockUser(userHandle);
+        });
 
-        const reportHandler = (event: Event) => {
-            // Reporting logic remains unchanged
-            this.handleReportUser(event, userHandle!);
-        };
-
-        // Add event listeners
-        EventListenerHelper.addMultipleEventListeners(
-            unblockButton,
-            ['click', 'touchend'],
-            unblockHandler
-        );
-
-        EventListenerHelper.addMultipleEventListeners(
-            reportButton,
-            ['click', 'touchend'],
-            reportHandler
-        );
-
-        // Store handlers for cleanup
-        (unblockButton as any)._handler = unblockHandler;
-        (reportButton as any)._handler = reportHandler;
+        reportBtn.addEventListener('click', (event: Event) => {
+            event.preventDefault();
+            this.handleReportUser(userHandle);
+        });
 
         return listItem;
+    }
+
+    private async handleUnblockUser(userHandle: string): Promise<void> {
+        const selectedUri = this.blockListDropdown.getSelectedValue();
+        if (!selectedUri) {
+            this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
+            return;
+        }
+
+        const confirmMessage = `Are you sure you want to unblock @${userHandle}?`;
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        try {
+            await this.blockedUsersService.removeBlockedUser(userHandle, selectedUri);
+            this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
+        } catch (error) {
+            console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
+            this.notificationManager.displayNotification(MESSAGES.FAILED_TO_UNBLOCK_USER, 'error');
+        }
+    }
+
+    private handleReportUser(userHandle: string): void {
+        // Reporting logic can be handled via an event or callback
+        // For simplicity, emit an event here
+        // Alternatively, integrate with NotificationManager to prompt for report
+        // Implementation depends on application requirements
     }
 
     private changeBlockedUsersPage(delta: number): void {
@@ -353,24 +342,14 @@ export class BlockedUsersUI {
         } else {
             this.currentBlockedUsersData = allData;
         }
-
         this.blockedUsersPage = 1;
         this.populateBlockedUsersList();
         this.updateBlockedUsersCount();
     }
 
     private setBlockedUsersLoadingState(isLoading: boolean): void {
-        this.blockedUsersLoadingIndicator.classList.toggle('visible', isLoading);
-        this.blockedUsersLoadingIndicator.classList.toggle('hidden', !isLoading);
-        this.blockedUsersContent.classList.toggle('hidden', isLoading);
-        this.blockedUsersContent.classList.toggle('visible', !isLoading);
-    }
-
-    private updateBlockedUsersSectionTitle(): void {
-        const selectedBlockListName = this.blockListDropdown.getSelectedText();
-        if (selectedBlockListName) {
-            this.blockedUsersToggleButton.textContent = LABELS.BLOCKED_USERS_IN_LIST(selectedBlockListName);
-        }
+        this.blockedUsersLoadingIndicator.classList.toggle('d-none', !isLoading);
+        this.blockedUsersContent.classList.toggle('d-none', isLoading);
     }
 
     private updateBlockedUsersCount(): void {
@@ -378,127 +357,44 @@ export class BlockedUsersUI {
         this.blockedUsersCount.textContent = String(count);
     }
 
-    // Lazy loading implementation
-    private checkLazyLoadCondition(): void {
-        if (this.isLoadingNextPage) return;
-
-        const scrollContainer = this.blockedUsersList;
-        const scrollPosition = scrollContainer.scrollTop + scrollContainer.clientHeight;
-        const threshold = scrollContainer.scrollHeight - 100; // Load next page when close to bottom
-
-        // Check if there's a next page
-        const totalItems = this.currentBlockedUsersData.length;
-        const totalPages = Math.max(1, Math.ceil(totalItems / this.blockedUsersPageSize));
-        if (this.blockedUsersPage < totalPages && scrollPosition >= threshold) {
-            this.isLoadingNextPage = true;
-            this.blockedUsersPage++;
-            // Simulate delay or actual loading
-            setTimeout(() => {
-                this.populateBlockedUsersList();
-                this.isLoadingNextPage = false;
-            }, 200);
-        }
+    public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
+        await this.loadBlockedUsers(selectedUri);
     }
 
-    // Reporting logic extracted to a separate method
-    private async handleReportUser(event: Event, profileHandle: string): Promise<void> {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (!this.isLoggedIn()) {
-            this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_REPORT_USERS, 'error');
-            return;
-        }
-
-        try {
-            const reasonTypes = [
-                { code: 'com.atproto.moderation.defs#reasonSpam', label: 'Spam' },
-                { code: 'com.atproto.moderation.defs#reasonViolation', label: 'Violation' },
-                { code: 'com.atproto.moderation.defs#reasonMisleading', label: 'Misleading' },
-                { code: 'com.atproto.moderation.defs#reasonSexual', label: 'Sexual Content' },
-                { code: 'com.atproto.moderation.defs#reasonRude', label: 'Rude Behavior' },
-            ];
-
-            const reasonOptions = reasonTypes.map((r, index) => `${index + 1}. ${r.label}`).join('\n');
-            const promptMessage = `${MESSAGES.PROMPT_REPORT_REASON}\n${reasonOptions}`;
-            const reasonInput = prompt(promptMessage);
-
-            if (reasonInput !== null) {
-                const reasonIndex = parseInt(reasonInput.trim(), 10) - 1;
-                if (reasonIndex >= 0 && reasonIndex < reasonTypes.length) {
-                    const selectedReasonType = reasonTypes[reasonIndex];
-                    const userDid = await this.blockedUsersService.resolveHandleFromDid(profileHandle);
-
-                    // Ask for additional comments
-                    const comments = prompt("Please enter additional comments (optional):") || "";
-
-                    await this.blockedUsersService.reportAccount(userDid, selectedReasonType.code, comments);
-
-                    this.notificationManager.displayNotification(MESSAGES.USER_REPORTED_SUCCESS(profileHandle), 'success');
-                } else {
-                    this.notificationManager.displayNotification(MESSAGES.INVALID_REPORT_SELECTION, 'error');
-                }
-            } else {
-                this.notificationManager.displayNotification(MESSAGES.REPORT_CANCELLED, 'info');
-            }
-        } catch (error) {
-            console.error('Error reporting user:', error);
-            this.notificationManager.displayNotification(MESSAGES.FAILED_TO_REPORT_USER, 'error');
-        }
-    }
-
-    // Update posts by user when blocked/unblocked
-    private updatePostsByUser(profileHandle: string, isBlocked: boolean): void {
-        const wrappers = document.querySelectorAll<HTMLElement>(`.block-button-wrapper[data-profile-handle="${profileHandle}"]`);
-        wrappers.forEach((wrapper) => {
-            const blockButtonElement = wrapper.querySelector('.toggle-block-button') as HTMLButtonElement;
-            if (!blockButtonElement) return;
-
-            if (isBlocked) {
-                blockButtonElement.textContent = LABELS.UNBLOCK;
-                blockButtonElement.classList.remove('block-user-button', 'btn-outline-secondary');
-                blockButtonElement.classList.add('unblock-user-button', 'btn-danger');
-                wrapper.classList.remove('unblocked-post');
-                wrapper.classList.add('blocked-post');
-            } else {
-                blockButtonElement.textContent = LABELS.BLOCK;
-                blockButtonElement.classList.remove('unblock-user-button', 'btn-danger');
-                blockButtonElement.classList.add('block-user-button', 'btn-outline-secondary');
-                wrapper.classList.remove('blocked-post');
-                wrapper.classList.add('unblocked-post');
-            }
-        });
-    }
-
-    // New method to clean up event listeners and subscriptions
     public destroy(): void {
         // Remove all event listeners
-        Object.keys(this.eventHandlers).forEach((key) => {
-            const handler = this.eventHandlers[key];
-            switch (key) {
-                case 'blockedUsersLoaded':
-                    this.blockedUsersService.off('blockedUsersLoaded', handler as any);
+        Object.entries(this.eventHandlers).forEach(([event, handler]) => {
+            switch (event) {
+                case 'toggle':
+                    EventListenerHelper.removeEventListener(this.blockedUsersToggleButton, 'click', handler);
                     break;
-                case 'blockedUsersRefreshed':
-                    this.blockedUsersService.off('blockedUsersRefreshed', handler as any);
+                case 'prevPage':
+                    EventListenerHelper.removeEventListener(this.blockedUsersPrev, 'click', handler);
                     break;
-                case 'blockedUserAdded':
-                    this.blockedUsersService.off('blockedUserAdded', handler as any);
+                case 'nextPage':
+                    EventListenerHelper.removeEventListener(this.blockedUsersNext, 'click', handler);
                     break;
-                case 'blockedUserRemoved':
-                    this.blockedUsersService.off('blockedUserRemoved', handler as any);
+                case 'search':
+                    EventListenerHelper.removeEventListener(this.blockedUsersSearchInput, 'input', handler);
                     break;
-                case 'error':
-                    this.blockedUsersService.off('error', handler as any);
+                case 'refresh':
+                    EventListenerHelper.removeEventListener(this.refreshBlockedUsersButton, 'click', handler);
                     break;
-                // No need to remove DOM event listeners here as they are anonymous functions
+                default:
+                    // Handle other events if any
+                    break;
             }
         });
-
-        // Clear eventHandlers object
         this.eventHandlers = {};
 
-        // Remove all processed elements references (optional)
+        // Unsubscribe from service events
+        this.blockedUsersService.off('blockedUsersLoaded', this.eventHandlers['blockedUsersLoaded']);
+        this.blockedUsersService.off('blockedUsersRefreshed', this.eventHandlers['blockedUsersRefreshed']);
+        this.blockedUsersService.off('blockedUserAdded', this.eventHandlers['blockedUserAdded']);
+        this.blockedUsersService.off('blockedUserRemoved', this.eventHandlers['blockedUserRemoved']);
+        this.blockedUsersService.off('error', this.eventHandlers['error']);
+
+        // Clear processed elements
         this.processedElements = new WeakSet();
     }
 }

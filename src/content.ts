@@ -1,6 +1,6 @@
-import './helpers/encodeURIComponent';
-import '@public/styles.css';
+// src/content.ts
 
+import '@public/styles.css';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { BlockListDropdown } from '@src/components/BlockListDropdown';
 import { NotificationManager } from '@src/components/NotificationManager';
@@ -9,7 +9,7 @@ import { ThemeManager } from '@src/components/ThemeManager';
 import { SlideoutManager } from '@src/components/SlideoutManager';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlockedUsersUI } from '@src/components/BlockedUsersUI';
-import { MESSAGES } from '@src/constants/Constants';
+import { MESSAGES, ERRORS } from '@src/constants/Constants';
 
 class Content {
     private isLoggedIn: boolean = false;
@@ -33,17 +33,27 @@ class Content {
         this.themeManager = themeManager;
         this.blueskyService = blueskyService;
         this.blockedUsersService = new BlockedUsersService(this.blueskyService);
-
         this.initialize();
     }
 
     private initialize(): void {
         console.log('Content script initialized.');
         this.isLoggedIn = this.blueskyService.isLoggedIn();
+        this.subscribeToBlueskyServiceEvents();
         this.checkWebsite();
 
         // Listen for the window unload event to perform cleanup
         window.addEventListener('unload', () => this.destroy(), { once: true });
+    }
+
+    private subscribeToBlueskyServiceEvents(): void {
+        this.blueskyService.on('sessionExpired', this.handleSessionExpired.bind(this));
+    }
+
+    private handleSessionExpired(): void {
+        console.warn('Session expired. Logging out.');
+        this.notificationManager.displayNotification(ERRORS.SESSION_EXPIRED, 'error');
+        this.handleLogout();
     }
 
     private checkWebsite(): void {
@@ -85,11 +95,13 @@ class Content {
     private updateUI(): void {
         if (this.isLoggedIn) {
             this.slideoutManager.displayLoginInfo(this.blueskyService.getLoggedInUsername());
+
             if (!this.blockListDropdown) {
                 this.blockListDropdown = new BlockListDropdown('block-lists-dropdown', this.blueskyService);
                 this.blockListDropdown.onSelectionChange(this.handleBlockListSelectionChange.bind(this));
                 this.blockListDropdown.loadBlockLists();
             }
+
             this.slideoutManager.showBlockListsSection();
 
             if (!this.blockedUsersUI) {
@@ -97,7 +109,7 @@ class Content {
                     'blocked-users-section',
                     this.blockedUsersService,
                     this.notificationManager,
-                    this.blockListDropdown!,
+                    this.blockListDropdown,
                     () => this.isLoggedIn
                 );
             }
@@ -115,7 +127,6 @@ class Content {
             this.isLoggedIn = true;
             this.updateUI();
             this.notificationManager.displayNotification(MESSAGES.LOGIN_SUCCESS, 'success');
-            this.slideoutManager.hideSlideout();
         } else {
             this.slideoutManager.displayFormFeedback(MESSAGES.LOGIN_FAILED, 'danger');
         }
@@ -141,7 +152,7 @@ class Content {
             this.blockedUsersUI?.hideBlockedUsersSection();
             return;
         }
-        await this.blockedUsersUI?.loadBlockedUsers(selectedUri);
+        await this.blockedUsersUI?.loadBlockedUsersUI(selectedUri);
     }
 
     // New method to clean up all components
@@ -152,6 +163,7 @@ class Content {
         this.blockedUsersService.destroy();
         this.blockListDropdown?.destroy();
         this.notificationManager.destroy();
+        this.blueskyService.off('sessionExpired', this.handleSessionExpired.bind(this));
         // Optionally: Remove injected DOM elements
         // document.body.removeChild(this.slideoutManager.slideoutElement);
         // document.body.removeChild(this.slideoutManager.overlayElement);

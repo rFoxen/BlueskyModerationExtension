@@ -105,6 +105,10 @@ export class NotificationManager {
                 notification.style.transform = '';
                 notification.style.opacity = '';
             }
+
+            // Reset touch positions
+            startX = 0;
+            currentX = 0;
         };
 
         notification.addEventListener('touchstart', touchStart, { passive: true });

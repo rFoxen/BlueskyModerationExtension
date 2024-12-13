@@ -1,0 +1,131 @@
+/* Base Button Styles */
+.btn {
+    padding: var(--btn-padding, 6px 12px);
+    font-size: var(--font-size-sm);
+    border-radius: var(--border-radius);
+    transition: padding var(--transition-duration) ease, font-size var(--transition-duration) ease, transform var(--transition-duration) ease, box-shadow var(--transition-duration) ease;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn:focus {
+    outline: 2px solid var(--input-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Button Variants */
+.btn-primary {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+}
+
+.btn-primary:hover {
+    background-color: var(--button-hover-bg);
+}
+
+.btn-secondary {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--input-hover-bg);
+}
+
+.btn-danger {
+    background-color: var(--block-button-bg, #f44336);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: var(--block-button-hover-bg, #d32f2f);
+}
+
+.btn-warning {
+    background-color: var(--report-button-bg, #ffc107);
+    color: #000;
+}
+
+.btn-warning:hover {
+    background-color: var(--report-button-hover-bg, #ffb300);
+}
+
+.btn-close {
+    filter: none;
+    padding: 0;
+    font-size: 1rem;
+    background: transparent;
+    border: none;
+}
+
+.btn-close:hover {
+    filter: invert(1) brightness(2.5);
+}
+
+/* Utility Classes */
+.btn-sm {
+    padding: var(--btn-sm-padding, 4px 8px);
+    font-size: var(--font-size-xs, 0.75rem);
+}
+
+.btn-outline-secondary {
+    background-color: transparent;
+    border: 1px solid var(--input-border);
+    color: var(--button-bg);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--input-hover-bg);
+    border-color: var(--button-bg);
+}
+
+.toggle-slideout {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-image: linear-gradient(135deg, rgb(90, 113, 250), rgb(0, 133, 255));
+    color: #ffffff;
+    font-size: 1rem;
+    transition: background-color var(--transition-duration), color var(--transition-duration);
+}
+
+.toggle-slideout.hidden {
+    display: none;
+}
+
+.theme-toggle {
+    font-size: 0.9rem;
+    padding: 2px 6px;
+}
+
+/* Block & Unblock Buttons */
+.unblock-user-button {
+    background-color: var(--unblock-button-bg);
+    color: #fff;
+}
+
+.unblock-user-button:hover {
+    background-color: var(--unblock-button-hover-bg);
+}
+
+.block-user-button {
+    background-color: var(--block-button-bg);
+    color: #fff;
+}
+
+.block-user-button:hover {
+    background-color: var(--block-button-hover-bg);
+}
+
+/* Report Button */
+.report-user-button {
+    background-color: var(--report-button-bg);
+    color: #000;
+}
+
+.report-user-button:hover {
+    background-color: var(--report-button-hover-bg);
+}

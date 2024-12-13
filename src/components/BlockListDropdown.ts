@@ -108,7 +108,7 @@ export class BlockListDropdown {
         blockLists.forEach((list) => {
             const option = document.createElement('option');
             option.value = list.uri;
-            option.text = list.name || 'Unnamed List';
+            option.text = list.name || LABELS.UNNAMED_LIST;
             this.dropdownElement.add(option);
         });
     }
@@ -129,6 +129,15 @@ export class BlockListDropdown {
         } else {
             this.dropdownElement.disabled = false;
         }
+    }
+
+    private populateDropdownWithError(): void {
+        this.dropdownElement.innerHTML = '';
+        const option = document.createElement('option');
+        option.text = MESSAGES.FAILED_TO_LOAD_BLOCK_LISTS;
+        option.disabled = true;
+        option.selected = true;
+        this.dropdownElement.add(option);
     }
 
     // New method to clean up event listeners

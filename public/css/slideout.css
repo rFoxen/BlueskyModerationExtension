@@ -1,0 +1,176 @@
+/* Slideout Overlay */
+.slideout-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, var(--overlay-opacity));
+    z-index: 999;
+    display: none;
+    opacity: 0;
+    transition: opacity var(--transition-duration) ease;
+}
+
+.slideout-overlay.show {
+    display: block;
+    opacity: 1;
+}
+
+/* Slideout */
+.slideout {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--slideout-width-desktop);
+    height: 100%;
+    background-color: var(--background-color);
+    color: var(--slideout-text);
+    box-shadow: var(--slideout-box-shadow);
+    transition: transform var(--transition-duration) ease-in-out, opacity var(--transition-duration) ease-in-out;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 12px; /* Further reduced padding */
+    -webkit-overflow-scrolling: touch;
+    font-size: var(--font-size-base);
+    transform: translateX(100%); /* Initially hidden */
+    opacity: 0;
+}
+
+.slideout.show {
+    transform: translateX(0); /* Slide in */
+    opacity: 1;
+}
+
+@media (max-width: 480px) {
+    .slideout {
+        width: var(--slideout-width-mobile);
+        padding: 8px;
+    }
+
+    .slideout-content {
+        padding: 0;
+    }
+
+    /* Adjust font sizes for mobile */
+    body {
+        font-size: var(--font-size-sm);
+    }
+
+    .slideout h2 {
+        font-size: var(--font-size-lg);
+    }
+
+    .btn {
+        padding: 4px 8px;
+        font-size: var(--font-size-sm);
+    }
+
+    .form-control {
+        padding: 4px 6px;
+        font-size: var(--font-size-sm);
+    }
+
+    /* Reduce spacing in lists */
+    .list-group-item {
+        padding: 6px;
+        margin-bottom: 4px;
+    }
+
+    /* Adjust pagination buttons */
+    .pagination button {
+        margin: 0 3px;
+        padding: 2px 6px;
+        font-size: var(--font-size-sm);
+    }
+
+    #blocked-users-count {
+        font-size: 0.7rem;
+        padding: 0.1em 0.2em;
+    }
+}
+
+/* Tablet Styles */
+@media (min-width: 481px) and (max-width: 768px) {
+    body {
+        font-size: 0.9rem;
+    }
+
+    .slideout {
+        width: 80%;
+    }
+
+    .btn {
+        font-size: 0.8rem;
+    }
+}
+
+/* Header Styles */
+#slideout-title {
+    font-size: 1rem; /* Reduced font size */
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 8px; /* Reduced margin */
+}
+
+/* Toggle Slideout Button */
+.toggle-slideout {
+    position: fixed;
+    bottom: 128px; /* Slightly adjusted */
+    right: 64px;
+    width: 40px; /* Further reduced size */
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem; /* Reduced font size */
+    transition: background-color var(--transition-duration), color var(--transition-duration);
+    background-image: linear-gradient(135deg, rgb(90, 113, 250), rgb(0, 133, 255));
+    color: #ffffff;
+    z-index: 1001;
+}
+
+.toggle-slideout.hidden {
+    display: none;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    font-size: 0.9rem; /* Reduced font size */
+    padding: 2px 6px;
+}
+
+/* Focus Styles for Toggle Button */
+.toggle-slideout:focus {
+    outline: 2px solid var(--input-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Slideout Show State */
+.slideout.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px; /* Better padding for each list item */
+    border-bottom: 1px solid #ccc; /* Add separator for clarity */
+}
+
+#blocked-users-section {
+    margin: 0 auto; /* Center the section */
+}
+
+#blocked-users-content {
+    margin: 0.5rem 0.5rem; /* Center the section */
+}
+
+#blocked-users-list {
+    overflow-y: auto;
+    max-height: 400px; /* Set a max height to make the list scrollable */
+    padding: 8px 0;
+}

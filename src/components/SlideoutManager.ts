@@ -47,7 +47,7 @@ export class SlideoutManager extends EventEmitter {
     }
 
     private addEventListeners(): void {
-        // Define handlers
+        // Define handlers with general Event type and cast inside
         const closeSlideoutHandler = () => this.hideSlideout();
         const loginFormSubmitHandler = (e: Event) => this.handleLoginFormSubmit(e);
         const logoutHandler = () => this.emit('logout');
@@ -60,11 +60,14 @@ export class SlideoutManager extends EventEmitter {
             this.emit('blockButtonsToggle', isChecked);
         };
         const preventScrollWheel = (e: Event) => {
-            e.stopPropagation();
+            const wheelEvent = e as WheelEvent;
+            wheelEvent.stopPropagation();
         };
         const preventScrollTouchMove = (e: Event) => {
-            e.stopPropagation();
+            const touchEvent = e as TouchEvent;
+            touchEvent.stopPropagation();
         };
+        const keyDownHandler = (e: Event) => this.handleKeyDown(e as KeyboardEvent);
 
         // Assign to eventHandlers for later removal
         this.eventHandlers['closeSlideout'] = closeSlideoutHandler;
@@ -76,8 +79,9 @@ export class SlideoutManager extends EventEmitter {
         this.eventHandlers['blockButtonsToggle'] = blockButtonsToggleHandler;
         this.eventHandlers['preventScrollWheel'] = preventScrollWheel;
         this.eventHandlers['preventScrollTouchMove'] = preventScrollTouchMove;
+        this.eventHandlers['keyDown'] = keyDownHandler;
 
-        // Add event listeners
+        // Add event listeners using the generic helper
         EventListenerHelper.addEventListener(this.closeSlideoutButton, 'click', closeSlideoutHandler);
         EventListenerHelper.addEventListener(this.loginForm, 'submit', loginFormSubmitHandler);
         EventListenerHelper.addEventListener(this.logoutButton, 'click', logoutHandler);
@@ -87,8 +91,118 @@ export class SlideoutManager extends EventEmitter {
         EventListenerHelper.addEventListener(this.blockButtonsToggle, 'change', blockButtonsToggleHandler);
 
         // Prevent scroll propagation
-        EventListenerHelper.addEventListener(this.slideoutElement, 'wheel', preventScrollWheel, { passive: true });
-        EventListenerHelper.addEventListener(this.slideoutElement, 'touchmove', preventScrollTouchMove, { passive: true });
+        EventListenerHelper.addEventListener(this.slideoutElement, 'wheel', preventScrollWheel);
+        EventListenerHelper.addEventListener(this.slideoutElement, 'touchmove', preventScrollTouchMove);
+
+        // Add keydown listener for ESC key
+        EventListenerHelper.addEventListener(document, 'keydown', keyDownHandler);
+
+        // Add touch event listeners for swipe to close
+        this.addSwipeToCloseListeners();
+    }
+
+    private addSwipeToCloseListeners(): void {
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchCurrentX = 0;
+        let touchCurrentY = 0;
+        let isDragging = false;
+        const threshold = 100; // Minimum swipe distance in px
+        const maxTranslate = 100; // Maximum translate distance in %
+
+        const onTouchStart = (e: Event) => {
+            const touchEvent = e as TouchEvent;
+            if (touchEvent.touches.length === 1) {
+                touchStartX = touchEvent.touches[0].clientX;
+                touchStartY = touchEvent.touches[0].clientY;
+                isDragging = true;
+                this.slideoutElement.style.transition = 'none';
+            }
+        };
+
+        const onTouchMove = (e: Event) => {
+            if (!isDragging) return;
+            const touchEvent = e as TouchEvent;
+            if (touchEvent.touches.length !== 1) return;
+
+            touchCurrentX = touchEvent.touches[0].clientX;
+            touchCurrentY = touchEvent.touches[0].clientY;
+
+            const deltaX = touchCurrentX - touchStartX;
+
+            // Detect horizontal swipe only
+            if (Math.abs(deltaX) > Math.abs(touchCurrentY - touchStartY)) {
+                e.preventDefault(); // Prevent scrolling
+                if (deltaX > 0) {
+                    // Calculate translation percentage based on slideout width
+                    const slideoutWidth = this.slideoutElement.getBoundingClientRect().width;
+                    let translatePercent = (deltaX / slideoutWidth) * 100;
+                    translatePercent = Math.min(translatePercent, maxTranslate);
+                    // Cap at maxTranslate%
+                    this.slideoutElement.style.transform = `translateX(${translatePercent}%)`;
+                    this.overlayElement.style.opacity = `${0.35 * (1 - translatePercent / maxTranslate)}`;
+                }
+            }
+        };
+
+        const onTouchEnd = (e: Event) => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const deltaX = touchCurrentX - touchStartX;
+            this.slideoutElement.style.transition = `transform 0.3s ease-in-out, opacity 0.3s ease-in-out`;
+            this.overlayElement.style.transition = `opacity 0.3s ease-in-out`;
+
+            const slideoutWidth = this.slideoutElement.getBoundingClientRect().width;
+            const translatePercent = (deltaX / slideoutWidth) * 100;
+
+            if (translatePercent > (threshold / slideoutWidth) * 100) {
+                // If swipe exceeds threshold, smoothly translate out
+                this.slideoutElement.style.transform = `translateX(100%)`;
+                this.overlayElement.style.opacity = '0';
+                // After transition ends, hide the slideout
+                this.slideoutElement.addEventListener(
+                    'transitionend',
+                    this.handleTransitionEnd.bind(this),
+                    { once: true }
+                );
+            } else {
+                // Otherwise, reset to original position
+                this.slideoutElement.style.transform = 'translateX(0)';
+                this.overlayElement.style.opacity = '0.35';
+            }
+
+            // Reset touch positions
+            touchStartX = 0;
+            touchStartY = 0;
+            touchCurrentX = 0;
+            touchCurrentY = 0;
+        };
+
+        const handleTransitionEnd = () => {
+            this.hideSlideoutInternal();
+        };
+
+        // Store handlers for cleanup
+        this.eventHandlers['touchStart'] = onTouchStart;
+        this.eventHandlers['touchMove'] = onTouchMove;
+        this.eventHandlers['touchEnd'] = onTouchEnd;
+        this.eventHandlers['handleTransitionEnd'] = handleTransitionEnd;
+
+        // Add touch event listeners to slideout using the generic helper
+        EventListenerHelper.addEventListener(this.slideoutElement, 'touchstart', onTouchStart, { passive: true });
+        EventListenerHelper.addEventListener(this.slideoutElement, 'touchmove', onTouchMove, { passive: false });
+        EventListenerHelper.addEventListener(this.slideoutElement, 'touchend', onTouchEnd);
+    }
+
+    private handleTransitionEnd(): void {
+        this.hideSlideoutInternal();
+    }
+
+    private handleKeyDown(e: KeyboardEvent): void {
+        if (e.key === 'Escape') {
+            this.hideSlideout();
+        }
     }
 
     private async handleLoginFormSubmit(event: Event): Promise<void> {
@@ -100,8 +214,12 @@ export class SlideoutManager extends EventEmitter {
 
         if (!username || !password) {
             this.displayFormFeedback(ERRORS.BOTH_FIELDS_REQUIRED, 'danger');
+            this.markInputAsInvalid(usernameInput, passwordInput);
             return;
         }
+
+        // Reset invalid states
+        this.markInputAsValid(usernameInput, passwordInput);
 
         this.emit('login', username, password);
     }
@@ -135,11 +253,9 @@ export class SlideoutManager extends EventEmitter {
             feedback.className = 'form-feedback alert';
             this.loginForm.prepend(feedback);
         }
-
         feedback.classList.remove('alert-success', 'alert-danger', 'd-none');
         feedback.classList.add(`alert-${type}`);
         feedback.textContent = message;
-
         setTimeout(() => {
             feedback.classList.add('d-none');
         }, 3000);
@@ -151,13 +267,31 @@ export class SlideoutManager extends EventEmitter {
         this.toggleButton.classList.add('hidden');
         document.body.classList.add('no-scroll');
         StorageHelper.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, true);
+        // Reset transform and opacity in case they were altered during swipe
+        this.slideoutElement.style.transform = 'translateX(0)';
+        this.overlayElement.style.opacity = '0.35';
+        // Focus Management: Trap focus within the slideout
+        this.trapFocus();
     }
 
     public hideSlideout(): void {
+        // Start hiding with smooth transition
+        this.slideoutElement.style.transform = `translateX(100%)`;
+        this.overlayElement.style.opacity = '0';
+        // After transition ends, remove 'show' class and reset styles
+        this.slideoutElement.addEventListener('transitionend', this.handleTransitionEnd.bind(this), { once: true });
+        // Release focus trapping
+        this.releaseFocus();
+    }
+
+    private hideSlideoutInternal(): void {
         this.slideoutElement.classList.remove('show');
         this.overlayElement.classList.remove('show');
         this.toggleButton.classList.remove('hidden');
         document.body.classList.remove('no-scroll');
+        // Reset transform and opacity
+        this.slideoutElement.style.transform = 'translateX(100%)';
+        this.overlayElement.style.opacity = '0';
         StorageHelper.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, false);
     }
 
@@ -166,7 +300,7 @@ export class SlideoutManager extends EventEmitter {
         if (savedState) {
             this.showSlideout();
         } else {
-            this.hideSlideout();
+            this.hideSlideoutInternal();
         }
 
         const blockButtonsVisible = StorageHelper.getBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, true);
@@ -178,12 +312,63 @@ export class SlideoutManager extends EventEmitter {
         return StorageHelper.getBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, true);
     }
 
-    // New method to clean up event listeners
+    // Focus Management Methods
+    private trapFocus(): void {
+        const focusableElements = this.slideoutElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstFocusable = focusableElements[0];
+        const lastFocusable = focusableElements[focusableElements.length - 1];
+
+        const handleTab = (e: Event) => {
+            const keyboardEvent = e as KeyboardEvent;
+            if (keyboardEvent.key !== 'Tab') return;
+
+            if (keyboardEvent.shiftKey) {
+                // Shift + Tab
+                if (document.activeElement === firstFocusable) {
+                    keyboardEvent.preventDefault();
+                    lastFocusable.focus();
+                }
+            } else {
+                // Tab
+                if (document.activeElement === lastFocusable) {
+                    keyboardEvent.preventDefault();
+                    firstFocusable.focus();
+                }
+            }
+        };
+
+        this.slideoutElement.addEventListener('keydown', handleTab);
+        this.eventHandlers['trapFocus'] = handleTab;
+    }
+
+    private releaseFocus(): void {
+        const handleTab = this.eventHandlers['trapFocus'];
+        if (handleTab) {
+            this.slideoutElement.removeEventListener('keydown', handleTab);
+            delete this.eventHandlers['trapFocus'];
+        }
+    }
+
+    private markInputAsInvalid(...inputs: HTMLInputElement[]): void {
+        inputs.forEach((input) => {
+            input.setAttribute('aria-invalid', 'true');
+            input.classList.add('is-invalid');
+        });
+    }
+
+    private markInputAsValid(...inputs: HTMLInputElement[]): void {
+        inputs.forEach((input) => {
+            input.setAttribute('aria-invalid', 'false');
+            input.classList.remove('is-invalid');
+        });
+    }
+
     public destroy(): void {
         // Remove all event listeners
-        Object.keys(this.eventHandlers).forEach((key) => {
-            const handler = this.eventHandlers[key];
-            switch (key) {
+        Object.entries(this.eventHandlers).forEach(([event, handler]) => {
+            switch (event) {
                 case 'closeSlideout':
                     EventListenerHelper.removeEventListener(this.closeSlideoutButton, 'click', handler);
                     break;
@@ -211,11 +396,26 @@ export class SlideoutManager extends EventEmitter {
                 case 'preventScrollTouchMove':
                     EventListenerHelper.removeEventListener(this.slideoutElement, 'touchmove', handler);
                     break;
+                case 'keyDown':
+                    EventListenerHelper.removeEventListener(document, 'keydown', handler as EventListener);
+                    break;
+                case 'trapFocus':
+                    this.slideoutElement.removeEventListener('keydown', handler as EventListener);
+                    break;
+                case 'handleTransitionEnd':
+                    this.slideoutElement.removeEventListener('transitionend', handler as EventListener);
+                    break;
+                default:
+                    // Handle other events if any
+                    break;
             }
         });
 
         // Clear eventHandlers object
         this.eventHandlers = {};
+
+        // Release focus trapping if active
+        this.releaseFocus();
 
         // Optionally: Remove the slideout and overlay from the DOM
         // document.body.removeChild(this.slideoutElement);

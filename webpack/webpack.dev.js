@@ -2,6 +2,8 @@
 
 const { merge } = require('webpack-merge');
 const common = require('./webpack.common.js');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const path = require('path'); // Add path if not already present
 
 module.exports = merge(common, {
     mode: 'development',
@@ -11,13 +13,16 @@ module.exports = merge(common, {
     },
     module: {
         rules: [
-            // CSS rule for development
+            // Updated CSS rule for development
             {
                 test: /\.css$/,
-                use: ['style-loader', 'css-loader'], // Use style-loader in development
+                use: [MiniCssExtractPlugin.loader, 'css-loader'], // Use MiniCssExtractPlugin in development
             },
         ],
     },
     plugins: [
+        new MiniCssExtractPlugin({
+            filename: '[name].css', // Extracted CSS files will be named after the entry points
+        }),
     ],
 });

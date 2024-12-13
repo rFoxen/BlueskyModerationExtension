@@ -1,0 +1,70 @@
+/* Responsive Styles */
+
+/* Mobile Devices */
+@media (max-width: 480px) {
+    body {
+        font-size: var(--font-size-sm);
+    }
+
+    .slideout {
+        width: var(--slideout-width-mobile);
+        padding: 8px;
+    }
+
+    .slideout-content {
+        padding: 0;
+    }
+
+    /* Adjust font sizes for mobile */
+    .slideout h2 {
+        font-size: var(--font-size-lg);
+    }
+
+    .btn {
+        padding: 4px 8px;
+        font-size: var(--font-size-sm);
+    }
+
+    .form-control {
+        padding: 4px 6px;
+        font-size: var(--font-size-sm);
+    }
+
+    /* Reduce spacing in lists */
+    .list-group-item {
+        padding: 6px;
+        margin-bottom: 4px;
+    }
+
+    /* Adjust pagination buttons */
+    .pagination button {
+        margin: 0 3px;
+        padding: 2px 6px;
+        font-size: var(--font-size-sm);
+    }
+
+    #blocked-users-count {
+        font-size: 0.7rem;
+        padding: 0.1em 0.2em;
+    }
+}
+
+/* Tablet Devices */
+@media (min-width: 481px) and (max-width: 768px) {
+    body {
+        font-size: 0.9rem;
+    }
+
+    .slideout {
+        width: 80%;
+    }
+
+    .btn {
+        font-size: 0.8rem;
+    }
+}
+
+/* Landscape Orientation on Mobile */
+@media (max-width: 480px) and (orientation: landscape) {
+    /* Additional landscape-specific styles can be added here */
+}

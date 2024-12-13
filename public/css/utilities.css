@@ -1,0 +1,193 @@
+/* Utility Classes */
+
+/* Text Utilities */
+.text-muted {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* Display Utilities */
+.hidden {
+    display: none !important;
+}
+.visible {
+    display: block !important;
+}
+
+/* Flex Utilities */
+.flex {
+    display: flex;
+}
+.flex-column {
+    flex-direction: column;
+}
+.flex-row {
+    flex-direction: row;
+}
+.align-center {
+    align-items: center;
+}
+.justify-center {
+    justify-content: center;
+}
+.justify-between {
+    justify-content: space-between;
+}
+.gap-1 {
+    gap: 0.25rem;
+}
+.gap-2 {
+    gap: 0.5rem;
+}
+
+/* Wrapper for Block Button */
+.block-button-wrapper {
+}
+
+/* Button Container */
+.button-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0.5rem;
+    /* Remove the width property */
+    /* width: 100%; */
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap; /* Allow buttons to wrap if necessary */
+}
+
+.button-container .btn {
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: 0.75rem; /* Smaller font size */
+    padding: 0.3rem 0.6rem; /* Reduced padding */
+    max-width: 80px; /* Limit button width */
+    box-sizing: border-box;
+}
+
+/* Focus Styles for Buttons within Button Container */
+.button-container .btn:focus {
+    outline: 2px solid var(--input-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Accordion Styles */
+.accordion {
+    border: 1px solid var(--input-border);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.accordion-header {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color var(--transition-duration) ease;
+    width: 100%;
+}
+
+.accordion-header:hover {
+    background-color: var(--input-bg);
+}
+
+.accordion-header::after {
+    content: '';
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-right: 2px solid var(--text-color);
+    border-bottom: 2px solid var(--text-color);
+    transform: rotate(45deg);
+    transition: transform var(--transition-duration) ease;
+    margin-left: 0.5rem;
+}
+
+.accordion-header[aria-expanded="true"]::after {
+    transform: rotate(-135deg);
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-duration) ease, opacity var(--transition-duration) ease;
+    opacity: 0;
+}
+
+.accordion-content.d-none {
+    max-height: 0;
+    opacity: 0;
+}
+
+.accordion-content:not(.d-none) {
+    max-height: 500px; /* Adjust as needed */
+    opacity: 1;
+}
+
+.accordion-icon {
+    transition: transform var(--transition-duration) ease;
+}
+
+.accordion-header[aria-expanded="true"] .accordion-icon {
+    transform: rotate(180deg);
+}
+
+#blocked-users-toggle {
+    border: none;
+}
+
+/* Hover Effects */
+#blocked-users-toggle:hover {
+    background-color: var(--input-bg); /* Subtle background change on hover */
+    transform: scale(1.02);
+}
+
+/* Blocked Users Count */
+#blocked-users-count {
+    font-size: 0.7rem;
+    padding: 0.1em 0.2em;
+}
+
+/* Additional Styles to Ensure Cohesive Design */
+#blocked-users-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+#blocked-users-list .list-group-item {
+    padding: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+#blocked-users-pagination {
+    display: flex;
+    justify-content: center; /* Centers the buttons horizontally */
+    align-items: center; /* Aligns items vertically */
+    gap: 0.5rem; /* Adds spacing between buttons */
+    margin-top: 1rem; /* Adds spacing from the content above */
+}
+
+#blocked-users-pagination .btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+#blocked-users-search {
+    font-size: var(--font-size-sm);
+}
+
+#blocked-users-loading {
+    font-size: var(--font-size-sm);
+}
+
+/* Accordion Content Open State */
+.accordion-header.active + .accordion-content {
+    max-height: 1000px; /* Ensure it can accommodate content */
+    opacity: 1;
+    transition: max-height var(--transition-duration) ease, opacity var(--transition-duration) ease;
+}

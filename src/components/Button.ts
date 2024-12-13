@@ -16,7 +16,16 @@ export class Button {
 
     constructor(options: ButtonOptions) {
         const { id, classNames, text, type = 'button', ariaLabel } = options;
-        const buttonHTML = template({ id, classNames, text, type, ariaLabel });
+        let buttonHTML: string;
+
+        try {
+            buttonHTML = template({ id, classNames, text, type, ariaLabel });
+        } catch (error) {
+            console.error('Error rendering button template:', error);
+            // Fallback to a simple button if template rendering fails
+            buttonHTML = `<button id="${id}" class="${classNames}" type="${type}" aria-label="${ariaLabel || ''}">${text}</button>`;
+        }
+
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = buttonHTML.trim();
         this.element = tempDiv.firstChild as HTMLButtonElement;

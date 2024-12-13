@@ -2,7 +2,7 @@
 
 import { EventEmitter } from '@src/utils/EventEmitter';
 import { BlueskyService } from '@src/services/BlueskyService';
-import { STORAGE_KEYS, ERRORS } from '@src/constants/Constants';
+import { STORAGE_KEYS, ERRORS, LABELS } from '@src/constants/Constants';
 
 declare var chrome: any;
 
@@ -12,7 +12,13 @@ export class BlockedUsersService extends EventEmitter {
     constructor(private blueskyService: BlueskyService) {
         super();
     }
-
+    
+    public async getBlockListName(listUri: string): Promise<string> {
+        if (!this.blueskyService) throw new Error(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+        const response = await this.blueskyService.getBlockListName(listUri);
+        return response || LABELS.UNNAMED_LIST;
+    }
+    
     public async loadBlockedUsers(listUri: string): Promise<void> {
         try {
             const cachedData = await this.getBlockedUsersFromStorage(listUri);
@@ -24,7 +30,8 @@ export class BlockedUsersService extends EventEmitter {
                 await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             }
             this.emit('blockedUsersLoaded', this.blockedUsersData);
-        } catch {
+        } catch (error) {
+            console.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
         }
     }
@@ -35,7 +42,8 @@ export class BlockedUsersService extends EventEmitter {
             this.blockedUsersData = blockedUsers;
             await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             this.emit('blockedUsersRefreshed', this.blockedUsersData);
-        } catch {
+        } catch (error) {
+            console.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
         }
     }
@@ -53,19 +61,23 @@ export class BlockedUsersService extends EventEmitter {
             this.blockedUsersData.unshift(newItem);
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserAdded', newItem);
-        } catch {
+        } catch (error) {
+            console.error('Failed to add blocked user:', error);
             this.emit('error', 'Failed to add blocked user.');
         }
     }
 
     public async removeBlockedUser(userHandle: string, listUri: string): Promise<void> {
         try {
+            await this.blueskyService.unblockUser(userHandle, listUri);
+            
             this.blockedUsersData = this.blockedUsersData.filter(
                 (item) => (item.subject.handle || item.subject.did) !== userHandle
             );
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserRemoved', userHandle);
-        } catch {
+        } catch (error) {
+            console.error('Failed to remove blocked user:', error);
             this.emit('error', 'Failed to remove blocked user.');
         }
     }
