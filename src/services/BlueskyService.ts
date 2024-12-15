@@ -132,26 +132,43 @@ export class BlueskyService extends EventEmitter {
     }
 
     public async blockUser(userHandle: string, listUri: string): Promise<any> {
-        if (!this.agent.session) return;
-        const userDid = await this.resolveDidFromHandle(userHandle);
-        if (userDid === this.agent.session.did) throw new Error('Cannot block yourself.');
+        if (!this.agent.session) {
+            console.error('No active session. Cannot block user.');
+            return;
+        }
 
-        const body = {
-            collection: 'app.bsky.graph.listitem',
-            record: {
-                $type: 'app.bsky.graph.listitem',
-                createdAt: new Date().toISOString(),
-                list: listUri,
-                subject: userDid,
-            },
-            repo: this.agent.session.did,
-        };
+        try {
+            const userDid = await this.resolveDidFromHandle(userHandle);
+            if (userDid === this.agent.session.did) {
+                console.error('Attempted to block oneself.');
+                throw new Error('Cannot block yourself.');
+            }
 
-        return this.fetchWithAuth(API_ENDPOINTS.CREATE_RECORD, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
+            const body = {
+                collection: 'app.bsky.graph.listitem',
+                record: {
+                    $type: 'app.bsky.graph.listitem',
+                    createdAt: new Date().toISOString(),
+                    list: listUri,
+                    subject: userDid,
+                },
+                repo: this.agent.session.did,
+            };
+
+            console.log(`Blocking user "${userHandle}" with DID "${userDid}" in list "${listUri}". Payload:`, body);
+
+            const response = await this.fetchWithAuth(API_ENDPOINTS.CREATE_RECORD, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            console.log(`Block user response for "${userHandle}":`, response);
+            return response;
+        } catch (error) {
+            console.error(`Failed to block user "${userHandle}":`, error);
+            throw error;
+        }
     }
 
     public async unblockUser(userHandle: string, listUri: string): Promise<any> {
@@ -190,49 +207,51 @@ export class BlueskyService extends EventEmitter {
             Authorization: `Bearer ${accessJwt}`,
         };
 
-        const response = await fetch(url, options);
-        if (response.ok) {
-            return response.json();
-        }
+        try {
+            const response = await fetch(url, options);
+            if (response.ok) {
+                return response.json();
+            }
 
-        // If we hit a 401, try to refresh the session first
-        if (response.status === 401) {
-            // Attempt to refresh session
-            const refreshed = await this.tryRefreshSession();
-            if (refreshed) {
-                // If refresh succeeded, retry the request with the new access token
-                const newAccessJwt = this.agent.session?.accessJwt || '';
-                if (!newAccessJwt) {
-                    // Should never happen if refresh succeeded, but just in case
+            // If we hit a 401, try to refresh the session first
+            if (response.status === 401) {
+                const refreshed = await this.tryRefreshSession();
+                if (refreshed) {
+                    const newAccessJwt = this.agent.session?.accessJwt || '';
+                    if (!newAccessJwt) {
+                        this.emit('sessionExpired');
+                        throw new Error(ERRORS.SESSION_EXPIRED);
+                    }
+                    const retryOptions = {
+                        ...options,
+                        headers: {
+                            ...options.headers,
+                            Authorization: `Bearer ${newAccessJwt}`,
+                        },
+                    };
+                    const retryResponse = await fetch(url, retryOptions);
+                    if (!retryResponse.ok) {
+                        const errorData = await retryResponse.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
+                        console.error(`API Error after retry: ${retryResponse.status} - ${errorData.message}`);
+                        throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
+                    }
+                    return retryResponse.json();
+                } else {
                     this.emit('sessionExpired');
                     throw new Error(ERRORS.SESSION_EXPIRED);
                 }
-
-                const retryOptions = {
-                    ...options,
-                    headers: {
-                        ...options.headers,
-                        Authorization: `Bearer ${newAccessJwt}`,
-                    },
-                };
-                const retryResponse = await fetch(url, retryOptions);
-                if (!retryResponse.ok) {
-                    // If retry still fails, we consider it a normal error
-                    const errorData = await retryResponse.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
-                    throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
-                }
-                return retryResponse.json();
-            } else {
-                // Refresh failed
-                this.emit('sessionExpired');
-                throw new Error(ERRORS.SESSION_EXPIRED);
             }
-        }
 
-        // Handle other non-OK statuses
-        const errorData = await response.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
-        throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
+            // Log other non-OK statuses
+            const errorData = await response.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
+            console.error(`API Error: ${response.status} - ${errorData.message}`);
+            throw new Error(errorData.message || ERRORS.UNKNOWN_ERROR);
+        } catch (error) {
+            console.error(`Fetch error for URL "${url}":`, error);
+            throw error;
+        }
     }
+
 
     private async tryRefreshSession(): Promise<boolean> {
         if (!this.agent.session?.refreshJwt) return false;
@@ -259,13 +278,53 @@ export class BlueskyService extends EventEmitter {
             reasonType: reasonType,
             subject: subject,
         };
-
-        const result = await this.fetchWithAuth("https://bsky.social/xrpc/com.atproto.moderation.createReport", {
+        
+        const result = await this.fetchWithAuth(API_ENDPOINTS.REPORT_ACCOUNT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
         });
         return result;
+    }
+
+    public async getAccountCreationDate(userDidOrHandle: string): Promise<Date | null> {
+        const url = `https://bsky.social/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(userDidOrHandle)}`;
+
+        try {
+            const profile = await this.fetchWithAuth(url, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+            if (profile.createdAt) {
+                return new Date(profile.createdAt);
+            } else {
+                console.error('Creation date not found in profile data.');
+                return null;
+            }
+        } catch (error) {
+            console.error(`Failed to fetch account creation date for ${userDidOrHandle}:`, error);
+            return null;
+        }
+    }
+
+    public async getAccountProfile(userDidOrHandle: string): Promise<{ creationDate: Date | null; postsCount: number | null }> {
+        
+        const url = `https://bsky.social/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(userDidOrHandle)}`;
+
+        try {
+            const profile = await this.fetchWithAuth(url, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+
+            const creationDate = profile.createdAt ? new Date(profile.createdAt) : null;
+            const postsCount = profile.postsCount || null;
+
+            return { creationDate, postsCount };
+        } catch (error) {
+            console.error(`Error fetching profile for ${userDidOrHandle}:`, error);
+            return { creationDate: null, postsCount: null };
+        }
     }
 
     public destroy(): void {

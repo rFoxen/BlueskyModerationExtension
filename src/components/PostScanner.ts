@@ -5,6 +5,9 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { LABELS, MESSAGES, ERRORS, ARIA_LABELS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/EventListenerHelper';
 import { MutationObserverManager } from '@src/utils/MutationObserverManager';
+import { PostActionButtonsFactory } from './PostActionButtonsFactory';
+import { PostTypeDeterminer } from '@src/utils/PostTypeDeterminer';
+import { UserReporter } from './UserReporter';
 
 type PostType =
     | 'post'
@@ -22,10 +25,8 @@ export class PostScanner {
     private getSelectedBlockList: () => string | null;
     private onUserBlocked: (userHandle: string) => Promise<void>;
     private onUserUnblocked: (userHandle: string) => Promise<void>;
-
     private blueskyService: BlueskyService;
     private blockedUsersService: BlockedUsersService;
-
     private observer: MutationObserver | null = null;
     private blockButtonsVisible: boolean = true;
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
@@ -54,6 +55,11 @@ export class PostScanner {
     // Define eventHandlers as an object to store event handler functions
     private eventHandlers: { [key: string]: EventListener } = {};
 
+    private buttonsFactory: PostActionButtonsFactory;
+    private postTypeDeterminer: PostTypeDeterminer;
+    
+    private userReporter: UserReporter;
+
     constructor(
         notificationManager: NotificationManager,
         blueskyService: BlueskyService,
@@ -72,10 +78,20 @@ export class PostScanner {
         this.onUserBlocked = onUserBlocked;
         this.onUserUnblocked = onUserUnblocked;
         this.blockButtonsVisible = getBlockButtonsToggleState();
+
+        this.buttonsFactory = new PostActionButtonsFactory(this.notificationManager, this.blockedUsersService); // Initialize factory
+
+        this.postTypeDeterminer = new PostTypeDeterminer();
         
         this.mutationManager = new MutationObserverManager(
             this.handleMutations.bind(this),
             { childList: true, subtree: true }
+        );
+        
+        this.userReporter = new UserReporter(
+            this.notificationManager,
+            this.blockedUsersService,
+            this.isLoggedIn
         );
         
         this.subscribeToBlockedUsersServiceEvents();
@@ -148,10 +164,11 @@ export class PostScanner {
     private scanElement(element: HTMLElement): void {
         if (this.processedElements.has(element)) return;
         if (!this.isWithinListContainer(element)) return;
-
-        const postType = this.determinePostType(element);
+        
+        const postType = this.postTypeDeterminer.determinePostType(element);
         if (postType && this.processElement(element, postType)) {
             this.processedElements.add(element);
+
             // If quoted-repost, scan nested posts once more
             if (postType === 'quoted-repost') {
                 const nestedPosts = element.querySelectorAll<HTMLElement>(
@@ -159,7 +176,7 @@ export class PostScanner {
                 );
                 nestedPosts.forEach((nestedPost) => {
                     if (!this.processedElements.has(nestedPost) && this.isWithinListContainer(nestedPost)) {
-                        const nestedType = this.determinePostType(nestedPost) || 'post';
+                        const nestedType = this.postTypeDeterminer.determinePostType(nestedPost) || 'post';
                         if (this.processElement(nestedPost, nestedType)) {
                             this.processedElements.add(nestedPost);
                         }
@@ -172,7 +189,7 @@ export class PostScanner {
         const descendants = element.querySelectorAll<HTMLElement>(this.postSelectors);
         descendants.forEach((descendant) => {
             if (!this.processedElements.has(descendant) && this.isWithinListContainer(descendant)) {
-                const descendantType = this.determinePostType(descendant);
+                const descendantType = this.postTypeDeterminer.determinePostType(descendant);
                 if (descendantType && this.processElement(descendant, descendantType)) {
                     this.processedElements.add(descendant);
                 }
@@ -185,73 +202,28 @@ export class PostScanner {
         return !!element.closest(containerQuery);
     }
 
-    private determinePostType(element: HTMLElement): PostType | null {
-        const testId = element.getAttribute('data-testid') || '';
-        const textContent = element.textContent?.toLowerCase() || '';
-        const profileLink = element.querySelector('a[href^="/profile/"]') as HTMLAnchorElement | null;
-
-        // block-list-item
-        if (testId.startsWith('user-')) {
-            return 'block-list-item';
-        }
-
-        // feed or thread items
-        const isPostItem = testId.startsWith('feedItem-by-') || testId.startsWith('postThreadItem-by-');
-        if (isPostItem) {
-            if (textContent.includes('reposted by')) {
-                const nestedPost = element.querySelector('[data-testid^="feedItem-by-"], [data-testid^="postThreadItem-by-"]');
-                return nestedPost ? 'quoted-repost' : 'repost';
-            }
-            if (textContent.includes('reply to ')) {
-                return 'reply';
-            }
-            if (textContent.includes('reply to you')) {
-                return 'notification-reply';
-            }
-            if (textContent.includes('liked your post')) {
-                return 'notification-like';
-            }
-            return 'post';
-        }
-
-        // people-search-item
-        if (
-            profileLink &&
-            !testId.startsWith('feedItem-by-') &&
-            !testId.startsWith('postThreadItem-by-') &&
-            !testId.startsWith('user-')
-        ) {
-            const followButton = element.querySelector('button')?.textContent?.toLowerCase();
-            if (followButton === 'follow') {
-                return 'people-search-item';
-            }
-        }
-
-        // If profile link exists but no patterns match, treat as normal post or reply
-        if (profileLink) {
-            if (textContent.includes('reply to ')) {
-                return 'reply';
-            }
-            // Check if multiple posts inside
-            const descendantPosts = element.querySelectorAll('div[role="link"][tabindex="0"]');
-            if (descendantPosts.length > 1) return null;
-            return 'post';
-        }
-
-        return null;
-    }
-
     private processElement(element: HTMLElement, postType: PostType): boolean {
-        const profileLink = element.querySelector('a[href^="/profile/"]') as HTMLAnchorElement | null;
-        if (!profileLink) {
-            // No profile handle: just label post type
-            this.addPostTypeLabel(element, postType);
-            return true;
+        if (this.processedElements.has(element)) return false;
+
+        let profileHandle: string | null = null;
+
+        if (postType === 'repost' || postType === 'quoted-repost') {
+            // Extract original poster's handle from data-testid
+            const dataTestId = element.getAttribute('data-testid') || '';
+            const match = dataTestId.match(/feedItem-by-([^.\s]+)/);
+            if (match && match[1]) {
+                profileHandle = `${match[1]}.bsky.social`; // Construct full handle
+            }
+        } else {
+            // For regular posts, get handle from profile link
+            const profileLink = element.querySelector('a[href^="/profile/"]') as HTMLAnchorElement | null;
+            if (profileLink) {
+                profileHandle = this.getProfileHandleFromLink(profileLink);
+            }
         }
 
-        const profileHandle = this.getProfileHandleFromLink(profileLink);
         if (!profileHandle) {
-            // No handle: just label
+            // Handle cases where profileHandle couldn't be determined
             this.addPostTypeLabel(element, postType);
             return true;
         }
@@ -288,15 +260,16 @@ export class PostScanner {
             wrapper.setAttribute('data-post-type', postType);
             const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
             wrapper.classList.add(isUserBlocked ? 'blocked-post' : 'unblocked-post');
-            this.addPostTypeLabel(wrapper, postType);
 
-            // Insert wrapper before element in the DOM tree
-            element.parentNode?.insertBefore(wrapper, element);
-            wrapper.appendChild(element);
-
-            if (!wrapper.querySelector('.toggle-block-button')) {
-                this.addBlockAndReportButtons(wrapper, profileHandle);
+            // Wrap the content of the element instead of the element itself
+            while (element.firstChild) {
+                wrapper.appendChild(element.firstChild);
             }
+            element.appendChild(wrapper);
+
+            // Add labels and buttons
+            this.addPostTypeLabel(wrapper, postType);
+            this.addBlockAndReportButtons(wrapper, profileHandle);
 
             if (!this.blockButtonsVisible) {
                 const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
@@ -324,39 +297,117 @@ export class PostScanner {
 
     private addBlockAndReportButtons(wrapper: HTMLElement, profileHandle: string): void {
         const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
-        const blockButtonText = isUserBlocked ? LABELS.UNBLOCK : LABELS.BLOCK;
-        const blockButtonClasses = isUserBlocked
-            ? 'toggle-block-button btn btn-danger btn-sm'
-            : 'toggle-block-button btn btn-outline-secondary btn-sm';
 
-        const blockButton = new Button({
-            classNames: blockButtonClasses,
-            text: blockButtonText,
-            ariaLabel: isUserBlocked
-                ? ARIA_LABELS.UNBLOCK_USER(profileHandle)
-                : ARIA_LABELS.BLOCK_USER(profileHandle),
+        // Utilize the PostActionButtonsFactory to create buttons
+        const buttonContainer = this.buttonsFactory.createButtons({
+            profileHandle,
+            isUserBlocked,
+            onBlock: this.handleBlockUser.bind(this),
+            onReport: this.handleReportUser.bind(this),
         });
+        
+        this.addAccountFreshness(buttonContainer, profileHandle);
 
-        const reportButton = new Button({
-            classNames: 'report-user-button btn btn-warning btn-sm',
-            text: LABELS.REPORT,
-            ariaLabel: ARIA_LABELS.REPORT_USER(profileHandle),
-        });
-
-        const buttonContainer = document.createElement('div');
-        buttonContainer.classList.add('button-container');
-        buttonContainer.appendChild(blockButton.element);
-        buttonContainer.appendChild(reportButton.element);
-        wrapper.appendChild(buttonContainer);
-
-        blockButton.addEventListener('click', async (event: Event) => {
-            await this.handleBlockUser(event, profileHandle, blockButton);
-        });
-
-        reportButton.addEventListener('click', (event: Event) => {
-            this.handleReportUser(event, profileHandle);
-        });
+        wrapper.append(buttonContainer);
+        
     }
+
+    private async addAccountFreshness(container: HTMLElement, profileHandle: string): Promise<void> {
+        const freshnessElement = document.createElement('div');
+        freshnessElement.className = 'account-freshness';
+        freshnessElement.textContent = 'Loading...';
+        container.prepend(freshnessElement);
+
+        try {
+            const { creationDate, postsCount } = await this.blueskyService.getAccountProfile(profileHandle);
+
+            if (creationDate) {
+                const now = new Date();
+                const accountAge = Math.floor((now.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24)); // Days
+
+                // Reverse Newton's Law of Cooling to calculate hotness for newer accounts
+                const T_env = 0; // "Cool" baseline for old accounts
+                const T_max = 100; // Maximum "hotness" for new accounts
+                const k = 0.01; // Cooling constant
+                const T_t = T_max * Math.exp(-k * accountAge) + T_env;
+
+                // Set account age text
+                const accountAgeText =
+                    accountAge < 30
+                        ? `${accountAge} days old`
+                        : `${Math.floor(accountAge / 30)} months old`;
+
+                const postCountText = postsCount !== null ? `${postsCount} posts` : 'Unknown posts count';
+
+                freshnessElement.textContent = `Account age: ${accountAgeText}, ${postCountText}`;
+                freshnessElement.style.color = this.getFreshnessColor(T_t); // Apply reversed color coding
+            } else {
+                freshnessElement.textContent = 'Account age: Unknown, posts count: Unknown';
+                freshnessElement.style.color = 'gray'; // Default for unknown
+            }
+        } catch (error) {
+            console.error(`Error fetching account freshness for ${profileHandle}:`, error);
+            freshnessElement.textContent = 'Account age: Error, posts count: Error';
+            freshnessElement.style.color = 'gray'; // Error state
+        }
+    }
+
+    /**
+     * Determines a color based on the hotness value, mapping fresher accounts to hotter colors.
+     * @param hotness - The calculated hotness value (0-100).
+     * @returns A color string (e.g., `rgb(r, g, b)`).
+     */
+    private getFreshnessColor(hotness: number): string {
+        // Normalize hotness to a 0-1 range
+        const normalized = Math.min(Math.max(hotness / 100, 0), 1);
+
+        // Define gradient colors (blue → green → yellow → orange → red)
+        const colors = [
+            { r: 0, g: 0, b: 255 }, // Blue (Coolest)
+            { r: 0, g: 128, b: 0 }, // Green
+            { r: 255, g: 255, b: 0 }, // Yellow
+            { r: 255, g: 165, b: 0 }, // Orange
+            { r: 255, g: 0, b: 0 }, // Red (Hottest)
+        ];
+
+        // Calculate color stops
+        const steps = colors.length - 1;
+        const step = Math.floor(normalized * steps);
+        const t = (normalized * steps) - step; // Fractional part for interpolation
+
+        // Interpolate between colors[step] and colors[step + 1]
+        const start = colors[step];
+        const end = colors[step + 1] || colors[step];
+        const r = Math.round(start.r + t * (end.r - start.r));
+        const g = Math.round(start.g + t * (end.g - start.g));
+        const b = Math.round(start.b + t * (end.b - start.b));
+
+        // Adjust for dark background (#161e27)
+        return this.ensureReadableColor(r, g, b);
+    }
+
+    /**
+     * Adjusts color brightness to ensure readability on a dark background.
+     * @param r - Red value (0-255).
+     * @param g - Green value (0-255).
+     * @param b - Blue value (0-255).
+     * @returns An adjusted color string (e.g., `rgb(r, g, b)`).
+     */
+    private ensureReadableColor(r: number, g: number, b: number): string {
+        const backgroundLuminance = 0.1; // Approximation for #161e27
+        const luminance = 0.2126 * r / 255 + 0.7152 * g / 255 + 0.0722 * b / 255;
+
+        // If luminance is too close to the background, increase brightness
+        if (Math.abs(luminance - backgroundLuminance) < 0.3) {
+            r = Math.min(r + 50, 255);
+            g = Math.min(g + 50, 255);
+            b = Math.min(b + 50, 255);
+        }
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+
 
     private getProfileHandleFromLink(profileLink: HTMLAnchorElement): string | null {
         const href = profileLink.getAttribute('href');
@@ -365,99 +416,57 @@ export class PostScanner {
         return match ? match[1] : null;
     }
 
-    private async handleReportUser(event: Event, profileHandle: string): Promise<void> {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (!this.isLoggedIn()) {
-            this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_REPORT_USERS, 'error');
-            return;
-        }
-
-        try {
-            const reasonTypes = [
-                { code: 'com.atproto.moderation.defs#reasonSpam', label: 'Spam' },
-                { code: 'com.atproto.moderation.defs#reasonViolation', label: 'Violation' },
-                { code: 'com.atproto.moderation.defs#reasonMisleading', label: 'Misleading' },
-                { code: 'com.atproto.moderation.defs#reasonSexual', label: 'Sexual Content' },
-                { code: 'com.atproto.moderation.defs#reasonRude', label: 'Rude Behavior' },
-            ];
-
-            const reasonOptions = reasonTypes.map((r, index) => `${index + 1}. ${r.label}`).join('\n');
-            const promptMessage = `${MESSAGES.PROMPT_REPORT_REASON}\n${reasonOptions}`;
-            const reasonInput = prompt(promptMessage);
-
-            if (reasonInput !== null) {
-                const reasonIndex = parseInt(reasonInput.trim(), 10) - 1;
-                if (reasonIndex >= 0 && reasonIndex < reasonTypes.length) {
-                    const selectedReasonType = reasonTypes[reasonIndex];
-                    const userDid = await this.blockedUsersService.resolveHandleFromDid(profileHandle);
-                    const comments = prompt(LABELS.PROMPT_ADDITIONAL_COMMENTS) || '';
-                    await this.blockedUsersService.reportAccount(userDid, selectedReasonType.code, comments);
-                    this.notificationManager.displayNotification(MESSAGES.USER_REPORTED_SUCCESS(profileHandle), 'success');
-                } else {
-                    this.notificationManager.displayNotification(MESSAGES.INVALID_REPORT_SELECTION, 'error');
-                }
-            } else {
-                this.notificationManager.displayNotification(MESSAGES.REPORT_CANCELLED, 'info');
-            }
-        } catch (error) {
-            console.error('Error reporting user:', error);
-            this.notificationManager.displayNotification(MESSAGES.FAILED_TO_REPORT_USER, 'error');
-        }
+    private async handleReportUser(profileHandle: string): Promise<void> {
+        await this.userReporter.reportUser(profileHandle);
     }
 
-    private async handleBlockUser(event: Event, profileHandle: string, blockButton: Button): Promise<void> {
-        event.preventDefault();
-        event.stopPropagation();
-
+    private async handleBlockUser(userHandle: string, blockButton: Button): Promise<void> {
         if (!this.isLoggedIn()) {
             this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_BLOCK_USERS, 'error');
             return;
         }
-
         const selectedBlockList = this.getSelectedBlockList();
         if (!selectedBlockList) {
             this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
             return;
         }
-
         try {
             const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
             if (isBlocking) {
-                const response = await this.blueskyService.blockUser(profileHandle, selectedBlockList);
+                const response = await this.blueskyService.blockUser(userHandle, selectedBlockList);
                 if (response) {
-                    await this.onUserBlocked(profileHandle);
-                    this.updatePostsByUser(profileHandle, true);
+                    await this.onUserBlocked(userHandle);
+                    this.updatePostsByUser(userHandle, true);
                     const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
                     this.notificationManager.displayNotification(
-                        MESSAGES.USER_BLOCKED_SUCCESS(profileHandle, selectedBlockListName),
+                        MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
                         'success'
                     );
                 } else {
                     throw new Error(ERRORS.UNKNOWN_ERROR);
                 }
             } else {
-                const response = await this.blueskyService.unblockUser(profileHandle, selectedBlockList);
+                const response = await this.blueskyService.unblockUser(userHandle, selectedBlockList);
                 if (response) {
-                    await this.onUserUnblocked(profileHandle);
-                    this.updatePostsByUser(profileHandle, false);
-                    this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(profileHandle), 'success');
+                    await this.onUserUnblocked(userHandle);
+                    this.updatePostsByUser(userHandle, false);
+                    this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
                 } else {
                     throw new Error(ERRORS.UNKNOWN_ERROR);
                 }
             }
-        } catch {
-            this.notificationManager.displayNotification(MESSAGES.FAILED_TO_BLOCK_USER, 'error');
+        } catch (error) {
+            console.error(`Error blocking/unblocking user "${userHandle}":`, error);
+            this.notificationManager.displayNotification(ERRORS.FAILED_TO_BLOCK_USER, 'error');
         }
     }
+
 
     private updatePostsByUser(profileHandle: string, isBlocked: boolean): void {
         const wrappers = document.querySelectorAll<HTMLElement>(`.block-button-wrapper[data-profile-handle="${profileHandle}"]`);
         wrappers.forEach((wrapper) => {
             const blockButtonElement = wrapper.querySelector('.toggle-block-button') as HTMLButtonElement;
             if (!blockButtonElement) return;
-
             if (isBlocked) {
                 blockButtonElement.textContent = LABELS.UNBLOCK;
                 blockButtonElement.classList.remove('btn-outline-secondary');
@@ -493,6 +502,7 @@ export class PostScanner {
 
     public destroy(): void {
         this.mutationManager.destroy();
+
         // Clear eventHandlers as PostScanner no longer has references to external elements
         this.eventHandlers = {};
 
