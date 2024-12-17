@@ -6,7 +6,10 @@ import { LABELS, ARIA_LABELS, ERRORS, STORAGE_KEYS } from '@src/constants/Consta
 import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
 import { StateManager } from '@src/utils/state/StateManager';
 import { LoginHandler } from '@src/components/authentication/LoginHandler';
-import { UserInfoManager } from '@src/components/authentication/UserInfoManager'; // Added import
+import { UserInfoManager } from '@src/components/authentication/UserInfoManager';
+
+// Added import for Bootstrap's Tab functionality if needed
+// Alternatively, manage tabs via TypeScript
 
 export class SlideoutManager extends EventEmitter {
     private view: SlideoutView;
@@ -14,11 +17,11 @@ export class SlideoutManager extends EventEmitter {
     private swipeHandler: SwipeGestureHandler | null = null;
     private stateManager: StateManager;
     private loginHandler: LoginHandler;
-    private userInfoManager: UserInfoManager; // Added property
+    private userInfoManager: UserInfoManager;
 
     // Store references to event handlers for cleanup
     private eventHandlers: { [key: string]: EventListener } = {};
- 
+
     constructor() {
         super();
         this.view = new SlideoutView();
@@ -41,6 +44,7 @@ export class SlideoutManager extends EventEmitter {
 
         this.addEventListeners();
         this.applySavedState();
+        this.initializeTabListeners(); // Initialize tab event listeners
     }
 
     private addEventListeners(): void {
@@ -216,6 +220,53 @@ export class SlideoutManager extends EventEmitter {
         this.stateManager.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, false);
     }
 
+    // Initialize Tab Event Listeners
+    private initializeTabListeners(): void {
+        const tabButtons = this.view.tabList.querySelectorAll('.nav-link');
+        tabButtons.forEach((tabButton) => {
+            EventListenerHelper.addEventListener(tabButton as HTMLElement, 'click', this.handleTabClick.bind(this));
+        });
+        this.eventHandlers['tabClick'] = this.handleTabClick.bind(this);
+    }
+
+    private handleTabClick(event: Event): void {
+        const clickedTab = event.target as HTMLElement;
+        const targetPaneId = clickedTab.getAttribute('data-bs-target');
+        if (!targetPaneId) return;
+
+        // Deactivate all tabs
+        const allTabs = this.view.tabList.querySelectorAll('.nav-link');
+        allTabs.forEach((tab) => {
+            tab.classList.remove('active');
+            tab.setAttribute('aria-selected', 'false');
+        });
+
+        // Activate the clicked tab
+        clickedTab.classList.add('active');
+        clickedTab.setAttribute('aria-selected', 'true');
+
+        // Hide all tab panes
+        const allPanes = this.view.tabContent.querySelectorAll('.tab-pane');
+        allPanes.forEach((pane) => {
+            pane.classList.remove('show', 'active');
+            pane.setAttribute('aria-hidden', 'true');
+        });
+
+        // Show the targeted tab pane
+        const targetPane = this.view.tabContent.querySelector(targetPaneId) as HTMLElement;
+        if (targetPane) {
+            targetPane.classList.add('show', 'active');
+            targetPane.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    private destroyTabListeners(): void {
+        const tabButtons = this.view.tabList.querySelectorAll('.nav-link');
+        tabButtons.forEach((tabButton) => {
+            EventListenerHelper.removeEventListener(tabButton as HTMLElement, 'click', this.eventHandlers['tabClick']);
+        });
+    }
+
     public destroy(): void {
         // Remove all event listeners
         Object.entries(this.eventHandlers).forEach(([event, handler]) => {
@@ -246,6 +297,9 @@ export class SlideoutManager extends EventEmitter {
                     break;
                 case 'keyDown':
                     EventListenerHelper.removeEventListener(document, 'keydown', handler as EventListener);
+                    break;
+                case 'tabClick':
+                    this.destroyTabListeners();
                     break;
                 default:
                     // Handle other events if any

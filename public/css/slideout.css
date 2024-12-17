@@ -42,48 +42,84 @@
     opacity: 1;
 }
 
+/* Tabs within Slideout */
+.nav-tabs {
+    margin-bottom: 1rem;
+}
+
+.nav-tabs .nav-link {
+    cursor: pointer;
+    color: var(--text-color); /* Default text color */
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--background-color);
+    border-color: #dee2e6 #dee2e6 #fff;
+    color: var(--text-color); /* Ensure active tab text color matches theme */
+}
+
+.nav-tabs .nav-link:hover {
+    background-color: var(--input-bg);
+    color: var(--text-color); /* Ensure hover tab text color matches theme */
+}
+
+/* Dark Mode Styles for Tabs */
+body.dark-mode .nav-tabs .nav-link {
+    color: var(--slideout-text); /* Light text on dark background */
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    color: var(--slideout-text);
+}
+
+body.dark-mode .nav-tabs .nav-link:hover {
+    color: var(--slideout-text);
+}
+
+/* Tab Content */
+.tab-content {
+    padding-top: 0.5rem;
+}
+
+.tab-pane {
+    /* Ensure tab panes have proper spacing */
+}
+
+/* Responsive Styles */
 @media (max-width: 480px) {
     .slideout {
         width: var(--slideout-width-mobile);
         padding: 8px;
     }
-
     .slideout-content {
         padding: 0;
     }
-
     /* Adjust font sizes for mobile */
     body {
         font-size: var(--font-size-sm);
     }
-
     .slideout h2 {
         font-size: var(--font-size-lg);
     }
-
     .btn {
         padding: 4px 8px;
         font-size: var(--font-size-sm);
     }
-
     .form-control {
         padding: 4px 6px;
         font-size: var(--font-size-sm);
     }
-
     /* Reduce spacing in lists */
     .list-group-item {
         padding: 6px;
         margin-bottom: 4px;
     }
-
     /* Adjust pagination buttons */
     .pagination button {
         margin: 0 3px;
         padding: 2px 6px;
         font-size: var(--font-size-sm);
     }
-
     #blocked-users-count {
         font-size: 0.7rem;
         padding: 0.1em 0.2em;
@@ -95,11 +131,9 @@
     body {
         font-size: 0.9rem;
     }
-
     .slideout {
         width: 80%;
     }
-
     .btn {
         font-size: 0.8rem;
     }
@@ -174,4 +208,94 @@
     overflow-y: auto;
     max-height: 400px; /* Set a max height to make the list scrollable */
     padding: 8px 0;
+}
+
+/* Tab Navigation Styles */
+.nav-tabs .nav-link {
+    cursor: pointer;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--background-color);
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.nav-tabs .nav-link:hover {
+    background-color: var(--input-bg);
+}
+
+/* Accordion within Tabs */
+.accordion-header {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color var(--transition-duration) ease;
+    width: 100%;
+}
+
+.accordion-header:hover {
+    background-color: var(--input-bg);
+}
+
+.accordion-header::after {
+    content: '';
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-right: 2px solid var(--text-color);
+    border-bottom: 2px solid var(--text-color);
+    transform: rotate(45deg);
+    transition: transform var(--transition-duration) ease;
+    margin-left: 0.5rem;
+}
+
+.accordion-header[aria-expanded="true"]::after {
+    transform: rotate(-135deg);
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-duration) ease, opacity var(--transition-duration) ease;
+    opacity: 0;
+}
+
+.accordion-content.d-none {
+    max-height: 0;
+    opacity: 0;
+}
+
+.accordion-content:not(.d-none) {
+    max-height: 500px; /* Adjust as needed */
+    opacity: 1;
+}
+
+.accordion-icon {
+    transition: transform var(--transition-duration) ease;
+}
+
+.accordion-header[aria-expanded="true"] .accordion-icon {
+    transform: rotate(180deg);
+}
+
+/* Additional Styles for Tab Panes */
+.tab-pane {
+    padding: 1rem 0;
+}
+
+/* Ensure active tab has correct colors in dark mode */
+body.dark-mode .nav-tabs .nav-link {
+    color: var(--slideout-text);
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    color: var(--slideout-text);
+}
+
+body.dark-mode .nav-tabs .nav-link:hover {
+    color: var(--slideout-text);
 }

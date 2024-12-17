@@ -15,9 +15,14 @@ export class SlideoutView {
     public closeSlideoutButton: HTMLElement;
     public blockButtonsToggle: HTMLInputElement;
 
+    // New References for Tabs
+    public tabList: HTMLElement;
+    public tabContent: HTMLElement;
+    public blockedUsersToggle: HTMLElement;
+    public blockedUsersContent: HTMLElement;
+
     constructor() {
         this.injectSlideout();
-
         this.slideoutElement = document.getElementById('login-slideout')!;
         this.overlayElement = document.getElementById('slideout-overlay')!;
         this.toggleButton = document.getElementById('toggle-slideout')!;
@@ -29,6 +34,14 @@ export class SlideoutView {
         this.blockListsSection = document.getElementById('block-lists-section')!;
         this.closeSlideoutButton = document.getElementById('close-slideout')!;
         this.blockButtonsToggle = document.getElementById('block-buttons-toggle') as HTMLInputElement;
+
+        // Initialize new tab references
+        this.tabList = this.slideoutElement.querySelector('#slideoutTabs')!;
+        this.tabContent = this.slideoutElement.querySelector('#slideoutTabsContent')!;
+
+        // Initialize accordion references
+        this.blockedUsersToggle = this.slideoutElement.querySelector('#blocked-users-toggle')!;
+        this.blockedUsersContent = this.slideoutElement.querySelector('#blocked-users-content')!;
     }
 
     private injectSlideout(): void {

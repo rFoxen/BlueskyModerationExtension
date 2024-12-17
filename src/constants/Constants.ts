@@ -12,10 +12,8 @@ export const MESSAGES = {
     LOADING_BLOCK_LISTS: 'Loading block lists...',
     SELECT_BLOCK_LIST: 'Select a block list',
     LOGIN_REQUIRED_TO_BLOCK_USERS: 'Please log in to block users.',
-    USER_BLOCKED_SUCCESS: (userHandle: string, listName: string) =>
-        `User @${userHandle} has been added to "${listName}" block list.`,
-    USER_UNBLOCKED_SUCCESS: (userHandle: string) =>
-        `User @${userHandle} has been unblocked.`,
+    USER_BLOCKED_SUCCESS: (userHandle: string, listName: string) => `User @${userHandle} has been added to "${listName}" block list.`,
+    USER_UNBLOCKED_SUCCESS: (userHandle: string) => `User @${userHandle} has been unblocked.`,
     LOGIN_REQUIRED_TO_REPORT_USERS: 'Please log in to report users.',
     PROMPT_REPORT_REASON: 'Please enter a reason for reporting this user:',
     USER_REPORTED_SUCCESS: (username: string) => `User ${username} has been reported.`,
@@ -35,13 +33,11 @@ export const LABELS = {
     SWITCH_THEME: 'Switch Theme',
     BLOCK_LIST_SELECTION: 'Select Block List (Used when you click "Block")',
     BLOCKED_USERS: 'Blocked Users',
-    BLOCKED_USERS_IN_LIST: (listName: string) =>
-        `Blocked Users in "${listName}"`,
+    BLOCKED_USERS_IN_LIST: (listName: string) => `Blocked Users in "${listName}"`,
     NO_USERS_FOUND: 'No users found.',
     PREVIOUS: 'Previous',
     NEXT: 'Next',
-    PAGE_INFO: (currentPage: number, totalPages: number) =>
-        `Page ${currentPage} of ${totalPages}`,
+    PAGE_INFO: (currentPage: number, totalPages: number) => `Page ${currentPage} of ${totalPages}`,
     BLOCK: 'Block',
     UNBLOCK: 'Unblock',
     REPORT: 'Report',
@@ -54,6 +50,9 @@ export const LABELS = {
     UNNAMED_LIST: 'Unnamed List',
     UNKNOWN_USER: 'Unknown User',
     PROMPT_ADDITIONAL_COMMENTS: 'Please enter additional comments (optional):',
+    // New Labels for Tabs
+    LOGIN_TAB: 'Login',
+    BLOCKED_USERS_TAB: 'Blocked Users',
 };
 
 export const ARIA_LABELS = {
@@ -87,12 +86,9 @@ export const ERRORS = {
     FAILED_TO_SAVE_THEME_PREFERENCE: 'Failed to save theme preference.',
     FAILED_TO_RETRIEVE_THEME_PREFERENCE: 'Failed to retrieve saved theme.',
     FAILED_TO_SAVE_SELECTED_BLOCK_LIST: 'Failed to save selected block list.',
-    FAILED_TO_RETRIEVE_SELECTED_BLOCK_LIST:
-        'Failed to retrieve saved block list.',
-    FAILED_TO_SAVE_BLOCKED_USERS_TOGGLE_STATE:
-        'Failed to save blocked users toggle state.',
-    FAILED_TO_RETRIEVE_BLOCKED_USERS_TOGGLE_STATE:
-        'Failed to retrieve blocked users toggle state.',
+    FAILED_TO_RETRIEVE_SELECTED_BLOCK_LIST: 'Failed to retrieve saved block list.',
+    FAILED_TO_SAVE_BLOCKED_USERS_TOGGLE_STATE: 'Failed to save blocked users toggle state.',
+    FAILED_TO_RETRIEVE_BLOCKED_USERS_TOGGLE_STATE: 'Failed to retrieve blocked users toggle state.',
     FAILED_TO_SAVE_BLOCKED_USERS: 'Failed to save blocked users data.',
     FAILED_TO_LOAD_BLOCKED_USERS: 'Failed to load blocked users data.',
     FAILED_TO_RESOLVE_HANDLE_FROM_DID: 'Failed to resolve handle from DID.',

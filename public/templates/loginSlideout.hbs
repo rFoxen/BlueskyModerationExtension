@@ -5,84 +5,116 @@
             <h2 id="slideout-title" class="h6">{{labels.EXTENSION_TITLE}}</h2>
             <button id="close-slideout" type="button" class="btn-close" aria-label="{{ariaLabels.CLOSE_SLIDEOUT}}"></button>
         </div>
-        <form id="login-form" aria-describedby="login-description" class="d-none">
-            <p id="login-description" class="text-muted mb-2">Enter your credentials to log in.</p>
-            <div class="mb-2">
-                <label for="username" class="form-label">{{labels.USERNAME}}</label>
-                <input type="text" id="username" name="username" class="form-control" required aria-required="true" >
-            </div>
-            <div class="mb-2">
-                <label for="password" class="form-label">{{labels.PASSWORD}}</label>
-                <input type="password" id="password" name="password" class="form-control" required aria-required="true" >
-            </div>
-            <button type="submit" class="btn btn-primary w-100 mb-2" aria-label="{{ariaLabels.SUBMIT_LOGIN}}">{{labels.LOGIN}}</button>
-        </form>
-        <!-- User Info Section -->
-        <div id="user-info" class="mt-2 d-none">
-            <p class="mb-1">Logged in as:</p>
-            <p id="logged-in-username" class="fw-bold text-truncate"></p>
-            <div class="mt-2 d-flex justify-content-between align-items-center">
-                <button id="logout-button" type="button" class="btn btn-secondary btn-sm" aria-label="{{ariaLabels.LOGOUT}}">
-                    {{labels.LOGOUT}}
+
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs" id="slideoutTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-tab-pane" type="button" role="tab" aria-controls="login-tab-pane" aria-selected="true">
+                    {{labels.LOGIN_TAB}}
                 </button>
-                <button id="theme-toggle" type="button" class="btn btn-outline-secondary btn-sm" aria-label="{{ariaLabels.THEME_TOGGLE}}">
-                    🌙
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="blocked-users-tab" data-bs-toggle="tab" data-bs-target="#blocked-users-tab-pane" type="button" role="tab" aria-controls="blocked-users-tab-pane" aria-selected="false">
+                    {{labels.BLOCKED_USERS_TAB}}
                 </button>
+            </li>
+            <!-- Add more tabs here if needed -->
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="slideoutTabsContent">
+
+            <!-- Login Tab Pane -->
+            <div class="tab-pane fade show active" id="login-tab-pane" role="tabpanel" aria-labelledby="login-tab">
+                <form id="login-form" aria-describedby="login-description" class="d-none">
+                    <p id="login-description" class="text-muted mb-2">Enter your credentials to log in.</p>
+                    <div class="mb-2">
+                        <label for="username" class="form-label">{{labels.USERNAME}}</label>
+                        <input type="text" id="username" name="username" class="form-control" required aria-required="true">
+                    </div>
+                    <div class="mb-2">
+                        <label for="password" class="form-label">{{labels.PASSWORD}}</label>
+                        <input type="password" id="password" name="password" class="form-control" required aria-required="true">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mb-2" aria-label="{{ariaLabels.SUBMIT_LOGIN}}">{{labels.LOGIN}}</button>
+                </form>
+
+                <!-- User Info Section -->
+                <div id="user-info" class="mt-2 d-none">
+                    <p class="mb-1">Logged in as:</p>
+                    <p id="logged-in-username" class="fw-bold text-truncate"></p>
+                    <div class="mt-2 d-flex justify-content-between align-items-center">
+                        <button id="logout-button" type="button" class="btn btn-secondary btn-sm" aria-label="{{ariaLabels.LOGOUT}}">
+                            {{labels.LOGOUT}}
+                        </button>
+                        <button id="theme-toggle" type="button" class="btn btn-outline-secondary btn-sm" aria-label="{{ariaLabels.THEME_TOGGLE}}">
+                            🌙
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Block Buttons Toggle -->
+                <div id="block-buttons-toggle-section" class="mt-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="block-buttons-toggle" checked aria-label="{{ariaLabels.TOGGLE_BLOCK_BUTTONS}}">
+                        <label class="form-check-label" for="block-buttons-toggle">
+                            {{labels.SHOW_BLOCK_BUTTONS}}
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Dropdown for Block Lists -->
+                <div id="block-lists-section" class="mt-3 d-none">
+                    <h3>Block List Selection</h3>
+                    <label for="block-lists-dropdown" class="form-label"> {{labels.BLOCK_LIST_SELECTION}} </label>
+                    <div class="d-flex align-items-center mb-2">
+                        <select id="block-lists-dropdown" class="form-select" aria-label="{{labels.SELECT_BLOCK_LIST}}">
+                            <option disabled selected>{{labels.SELECT_BLOCK_LIST_PLACEHOLDER}}</option>
+                            <!-- Block list options will be populated dynamically -->
+                        </select>
+                        <button id="refresh-block-lists" type="button" class="btn btn-sm btn-outline-secondary ms-2" aria-label="{{ariaLabels.REFRESH_BLOCK_LISTS}}">
+                            ↻
+                        </button>
+                    </div>
+                </div>
+
+                <div id="blocked-users-loading" class="text-center d-none">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    {{labels.LOADING_BLOCKED_USERS}}
+                </div>
             </div>
-        </div>
-        <!-- Block Buttons Toggle -->
-        <div id="block-buttons-toggle-section" class="mt-3">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="block-buttons-toggle" checked aria-label="{{ariaLabels.TOGGLE_BLOCK_BUTTONS}}">
-                <label class="form-check-label" for="block-buttons-toggle">
-                    {{labels.SHOW_BLOCK_BUTTONS}}
-                </label>
-            </div>
-        </div>
-        <!-- Dropdown for Block Lists -->
-        <div id="block-lists-section" class="mt-3 d-none">
-            <h3>Block List Selection</h3>
-            <label for="block-lists-dropdown" class="form-label">
-                {{labels.BLOCK_LIST_SELECTION}}
-            </label>
-            <div class="d-flex align-items-center mb-2">
-                <select id="block-lists-dropdown" class="form-select" aria-label="{{labels.SELECT_BLOCK_LIST}}">
-                    <option disabled selected>{{labels.SELECT_BLOCK_LIST_PLACEHOLDER}}</option>
-                    <!-- Block list options will be populated dynamically -->
-                </select>
-                <button id="refresh-block-lists" type="button" class="btn btn-sm btn-outline-secondary ms-2" aria-label="{{ariaLabels.REFRESH_BLOCK_LISTS}}">
-                    ↻
-                </button>
-            </div>
-        </div>
-        <div id="blocked-users-loading" class="text-center d-none">
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            {{labels.LOADING_BLOCKED_USERS}}
-        </div>
-        <!-- Blocked Users Accordion Section -->
-        <div id="blocked-users-section" class="mt-3 d-none accordion">
-            <button type="button" id="blocked-users-toggle" class="accordion-header d-flex justify-content-between align-items-center" aria-expanded="true" aria-controls="blocked-users-content">
-                <span>{{labels.BLOCKED_USERS}}</span>
-                <span id="blocked-users-count" class="badge bg-primary ms-2" aria-live="polite">0</span>
-                <span class="accordion-icon"></span>
-            </button>
-            <div id="blocked-users-content" class="accordion-content d-none">
-                <div class="d-flex align-items-center mb-2">
-                    <input type="text" id="blocked-users-search" class="form-control me-2" placeholder="{{labels.SEARCH_BLOCKED_USERS}}">
-                    <button id="refresh-blocked-users" type="button" class="btn btn-sm btn-outline-secondary" aria-label="{{ariaLabels.REFRESH_BLOCKED_USERS}}">
-                        ↻
+
+            <!-- Blocked Users Tab Pane -->
+            <div class="tab-pane fade" id="blocked-users-tab-pane" role="tabpanel" aria-labelledby="blocked-users-tab">
+                <!-- Blocked Users Accordion Section -->
+                <div id="blocked-users-section" class="mt-3 accordion">
+                    <button type="button" id="blocked-users-toggle" class="accordion-header d-flex justify-content-between align-items-center" aria-expanded="false" aria-controls="blocked-users-content">
+                        <span>{{labels.BLOCKED_USERS}}</span>
+                        <span id="blocked-users-count" class="badge bg-primary ms-2" aria-live="polite">0</span>
+                        <span class="accordion-icon"></span>
                     </button>
-                </div>
-                <div id="blocked-users-list" class="list-group">
-                    <!-- Blocked users will be dynamically populated here -->
-                </div>
-                <!-- Pagination Controls -->
-                <div id="blocked-users-pagination" class="pagination">
-                    <button id="blocked-users-prev" class="btn btn-sm btn-outline-secondary" disabled>{{labels.PREVIOUS}}</button>
-                    <span id="blocked-users-page-info">{{labels.PAGE_INFO 1 1}}</span>
-                    <button id="blocked-users-next" class="btn btn-sm btn-outline-secondary" disabled>{{labels.NEXT}}</button>
+                    <div id="blocked-users-content" class="accordion-content d-none">
+                        <div class="d-flex align-items-center mb-2">
+                            <input type="text" id="blocked-users-search" class="form-control me-2" placeholder="{{labels.SEARCH_BLOCKED_USERS}}">
+                            <button id="refresh-blocked-users" type="button" class="btn btn-sm btn-outline-secondary" aria-label="{{ariaLabels.REFRESH_BLOCKED_USERS}}">
+                                ↻
+                            </button>
+                        </div>
+                        <div id="blocked-users-list" class="list-group">
+                            <!-- Blocked users will be dynamically populated here -->
+                        </div>
+                        <!-- Pagination Controls -->
+                        <div id="blocked-users-pagination" class="pagination">
+                            <button id="blocked-users-prev" class="btn btn-sm btn-outline-secondary" disabled>{{labels.PREVIOUS}}</button>
+                            <span id="blocked-users-page-info">{{labels.PAGE_INFO 1 1}}</span>
+                            <button id="blocked-users-next" class="btn btn-sm btn-outline-secondary" disabled>{{labels.NEXT}}</button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Add more tab panes here if needed -->
+
         </div>
     </div>
 </div>

@@ -42,6 +42,12 @@
     --notification-error-bg: #dc3545;
     --notification-info-bg: #17a2b8;
     --notification-bg: #323232;
+    
+    /* Tab Colors */
+    --tab-text-color: var(--text-color);
+    --tab-active-text-color: var(--button-bg);
+    --tab-hover-bg-color: var(--input-bg);
+    --tab-active-bg-color: var(--background-color);
 }
 
 /* Dark Mode Variables */
@@ -64,4 +70,10 @@ body.dark-mode {
     --notification-error-bg: #f44336;
     --notification-info-bg: #03a9f4;
     --notification-bg: #424242;
+    
+    /* Tab Colors for Dark Mode */
+    --tab-text-color: var(--slideout-text);
+    --tab-active-text-color: var(--button-bg);
+    --tab-hover-bg-color: #333333; /* Darker hover background */
+    --tab-active-bg-color: var(--slideout-bg);
 }
