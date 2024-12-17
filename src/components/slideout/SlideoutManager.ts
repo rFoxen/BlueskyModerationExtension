@@ -1,12 +1,12 @@
-import { SlideoutView } from './SlideoutView';
-import { EventEmitter } from '@src/utils/EventEmitter';
-import { FocusManager } from '@src/utils/FocusManager';
-import { SwipeGestureHandler } from '@src/utils/SwipeGestureHandler';
+import { SlideoutView } from '@src/components/slideout/SlideoutView';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
+import { FocusManager } from '@src/utils/dom/FocusManager';
+import { SwipeGestureHandler } from '@src/utils/dom/SwipeGestureHandler';
 import { LABELS, ARIA_LABELS, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
-import { EventListenerHelper } from '@src/utils/EventListenerHelper';
-import { StateManager } from '@src/utils/StateManager';
-import { LoginHandler } from './LoginHandler';
-import { UserInfoManager } from './UserInfoManager'; // Added import
+import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
+import { StateManager } from '@src/utils/state/StateManager';
+import { LoginHandler } from '@src/components/authentication/LoginHandler';
+import { UserInfoManager } from '@src/components/authentication/UserInfoManager'; // Added import
 
 export class SlideoutManager extends EventEmitter {
     private view: SlideoutView;
@@ -18,7 +18,7 @@ export class SlideoutManager extends EventEmitter {
 
     // Store references to event handlers for cleanup
     private eventHandlers: { [key: string]: EventListener } = {};
-
+ 
     constructor() {
         super();
         this.view = new SlideoutView();

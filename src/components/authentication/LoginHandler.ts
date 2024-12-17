@@ -1,4 +1,4 @@
-import { EventEmitter } from '@src/utils/EventEmitter';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { ERRORS } from '@src/constants/Constants';
 
 export interface LoginHandlerOptions {

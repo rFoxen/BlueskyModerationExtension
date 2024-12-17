@@ -1,14 +1,12 @@
-// src/content.ts
-
 import '@public/styles.css';
 import { BlueskyService } from '@src/services/BlueskyService';
-import { BlockListDropdown } from '@src/components/BlockListDropdown';
-import { NotificationManager } from '@src/components/NotificationManager';
-import { PostScanner } from '@src/components/PostScanner';
-import { ThemeManager } from '@src/components/ThemeManager';
-import { SlideoutManager } from '@src/components/SlideoutManager';
+import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
+import { NotificationManager } from '@src/components/common/NotificationManager';
+import { PostScanner } from '@src/components/posts/PostScanner';
+import { ThemeManager } from '@src/components/theme/ThemeManager'; 
+import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
-import { BlockedUsersUI } from '@src/components/BlockedUsersUI';
+import { BlockedUsersUI } from '@src/components/blockedUsers/BlockedUsersUI';
 import { MESSAGES, ERRORS } from '@src/constants/Constants';
 
 class Content {
@@ -26,13 +24,14 @@ class Content {
         notificationManager: NotificationManager,
         slideoutManager: SlideoutManager,
         themeManager: ThemeManager,
-        blueskyService: BlueskyService
+        blueskyService: BlueskyService,
+        blockedUsersService: BlockedUsersService
     ) {
         this.notificationManager = notificationManager;
         this.slideoutManager = slideoutManager;
         this.themeManager = themeManager;
         this.blueskyService = blueskyService;
-        this.blockedUsersService = new BlockedUsersService(this.blueskyService);
+        this.blockedUsersService = blockedUsersService;
         this.initialize();
     }
 
@@ -76,8 +75,7 @@ class Content {
                     const selectedUri = this.blockListDropdown?.getSelectedValue();
                     if (!selectedUri) return;
                     await this.blockedUsersService.removeBlockedUser(userHandle, selectedUri);
-                },
-                () => this.slideoutManager.getBlockButtonsToggleState()
+                }
             );
 
             this.slideoutManager.on('themeToggle', () => this.themeManager.toggleTheme());
@@ -173,5 +171,6 @@ const slideoutManager = new SlideoutManager();
 const themeToggleButton = document.getElementById('theme-toggle') as HTMLElement;
 const themeManager = new ThemeManager(themeToggleButton);
 const blueskyService = new BlueskyService();
+const blockedUsersService = new BlockedUsersService(blueskyService);
 
-new Content(notificationManager, slideoutManager, themeManager, blueskyService);
+new Content(notificationManager, slideoutManager, themeManager, blueskyService, blockedUsersService);

@@ -1,11 +1,11 @@
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
-import { NotificationManager } from './NotificationManager';
-import { BlockListDropdown } from './BlockListDropdown';
+import { NotificationManager } from '@src/components/common/NotificationManager';
+import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
 import blockedUserItemTemplate from '@public/templates/blockedUserItem.hbs';
 import { LABELS, MESSAGES, ERRORS, STORAGE_KEYS, ARIA_LABELS } from '@src/constants/Constants';
-import { EventListenerHelper } from '@src/utils/EventListenerHelper';
-import { StorageHelper } from '@src/utils/StorageHelper';
-import { Button } from './Button';
+import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
+import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+import { Button } from '@src/components/common/Button';
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
     let timeout: number | null = null;
@@ -30,7 +30,7 @@ export class BlockedUsersUI {
     private blockedUsersCount: HTMLElement;
     private blockedUsersSearchInput: HTMLInputElement;
     private blockedUsersPrev: HTMLButtonElement;
-    private blockedUsersNext: HTMLButtonElement;
+    private blockedUsersNext: HTMLButtonElement; 
     private pageInfo: HTMLElement;
     private refreshBlockedUsersButton: HTMLElement;
 
@@ -315,7 +315,7 @@ export class BlockedUsersUI {
             this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
         } catch (error) {
             console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
-            this.notificationManager.displayNotification(MESSAGES.FAILED_TO_UNBLOCK_USER, 'error');
+            this.notificationManager.displayNotification(ERRORS.FAILED_TO_UNBLOCK_USER, 'error');
         }
     }
 

@@ -1,5 +1,3 @@
-// src/utils/EventListenerHelper.ts
-
 type EventMap = HTMLElementEventMap & DocumentEventMap & WindowEventMap;
 
 export class EventListenerHelper {

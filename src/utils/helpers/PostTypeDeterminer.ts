@@ -1,5 +1,3 @@
-// src/utils/PostTypeDeterminer.ts
-
 type PostType =
     | 'post'
     | 'repost'

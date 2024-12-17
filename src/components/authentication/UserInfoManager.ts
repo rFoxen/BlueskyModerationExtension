@@ -1,5 +1,5 @@
 import { LABELS, ARIA_LABELS } from '@src/constants/Constants';
-import { EventEmitter } from '@src/utils/EventEmitter';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
 
 export interface UserInfoManagerOptions {
     loggedInUsernameElement: HTMLElement;
@@ -16,7 +16,7 @@ export class UserInfoManager extends EventEmitter {
         super();
         this.loggedInUsernameElement = options.loggedInUsernameElement;
         this.userInfoSectionElement = options.userInfoSectionElement;
-        this.loginFormElement = options.loginFormElement;
+        this.loginFormElement = options.loginFormElement; 
     }
 
     /**

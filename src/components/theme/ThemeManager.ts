@@ -1,5 +1,5 @@
 import { ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
-import { StorageHelper } from '@src/utils/StorageHelper';
+import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 
 export class ThemeManager {
     private themeToggleButton: HTMLElement;

@@ -1,7 +1,7 @@
-import { Button } from './Button';
-import { LABELS, ARIA_LABELS } from '@src/constants/Constants';
-import { NotificationManager } from './NotificationManager';
+import { Button } from '@src/components/common/Button';
+import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
+import { LABELS, ARIA_LABELS } from '@src/constants/Constants';
 
 interface PostActionButtonsOptions {
     profileHandle: string;
@@ -23,9 +23,13 @@ export class PostActionButtonsFactory {
         const { profileHandle, isUserBlocked, onBlock, onReport } = options;
 
         const blockButton = new Button({
-            classNames: isUserBlocked ? 'toggle-block-button btn btn-danger btn-sm' : 'toggle-block-button btn btn-outline-secondary btn-sm',
+            classNames: isUserBlocked
+                ? 'toggle-block-button btn btn-danger btn-sm'
+                : 'toggle-block-button btn btn-outline-secondary btn-sm',
             text: isUserBlocked ? LABELS.UNBLOCK : LABELS.BLOCK,
-            ariaLabel: isUserBlocked ? ARIA_LABELS.UNBLOCK_USER(profileHandle) : ARIA_LABELS.BLOCK_USER(profileHandle),
+            ariaLabel: isUserBlocked
+                ? ARIA_LABELS.UNBLOCK_USER(profileHandle)
+                : ARIA_LABELS.BLOCK_USER(profileHandle),
         });
 
         const reportButton = new Button({
@@ -39,7 +43,7 @@ export class PostActionButtonsFactory {
         buttonContainer.appendChild(blockButton.element);
         buttonContainer.appendChild(reportButton.element);
 
-        // Event Listeners with event handling to prevent default behavior and stop propagation
+        // Event Listeners
         blockButton.addEventListener('click', async (event: Event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -53,5 +57,9 @@ export class PostActionButtonsFactory {
         });
 
         return buttonContainer;
+    }
+
+    public destroy(): void {
+        // Implement if any cleanup is necessary
     }
 }

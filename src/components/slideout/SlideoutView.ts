@@ -1,6 +1,6 @@
 import template from '@public/templates/loginSlideout.hbs';
 import { LABELS, ARIA_LABELS } from '@src/constants/Constants';
-import { EventListenerHelper } from '@src/utils/EventListenerHelper';
+import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
 
 export class SlideoutView {
     public slideoutElement: HTMLElement;

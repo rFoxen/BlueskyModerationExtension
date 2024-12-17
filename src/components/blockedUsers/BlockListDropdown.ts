@@ -1,8 +1,8 @@
 import { AppBskyGraphDefs } from '@atproto/api';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, MESSAGES, LABELS, ERRORS } from '@src/constants/Constants';
-import { EventListenerHelper } from '@src/utils/EventListenerHelper';
-import { StorageHelper } from '@src/utils/StorageHelper';
+import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
+import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 
 export class BlockListDropdown {
     private dropdownElement: HTMLSelectElement;
@@ -31,10 +31,10 @@ export class BlockListDropdown {
             const blockLists = await this.service.getBlockLists();
             this.populateDropdown(blockLists);
         } catch (error) {
-            console.error(MESSAGES.FAILED_TO_LOAD_BLOCK_LISTS, error);
+            console.error(ERRORS.FAILED_TO_LOAD_BLOCK_LISTS, error);
             this.populateDropdown([]);
             const option = document.createElement('option');
-            option.text = MESSAGES.FAILED_TO_LOAD_BLOCK_LISTS;
+            option.text = ERRORS.FAILED_TO_LOAD_BLOCK_LISTS;
             option.disabled = true;
             option.selected = true;
             this.dropdownElement.add(option);
@@ -134,7 +134,7 @@ export class BlockListDropdown {
     private populateDropdownWithError(): void {
         this.dropdownElement.innerHTML = '';
         const option = document.createElement('option');
-        option.text = MESSAGES.FAILED_TO_LOAD_BLOCK_LISTS;
+        option.text = ERRORS.FAILED_TO_LOAD_BLOCK_LISTS;
         option.disabled = true;
         option.selected = true;
         this.dropdownElement.add(option);

@@ -1,7 +1,5 @@
-// src/services/BlockedUsersService.ts
-
-import { EventEmitter } from '@src/utils/EventEmitter';
-import { BlueskyService } from '@src/services/BlueskyService';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
+import { BlueskyService, NotFoundError } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, ERRORS, LABELS } from '@src/constants/Constants';
 
 declare var chrome: any;
@@ -68,17 +66,31 @@ export class BlockedUsersService extends EventEmitter {
     }
 
     public async removeBlockedUser(userHandle: string, listUri: string): Promise<void> {
+        if (!this.isUserBlocked(userHandle)) {
+            console.warn(`User ${userHandle} is not in the block list.`);
+            return;
+        }
+
         try {
             await this.blueskyService.unblockUser(userHandle, listUri);
-            
             this.blockedUsersData = this.blockedUsersData.filter(
                 (item) => (item.subject.handle || item.subject.did) !== userHandle
             );
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserRemoved', userHandle);
         } catch (error) {
-            console.error('Failed to remove blocked user:', error);
-            this.emit('error', 'Failed to remove blocked user.');
+            if (error instanceof NotFoundError) {
+                console.warn(`User ${userHandle} was already unblocked.`);
+                // Optionally update local state to ensure consistency
+                this.blockedUsersData = this.blockedUsersData.filter(
+                    (item) => (item.subject.handle || item.subject.did) !== userHandle
+                );
+                await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
+                this.emit('blockedUserRemoved', userHandle);
+            } else {
+                console.error('Failed to remove blocked user:', error);
+                this.emit('error', 'Failed to remove blocked user.');
+            }
         }
     }
 

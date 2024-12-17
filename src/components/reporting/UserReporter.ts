@@ -1,4 +1,4 @@
-import { NotificationManager } from './NotificationManager';
+import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { MESSAGES, LABELS, ERRORS } from '@src/constants/Constants';
 
@@ -27,7 +27,7 @@ export class UserReporter {
         } catch (error) {
             console.error('Error handling report user:', error);
             this.notificationManager.displayNotification(
-                MESSAGES.FAILED_TO_REPORT_USER,
+                ERRORS.FAILED_TO_REPORT_USER,
                 'error'
             );
         }
@@ -91,9 +91,13 @@ export class UserReporter {
         } catch (error) {
             console.error('Error reporting user:', error);
             this.notificationManager.displayNotification(
-                MESSAGES.FAILED_TO_REPORT_USER,
+                ERRORS.FAILED_TO_REPORT_USER,
                 'error'
             );
         }
+    }
+
+    public destroy(): void {
+        // Implement if any cleanup is necessary
     }
 }

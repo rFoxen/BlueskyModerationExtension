@@ -1,4 +1,3 @@
-﻿// types/global.d.ts
-interface Window {
+﻿interface Window {
     myCustomProperty: string;
 }
