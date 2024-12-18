@@ -3,7 +3,11 @@
     <div class="slideout-content">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h2 id="slideout-title" class="h6">{{labels.EXTENSION_TITLE}}</h2>
-            <button id="close-slideout" type="button" class="btn-close" aria-label="{{ariaLabels.CLOSE_SLIDEOUT}}"></button>
+
+            <button id="theme-toggle" type="button" class="btn btn-outline-secondary btn-sm" aria-label="{{ariaLabels.THEME_TOGGLE}}">
+                🌙
+            </button>
+            <button id="close-slideout" type="button" class="btn-close" aria-label="{{ariaLabels.CLOSE_SLIDEOUT}}">X</button>
         </div>
 
         <!-- Tab Navigation -->
@@ -27,7 +31,7 @@
             <!-- Login Tab Pane -->
             <div class="tab-pane fade show active" id="login-tab-pane" role="tabpanel" aria-labelledby="login-tab">
                 <form id="login-form" aria-describedby="login-description" class="d-none">
-                    <p id="login-description" class="text-muted mb-2">Enter your credentials to log in.</p>
+                    <p id="login-description" class="form-label mb-2">Enter your credentials to log in.</p>
                     <div class="mb-2">
                         <label for="username" class="form-label">{{labels.USERNAME}}</label>
                         <input type="text" id="username" name="username" class="form-control" required aria-required="true">
@@ -46,9 +50,6 @@
                     <div class="mt-2 d-flex justify-content-between align-items-center">
                         <button id="logout-button" type="button" class="btn btn-secondary btn-sm" aria-label="{{ariaLabels.LOGOUT}}">
                             {{labels.LOGOUT}}
-                        </button>
-                        <button id="theme-toggle" type="button" class="btn btn-outline-secondary btn-sm" aria-label="{{ariaLabels.THEME_TOGGLE}}">
-                            🌙
                         </button>
                     </div>
                 </div>

@@ -9,7 +9,9 @@ export class ThemeManager {
             throw new Error('Theme toggle button not provided.');
         }
         this.themeToggleButton = themeToggleButton;
-        this.updateThemeToggleButton(this.isDarkMode());
+
+        // Bind the toggleTheme method to ensure correct 'this' context
+        this.themeToggleButton.addEventListener('click', this.toggleTheme.bind(this));
     }
 
     public toggleTheme(): void {
@@ -18,6 +20,7 @@ export class ThemeManager {
         const isDarkMode = body.classList.contains('dark-mode');
         this.updateThemeToggleButton(isDarkMode);
         StorageHelper.setString(STORAGE_KEYS.THEME_PREFERENCE, isDarkMode ? 'dark' : 'light');
+        console.log(`Theme toggled to ${isDarkMode ? 'dark' : 'light'} mode.`);
     }
 
     public applySavedTheme(): void {
@@ -25,9 +28,11 @@ export class ThemeManager {
         if (theme === 'dark') {
             document.body.classList.add('dark-mode');
             this.updateThemeToggleButton(true);
+            console.log('Applied saved theme: dark mode.');
         } else {
             document.body.classList.remove('dark-mode');
             this.updateThemeToggleButton(false);
+            console.log('Applied saved theme: light mode.');
         }
     }
 
