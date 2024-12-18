@@ -3,7 +3,7 @@ import { BlueskyService } from '@src/services/BlueskyService';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { PostScanner } from '@src/components/posts/PostScanner';
-import { ThemeManager } from '@src/components/theme/ThemeManager'; 
+import { ThemeManager } from '@src/components/theme/ThemeManager';
 import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlockedUsersUI } from '@src/components/blockedUsers/BlockedUsersUI';
@@ -20,6 +20,9 @@ class Content {
     private blockedUsersUI: BlockedUsersUI | null = null;
     private blueskyService: BlueskyService;
 
+    // Store bound event handler references
+    private boundHandleSessionExpired: () => void;
+
     constructor(
         notificationManager: NotificationManager,
         slideoutManager: SlideoutManager,
@@ -32,6 +35,11 @@ class Content {
         this.themeManager = themeManager;
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
+
+        // Bind and store the sessionExpired handler
+        this.boundHandleSessionExpired = this.handleSessionExpired.bind(this);
+        this.blueskyService.on('sessionExpired', this.boundHandleSessionExpired);
+
         this.initialize();
     }
 
@@ -46,7 +54,8 @@ class Content {
     }
 
     private subscribeToBlueskyServiceEvents(): void {
-        this.blueskyService.on('sessionExpired', this.handleSessionExpired.bind(this));
+        // Already subscribed in constructor
+        // Additional event subscriptions can be added here if needed
     }
 
     private handleSessionExpired(): void {
@@ -59,7 +68,6 @@ class Content {
         if (window.location.hostname === 'bsky.app') {
             this.themeManager.applySavedTheme();
             this.updateUI();
-
             this.postScanner = new PostScanner(
                 this.notificationManager,
                 this.blueskyService,
@@ -80,7 +88,6 @@ class Content {
 
             this.slideoutManager.on('themeToggle', () => this.themeManager.toggleTheme());
             this.slideoutManager.on('blockListSelectionChange', this.handleBlockListSelectionChange.bind(this));
-            this.slideoutManager.on('refreshBlockedUsers', () => this.blockedUsersUI?.refreshBlockedUsers());
             this.slideoutManager.on('refreshBlockLists', () => this.blockListDropdown?.refreshBlockLists());
             this.slideoutManager.on('login', this.handleLogin.bind(this));
             this.slideoutManager.on('logout', this.handleLogout.bind(this));
@@ -93,15 +100,12 @@ class Content {
     private updateUI(): void {
         if (this.isLoggedIn) {
             this.slideoutManager.displayLoginInfo(this.blueskyService.getLoggedInUsername());
-
             if (!this.blockListDropdown) {
                 this.blockListDropdown = new BlockListDropdown('block-lists-dropdown', this.blueskyService);
                 this.blockListDropdown.onSelectionChange(this.handleBlockListSelectionChange.bind(this));
                 this.blockListDropdown.loadBlockLists();
             }
-
             this.slideoutManager.showBlockListsSection();
-
             if (!this.blockedUsersUI) {
                 this.blockedUsersUI = new BlockedUsersUI(
                     'blocked-users-section',
@@ -161,8 +165,11 @@ class Content {
         this.blockedUsersService.destroy();
         this.blockListDropdown?.destroy();
         this.notificationManager.destroy();
-        this.blueskyService.off('sessionExpired', this.handleSessionExpired.bind(this));
-        // Optionally: Remove injected DOM elements
+
+        // Unsubscribe from service events
+        this.blueskyService.off('sessionExpired', this.boundHandleSessionExpired);
+
+        // Optionally: Remove injected DOM elements or perform additional cleanup
     }
 }
 
@@ -172,5 +179,4 @@ const themeToggleButton = document.getElementById('theme-toggle') as HTMLElement
 const themeManager = new ThemeManager(themeToggleButton);
 const blueskyService = new BlueskyService();
 const blockedUsersService = new BlockedUsersService(blueskyService);
-
 new Content(notificationManager, slideoutManager, themeManager, blueskyService, blockedUsersService);

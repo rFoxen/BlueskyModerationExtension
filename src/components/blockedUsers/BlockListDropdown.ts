@@ -23,7 +23,7 @@ export class BlockListDropdown {
         const selectionChangeHandler = (event: Event) => this.handleSelectionChange(event);
         this.eventHandlers['selectionChange'] = selectionChangeHandler;
         EventListenerHelper.addEventListener(this.dropdownElement, 'change', selectionChangeHandler);
-    }
+    } 
 
     public async loadBlockLists(): Promise<void> {
         this.setLoadingState(true);
