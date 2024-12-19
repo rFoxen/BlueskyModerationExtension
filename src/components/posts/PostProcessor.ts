@@ -92,6 +92,7 @@ export class PostProcessor {
     }
 
     private ensureWrapper(element: HTMLElement, profileHandle: string, postType: string): HTMLElement | null {
+        // If already wrapped, reuse existing wrapper
         const existingWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
         if (existingWrapper) {
             if (!existingWrapper.querySelector('.toggle-block-button')) {
@@ -103,24 +104,30 @@ export class PostProcessor {
             return existingWrapper;
         }
 
-        if (!document.body.contains(element)) return null;
+        const parent = element.parentNode;
+        if (!parent) return null;
 
         try {
+            // Create a new wrapper
             const wrapper = document.createElement('div');
             wrapper.classList.add('block-button-wrapper');
             wrapper.setAttribute('data-profile-handle', profileHandle);
             wrapper.setAttribute('data-post-type', postType);
 
             const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
-            wrapper.classList.add(isUserBlocked ? 'blocked-post' : 'unblocked-post');
+
+            // Insert the wrapper in place of the element
+            parent.insertBefore(wrapper, element);
 
             // Move all child nodes of element into wrapper
             while (element.firstChild) {
-                wrapper.appendChild(element.firstChild as Node);
+                wrapper.appendChild(element.firstChild);
             }
-            element.appendChild(wrapper);
 
-            // Create a container for buttons and account freshness
+            // Remove the original element node entirely, since wrapper now replaces it
+            element.remove();
+
+            // Create container for buttons and freshness
             const buttonsAndFreshnessContainer = document.createElement('div');
             buttonsAndFreshnessContainer.classList.add('buttons-freshness-container');
 
@@ -129,29 +136,32 @@ export class PostProcessor {
             freshnessElement.className = 'account-freshness';
             freshnessElement.textContent = 'Loading...';
             buttonsAndFreshnessContainer.appendChild(freshnessElement);
-            
+
             // Add Action Buttons
             const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
             buttonsAndFreshnessContainer.appendChild(buttonContainer);
-            
+
             // Append the container to the wrapper
             wrapper.appendChild(buttonsAndFreshnessContainer);
 
-            // Display account freshness information
+            // Update account freshness asynchronously
             this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
 
+            // If block buttons are currently hidden, hide them here
             if (!this.blockButtonsVisible) {
                 const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
                 if (blockButton) {
                     blockButton.style.display = 'none';
                 }
             }
+
             return wrapper;
         } catch (e) {
             console.error('Error wrapping element:', e);
             return null;
         }
     }
+
 
     private addPostTypeLabel(container: HTMLElement, postType: string): void {
         if (container.querySelector('.post-type-label')) return;
