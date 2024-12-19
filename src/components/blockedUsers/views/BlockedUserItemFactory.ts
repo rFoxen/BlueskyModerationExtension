@@ -4,6 +4,12 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { Button } from '@src/components/common/Button';
 
+interface ButtonCreationOptions {
+    classNames: string;
+    text: string;
+    ariaLabel: string;
+}
+
 export class BlockedUserItemFactory {
     constructor(
         private blockedUsersService: BlockedUsersService,
@@ -28,43 +34,58 @@ export class BlockedUserItemFactory {
             unblockUserLabel: ARIA_LABELS.UNBLOCK_USER(userHandle),
             reportUserLabel: ARIA_LABELS.REPORT_USER(userHandle),
         };
-
         const htmlString = blockedUserItemTemplate({ labels: LABELS, ariaLabels, userHandle });
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlString.trim();
         const listItem = tempDiv.firstElementChild as HTMLDivElement;
 
-        // Replace buttons with Button components
-        const unblockButton = listItem.querySelector('.unblock-button') as HTMLButtonElement;
-        const reportButton = listItem.querySelector('.report-button') as HTMLButtonElement;
+        this.createAndReplaceButton(
+            listItem,
+            '.unblock-button',
+            {
+                classNames: 'btn btn-outline-secondary btn-sm unblock-button',
+                text: LABELS.UNBLOCK,
+                ariaLabel: ariaLabels.unblockUserLabel,
+            },
+            async (event: Event) => {
+                event.preventDefault();
+                await this.unblockUserCallback(userHandle);
+            }
+        );
 
-        const unblockBtn = new Button({
-            id: `unblock-${userHandle}`,
-            classNames: 'btn btn-outline-secondary btn-sm unblock-button',
-            text: LABELS.UNBLOCK,
-            ariaLabel: ariaLabels.unblockUserLabel,
-        });
-
-        const reportBtn = new Button({
-            id: `report-${userHandle}`,
-            classNames: 'btn btn-outline-danger btn-sm report-button',
-            text: LABELS.REPORT,
-            ariaLabel: ariaLabels.reportUserLabel,
-        });
-
-        unblockButton.replaceWith(unblockBtn.element);
-        reportButton.replaceWith(reportBtn.element);
-
-        unblockBtn.addEventListener('click', async (event: Event) => {
-            event.preventDefault();
-            await this.unblockUserCallback(userHandle);
-        });
-
-        reportBtn.addEventListener('click', (event: Event) => {
-            event.preventDefault();
-            this.reportUserCallback(userHandle);
-        });
+        this.createAndReplaceButton(
+            listItem,
+            '.report-button',
+            {
+                classNames: 'btn btn-outline-danger btn-sm report-button',
+                text: LABELS.REPORT,
+                ariaLabel: ariaLabels.reportUserLabel,
+            },
+            (event: Event) => {
+                event.preventDefault();
+                this.reportUserCallback(userHandle);
+            }
+        );
 
         return listItem;
+    }
+
+    private createAndReplaceButton(
+        listItem: HTMLElement,
+        selector: string,
+        options: ButtonCreationOptions,
+        clickHandler: (event: Event) => void
+    ): void {
+        const originalButton = listItem.querySelector(selector) as HTMLButtonElement;
+        if (!originalButton) return;
+
+        const btn = new Button({
+            classNames: options.classNames,
+            text: options.text,
+            ariaLabel: options.ariaLabel,
+        });
+        originalButton.replaceWith(btn.element);
+
+        btn.addEventListener('click', clickHandler);
     }
 }

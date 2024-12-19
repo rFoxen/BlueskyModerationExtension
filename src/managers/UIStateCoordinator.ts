@@ -35,7 +35,6 @@ export class UIStateCoordinator {
         this.blockedUsersService = blockedUsersService;
         this.getIsLoggedIn = isLoggedIn;
         this.isLoggedIn = isLoggedIn();
-
         this.setupSlideoutEvents();
     }
 
@@ -47,6 +46,22 @@ export class UIStateCoordinator {
         });
         this.slideoutManager.on('blockListSelectionChange', this.handleBlockListSelectionChange.bind(this));
         this.slideoutManager.on('refreshBlockLists', () => this.blockListDropdown?.refreshBlockLists());
+
+        // Optionally, listen to loginFailed and logoutFailed events if BlueskyService emits them
+        this.blueskyService.on('loginFailed', () => {
+            this.notificationManager.displayNotification(MESSAGES.LOGIN_FAILED, 'error');
+            this.updateUI(); // Reflect that login failed
+        });
+        this.blueskyService.on('logoutFailed', () => {
+            this.notificationManager.displayNotification(MESSAGES.LOGOUT_FAILED, 'error');
+            this.updateUI(); // Reflect that logout failed (still logged in?)
+        });
+
+        // Listen for sessionUpdated as well (optional, since SessionManager handles it):
+        this.blueskyService.on('sessionUpdated', (session) => {
+            // If session changed, update UI immediately
+            this.updateUI();
+        });
     }
 
     public initializeUIForSite(hostname: string): void {
@@ -81,6 +96,7 @@ export class UIStateCoordinator {
         console.log('UIStateCoordinator: updateUI called, isLoggedIn:', this.isLoggedIn);
         if (this.isLoggedIn) {
             this.slideoutManager.displayLoginInfo(this.blueskyService.getLoggedInUsername());
+
             if (!this.blockListDropdown) {
                 this.blockListDropdown = new BlockListDropdown('block-lists-dropdown', this.blueskyService);
                 this.blockListDropdown.onSelectionChange(this.handleBlockListSelectionChange.bind(this));
@@ -152,6 +168,5 @@ export class UIStateCoordinator {
         this.blockedUsersUI?.destroy();
         this.postScanner?.destroy();
         this.blockListDropdown?.destroy();
-        // Any additional cleanup related to UI state
     }
 }

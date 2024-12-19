@@ -2,43 +2,24 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
 import { LABELS, MESSAGES, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
-import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
+import { debounce } from '@src/utils/helpers/debounce';
 
-function debounce<T extends (...args: any[]) => void>(fn: T, delay: number) {
-    let timeout: number | null = null;
-    return (...args: Parameters<T>) => {
-        if (timeout) clearTimeout(timeout);
-        timeout = window.setTimeout(() => fn(...args), delay);
-    };
-}
-
-/**
- * BlockedUsersUI orchestrates loading, refreshing, searching, pagination, and
- * event handling related to blocked users. It delegates all DOM manipulation to
- * BlockedUsersView and item creation to BlockedUserItemFactory. It communicates
- * with BlockedUsersService for data operations.
- */
 export class BlockedUsersUI {
     private blockedUsersService: BlockedUsersService;
     private notificationManager: NotificationManager;
     private blockListDropdown: BlockListDropdown;
     private isLoggedIn: () => boolean;
-
     private view: BlockedUsersView;
     private itemFactory: BlockedUserItemFactory;
-
     private blockedUsersPage: number = 1;
     private readonly blockedUsersPageSize: number = 10;
     private currentBlockedUsersData: any[] = [];
 
-    // Event handler maps
     private domEventHandlers: { [key: string]: EventListener } = {};
     private serviceEventHandlers: { [key: string]: (...args: any[]) => void } = {};
-
-    // Track processed elements if needed (currently for future expansion)
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
 
     constructor(
@@ -52,7 +33,6 @@ export class BlockedUsersUI {
         this.notificationManager = notificationManager;
         this.blockListDropdown = blockListDropdown;
         this.isLoggedIn = isLoggedIn;
-
         this.view = new BlockedUsersView(blockedUsersSectionId);
         this.itemFactory = new BlockedUserItemFactory(
             this.blockedUsersService,
@@ -60,16 +40,14 @@ export class BlockedUsersUI {
             this.handleUnblockUser.bind(this),
             this.handleReportUser.bind(this)
         );
-
         this.addDomEventListeners();
         this.view.applySavedToggleState();
         this.subscribeToServiceEvents();
     }
 
-    // ------------------ Public API ------------------
-
     public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
-        await this.loadBlockedUsers(selectedUri);
+        this.view.setLoadingState(true);
+        await this.blockedUsersService.loadBlockedUsers(selectedUri);
     }
 
     public showBlockedUsersSection(): void {
@@ -93,16 +71,11 @@ export class BlockedUsersUI {
         }
         this.domEventHandlers = {};
 
-        // Clear processed elements
         this.processedElements = new WeakSet();
-
         this.view.destroy();
     }
 
-    // ------------------ Private Methods ------------------
-
     private addDomEventListeners(): void {
-        // Toggle section
         const toggleHandler = (event: Event) => {
             event.preventDefault();
             this.toggleBlockedUsersSection();
@@ -110,7 +83,6 @@ export class BlockedUsersUI {
         this.domEventHandlers['toggle'] = toggleHandler;
         this.view.onToggleClick(toggleHandler);
 
-        // Previous Page
         const prevPageHandler = (event: Event) => {
             event.preventDefault();
             this.changeBlockedUsersPage(-1);
@@ -118,7 +90,6 @@ export class BlockedUsersUI {
         this.domEventHandlers['prevPage'] = prevPageHandler;
         this.view.onPrevPageClick(prevPageHandler);
 
-        // Next Page
         const nextPageHandler = (event: Event) => {
             event.preventDefault();
             this.changeBlockedUsersPage(1);
@@ -126,7 +97,6 @@ export class BlockedUsersUI {
         this.domEventHandlers['nextPage'] = nextPageHandler;
         this.view.onNextPageClick(nextPageHandler);
 
-        // Search Input
         const searchHandler = debounce((event: Event) => {
             const input = event.target as HTMLInputElement;
             const value = input.value;
@@ -135,7 +105,6 @@ export class BlockedUsersUI {
         this.domEventHandlers['search'] = searchHandler;
         this.view.onSearchInput(searchHandler);
 
-        // Refresh Blocked Users
         const refreshHandler = (event: Event) => {
             event.preventDefault();
             this.refreshBlockedUsers();
@@ -147,41 +116,48 @@ export class BlockedUsersUI {
     private subscribeToServiceEvents(): void {
         const handlers = {
             blockedUsersLoaded: () => {
-                this.syncBlockedUsersData();
-                this.blockedUsersPage = 1;
-                this.populateBlockedUsersList();
-                this.updateBlockedUsersCount();
-                this.showBlockedUsersSection();
-                this.view.setLoadingState(false);
+                this.reloadBlockedUsersUI();
             },
             blockedUsersRefreshed: () => {
-                this.syncBlockedUsersData();
-                this.blockedUsersPage = 1;
-                this.populateBlockedUsersList();
-                this.updateBlockedUsersCount();
-                this.notificationManager.displayNotification(MESSAGES.BLOCKED_USERS_LIST_REFRESHED, 'success');
-                this.view.setLoadingState(false);
+                this.reloadBlockedUsersUI(MESSAGES.BLOCKED_USERS_LIST_REFRESHED);
             },
             blockedUserAdded: () => {
-                this.syncBlockedUsersData();
-                this.populateBlockedUsersList();
-                this.updateBlockedUsersCount();
+                this.reloadBlockedUsersUI();
             },
             blockedUserRemoved: () => {
-                this.syncBlockedUsersData();
-                this.populateBlockedUsersList();
-                this.updateBlockedUsersCount();
+                this.reloadBlockedUsersUI();
             },
             error: (message: string) => {
                 this.notificationManager.displayNotification(message, 'error');
                 this.view.setLoadingState(false);
             },
         };
-
         for (const [event, handler] of Object.entries(handlers)) {
             this.serviceEventHandlers[event] = handler;
             this.blockedUsersService.on(event, handler);
         }
+    }
+
+    /**
+     * Consolidated method to handle the common sequence:
+     * - Sync blocked users data
+     * - Reset to first page
+     * - Populate blocked user list
+     * - Update blocked users count
+     * - Show blocked users section
+     * - Optionally display a success notification
+     * - Disable loading state
+     */
+    private reloadBlockedUsersUI(successMessage?: string): void {
+        this.syncBlockedUsersData();
+        this.blockedUsersPage = 1;
+        this.populateBlockedUsersList();
+        this.updateBlockedUsersCount();
+        this.showBlockedUsersSection();
+        if (successMessage) {
+            this.notificationManager.displayNotification(successMessage, 'success');
+        }
+        this.view.setLoadingState(false);
     }
 
     private async loadBlockedUsers(selectedUri: string): Promise<void> {
@@ -230,7 +206,6 @@ export class BlockedUsersUI {
             }
             this.view.renderBlockedUsersList(items);
         }
-
         this.updatePaginationControls(data.length);
     }
 
@@ -240,12 +215,10 @@ export class BlockedUsersUI {
             this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
             return;
         }
-
         const confirmMessage = `Are you sure you want to unblock @${userHandle}?`;
         if (!confirm(confirmMessage)) {
             return;
         }
-
         try {
             await this.blockedUsersService.removeBlockedUser(userHandle, selectedUri);
             this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
@@ -257,8 +230,6 @@ export class BlockedUsersUI {
 
     private handleReportUser(userHandle: string): void {
         // Reporting logic can be handled via an event or callback
-        // For simplicity, we rely on the existing code that might emit an event or handle reporting externally.
-        // Implementation depends on application requirements.
     }
 
     private changeBlockedUsersPage(delta: number): void {

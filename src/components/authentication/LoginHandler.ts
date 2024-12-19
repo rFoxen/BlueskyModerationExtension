@@ -26,6 +26,13 @@ export class LoginHandler extends EventEmitter {
         this.formElement.addEventListener('submit', this.eventHandler);
     }
 
+    private setInputValidationState(isValid: boolean, ...inputs: HTMLInputElement[]): void {
+        inputs.forEach((input) => {
+            input.setAttribute('aria-invalid', isValid ? 'false' : 'true');
+            input.classList.toggle('is-invalid', !isValid);
+        });
+    }
+
     private async handleFormSubmit(event: Event): Promise<void> {
         event.preventDefault();
         const usernameInput = this.formElement.querySelector('#username') as HTMLInputElement;
@@ -35,28 +42,15 @@ export class LoginHandler extends EventEmitter {
 
         if (!username || !password) {
             this.displayFeedbackCallback(ERRORS.BOTH_FIELDS_REQUIRED, 'danger');
-            this.markInputAsInvalid(usernameInput, passwordInput);
+            this.setInputValidationState(false, usernameInput, passwordInput);
             return;
         }
 
         // Reset invalid states
-        this.markInputAsValid(usernameInput, passwordInput);
+        this.setInputValidationState(true, usernameInput, passwordInput);
+
         // Emit login event
         this.onLoginCallback(username, password);
-    }
-
-    private markInputAsInvalid(...inputs: HTMLInputElement[]): void {
-        inputs.forEach((input) => {
-            input.setAttribute('aria-invalid', 'true');
-            input.classList.add('is-invalid');
-        });
-    }
-
-    private markInputAsValid(...inputs: HTMLInputElement[]): void {
-        inputs.forEach((input) => {
-            input.setAttribute('aria-invalid', 'false');
-            input.classList.remove('is-invalid');
-        });
     }
 
     public destroy(): void {

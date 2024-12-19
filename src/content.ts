@@ -1,5 +1,4 @@
 import '@public/styles.css';
-
 import { BlueskyService } from '@src/services/BlueskyService';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
@@ -30,7 +29,7 @@ class Content {
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
 
-        // Initialize SessionManager to handle session expiration
+        // Initialize SessionManager to handle session expiration and updates
         this.sessionManager = new SessionManager(
             this.blueskyService,
             this.notificationManager,
@@ -43,7 +42,7 @@ class Content {
             this.notificationManager,
             this.blueskyService,
             this.blockedUsersService,
-            () => this.blueskyService.isLoggedIn() // Updated callback
+            () => this.blueskyService.isLoggedIn()
         );
 
         this.initialize();
@@ -52,6 +51,8 @@ class Content {
     private initialize(): void {
         console.log('Content script initialized.');
         this.checkWebsite();
+        this.syncSessionState();
+
         // Listen for the window unload event to perform cleanup
         window.addEventListener('unload', () => this.destroy(), { once: true });
     }
@@ -61,6 +62,16 @@ class Content {
         this.themeManager.applySavedTheme();
         // Let UIStateCoordinator handle website-specific UI updates
         this.uiStateCoordinator.initializeUIForSite(window.location.hostname);
+    }
+
+    /**
+     * Ensure the UI and session states are synced at startup.
+     * If a valid session exists, show logged-in state; otherwise, show login form.
+     */
+    private syncSessionState(): void {
+        // The UIStateCoordinator.updateUI() will rely on blueskyService.isLoggedIn()
+        // which reads from the restored session. If invalid, it shows the login UI.
+        this.uiStateCoordinator.updateUI();
     }
 
     private async handleLogout(): Promise<void> {
@@ -74,6 +85,7 @@ class Content {
         this.blockedUsersService.destroy();
         this.notificationManager.destroy();
         this.sessionManager.destroy();
+        this.blueskyService.destroy();
     }
 }
 

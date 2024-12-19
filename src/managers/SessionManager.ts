@@ -3,13 +3,15 @@ import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 
 /**
- * SessionManager is responsible for handling session expiration logic.
- * When the session expires, it initiates the logout process.
+ * SessionManager is responsible for handling session expiration logic and ensuring
+ * UI updates when session changes (via sessionUpdated event).
  */
 export class SessionManager {
     private blueskyService: BlueskyService;
     private notificationManager: NotificationManager;
     private onLogout: () => void;
+    private sessionUpdatedHandler: (...args: any[]) => void;
+    private sessionExpiredHandler: (...args: any[]) => void;
 
     constructor(
         blueskyService: BlueskyService,
@@ -20,8 +22,12 @@ export class SessionManager {
         this.notificationManager = notificationManager;
         this.onLogout = onLogout;
 
-        // Bind sessionExpired listener
-        this.blueskyService.on('sessionExpired', this.handleSessionExpired.bind(this));
+        this.sessionExpiredHandler = this.handleSessionExpired.bind(this);
+        this.sessionUpdatedHandler = this.handleSessionUpdated.bind(this);
+
+        // Listen to session changes
+        this.blueskyService.on('sessionExpired', this.sessionExpiredHandler);
+        this.blueskyService.on('sessionUpdated', this.sessionUpdatedHandler);
     }
 
     private handleSessionExpired(): void {
@@ -30,7 +36,20 @@ export class SessionManager {
         this.onLogout();
     }
 
+    /**
+     * Whenever the session updates, check if user is still logged in.
+     * If session is cleared or invalid, trigger logout logic to reset UI.
+     */
+    private handleSessionUpdated(session: any): void {
+        if (!session || !session.accessJwt) {
+            // Session no longer valid
+            console.warn('Session updated but no valid JWT, logging out.');
+            this.onLogout();
+        }
+    }
+
     public destroy(): void {
-        this.blueskyService.off('sessionExpired', this.handleSessionExpired.bind(this));
+        this.blueskyService.off('sessionExpired', this.sessionExpiredHandler);
+        this.blueskyService.off('sessionUpdated', this.sessionUpdatedHandler);
     }
 }
