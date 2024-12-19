@@ -6,17 +6,20 @@ declare var chrome: any;
 
 export class BlockedUsersService extends EventEmitter {
     private blockedUsersData: any[] = [];
+    // NEW: Introduce a Map for O(1) lookups
+    private blockedUsersMap: Map<string, any> = new Map();
 
     constructor(private blueskyService: BlueskyService) {
         super();
     }
-    
+
     public async getBlockListName(listUri: string): Promise<string> {
-        if (!this.blueskyService) throw new Error(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+        if (!this.blueskyService)
+            throw new Error(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
         const response = await this.blueskyService.getBlockListName(listUri);
         return response || LABELS.UNNAMED_LIST;
     }
-    
+
     public async loadBlockedUsers(listUri: string): Promise<void> {
         try {
             const cachedData = await this.getBlockedUsersFromStorage(listUri);
@@ -27,6 +30,7 @@ export class BlockedUsersService extends EventEmitter {
                 this.blockedUsersData = blockedUsers;
                 await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             }
+            this.buildBlockedUsersMap();
             this.emit('blockedUsersLoaded', this.blockedUsersData);
         } catch (error) {
             console.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
@@ -38,6 +42,7 @@ export class BlockedUsersService extends EventEmitter {
         try {
             const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
             this.blockedUsersData = blockedUsers;
+            this.buildBlockedUsersMap();
             await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             this.emit('blockedUsersRefreshed', this.blockedUsersData);
         } catch (error) {
@@ -46,10 +51,17 @@ export class BlockedUsersService extends EventEmitter {
         }
     }
 
+    // Build the map after fetching or refreshing
+    private buildBlockedUsersMap(): void {
+        this.blockedUsersMap.clear();
+        for (const user of this.blockedUsersData) {
+            const handle = user.subject.handle || user.subject.did;
+            this.blockedUsersMap.set(handle, user);
+        }
+    }
+
     public isUserBlocked(userHandle: string): boolean {
-        return this.blockedUsersData.some(
-            (item) => (item.subject.handle || item.subject.did) === userHandle
-        );
+        return this.blockedUsersMap.has(userHandle);
     }
 
     public async addBlockedUser(userHandle: string, listUri: string): Promise<void> {
@@ -57,6 +69,7 @@ export class BlockedUsersService extends EventEmitter {
             const did = await this.blueskyService.resolveDidFromHandle(userHandle);
             const newItem = { subject: { handle: userHandle, did } };
             this.blockedUsersData.unshift(newItem);
+            this.blockedUsersMap.set(userHandle, newItem);
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserAdded', newItem);
         } catch (error) {
@@ -70,9 +83,9 @@ export class BlockedUsersService extends EventEmitter {
             console.warn(`User ${userHandle} is not in the block list.`);
             return;
         }
-
         try {
             await this.blueskyService.unblockUser(userHandle, listUri);
+            this.blockedUsersMap.delete(userHandle);
             this.blockedUsersData = this.blockedUsersData.filter(
                 (item) => (item.subject.handle || item.subject.did) !== userHandle
             );
@@ -80,8 +93,8 @@ export class BlockedUsersService extends EventEmitter {
             this.emit('blockedUserRemoved', userHandle);
         } catch (error) {
             if (error instanceof NotFoundError) {
-                console.warn(`User ${userHandle} was already unblocked.`);
-                // Optionally update local state to ensure consistency
+                // User already unblocked
+                this.blockedUsersMap.delete(userHandle);
                 this.blockedUsersData = this.blockedUsersData.filter(
                     (item) => (item.subject.handle || item.subject.did) !== userHandle
                 );
@@ -136,14 +149,19 @@ export class BlockedUsersService extends EventEmitter {
     private saveBlockedUsersToStorage(listUri: string, blockedUsers: any[]): Promise<void> {
         return new Promise((resolve) => {
             chrome.storage.local.set(
-                { [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers },
-                () => { resolve(); }
+                {
+                    [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers,
+                },
+                () => {
+                    resolve();
+                }
             );
         });
     }
 
     public destroy(): void {
         this.blockedUsersData = [];
+        this.blockedUsersMap.clear();
         this.removeAllListeners();
     }
 }

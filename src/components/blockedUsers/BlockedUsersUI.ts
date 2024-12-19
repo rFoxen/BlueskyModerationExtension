@@ -1,11 +1,12 @@
+// src\components\blockedUsers\BlockedUsersUI.ts
+
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
-import { LABELS, MESSAGES, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
-import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+import { MESSAGES } from '@src/constants/Constants';
+import { debounce } from '@src/utils/helpers/debounce';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
-import { debounce } from '@src/utils/helpers/debounce';
 
 export class BlockedUsersUI {
     private blockedUsersService: BlockedUsersService;
@@ -17,10 +18,13 @@ export class BlockedUsersUI {
     private blockedUsersPage: number = 1;
     private readonly blockedUsersPageSize: number = 10;
     private currentBlockedUsersData: any[] = [];
-
     private domEventHandlers: { [key: string]: EventListener } = {};
     private serviceEventHandlers: { [key: string]: (...args: any[]) => void } = {};
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
+
+    // NEW: Caching the last rendered data and page to skip unnecessary re-renders
+    private lastRenderedData: any[] = [];
+    private lastRenderedPage: number = -1;
 
     constructor(
         blockedUsersSectionId: string,
@@ -59,13 +63,11 @@ export class BlockedUsersUI {
     }
 
     public destroy(): void {
-        // Unsubscribe from service events
         for (const [event, handler] of Object.entries(this.serviceEventHandlers)) {
             this.blockedUsersService.off(event, handler);
         }
         this.serviceEventHandlers = {};
 
-        // Remove DOM event listeners
         for (const [eventKey, handler] of Object.entries(this.domEventHandlers)) {
             this.view.removeEventListener(eventKey, handler);
         }
@@ -132,22 +134,13 @@ export class BlockedUsersUI {
                 this.view.setLoadingState(false);
             },
         };
+
         for (const [event, handler] of Object.entries(handlers)) {
             this.serviceEventHandlers[event] = handler;
             this.blockedUsersService.on(event, handler);
         }
     }
 
-    /**
-     * Consolidated method to handle the common sequence:
-     * - Sync blocked users data
-     * - Reset to first page
-     * - Populate blocked user list
-     * - Update blocked users count
-     * - Show blocked users section
-     * - Optionally display a success notification
-     * - Disable loading state
-     */
     private reloadBlockedUsersUI(successMessage?: string): void {
         this.syncBlockedUsersData();
         this.blockedUsersPage = 1;
@@ -158,11 +151,6 @@ export class BlockedUsersUI {
             this.notificationManager.displayNotification(successMessage, 'success');
         }
         this.view.setLoadingState(false);
-    }
-
-    private async loadBlockedUsers(selectedUri: string): Promise<void> {
-        this.view.setLoadingState(true);
-        await this.blockedUsersService.loadBlockedUsers(selectedUri);
     }
 
     private async refreshBlockedUsers(): Promise<void> {
@@ -179,10 +167,8 @@ export class BlockedUsersUI {
         const isExpanded = this.view.isSectionExpanded();
         if (isExpanded) {
             this.view.collapseSection();
-            StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, false);
         } else {
             this.view.expandSection();
-            StorageHelper.setBoolean(STORAGE_KEYS.BLOCKED_USERS_TOGGLE_STATE, true);
         }
     }
 
@@ -192,6 +178,16 @@ export class BlockedUsersUI {
 
     private async populateBlockedUsersList(): Promise<void> {
         const data = this.currentBlockedUsersData;
+
+        // PERFORMANCE OPTIMIZATION:
+        // If data and page are unchanged, skip re-rendering the list.
+        if (
+            this.lastRenderedPage === this.blockedUsersPage &&
+            this.arraysEqual(this.lastRenderedData, data)
+        ) {
+            return; // no changes, no need to reflow DOM
+        }
+
         const startIndex = (this.blockedUsersPage - 1) * this.blockedUsersPageSize;
         const endIndex = startIndex + this.blockedUsersPageSize;
         const currentPageData = data.slice(startIndex, endIndex);
@@ -207,6 +203,18 @@ export class BlockedUsersUI {
             this.view.renderBlockedUsersList(items);
         }
         this.updatePaginationControls(data.length);
+
+        // Update caches after rendering
+        this.lastRenderedData = data.slice();
+        this.lastRenderedPage = this.blockedUsersPage;
+    }
+
+    private arraysEqual(arr1: any[], arr2: any[]): boolean {
+        if (arr1.length !== arr2.length) return false;
+        for (let i = 0; i < arr1.length; i++) {
+            if (arr1[i] !== arr2[i]) return false;
+        }
+        return true;
     }
 
     private async handleUnblockUser(userHandle: string): Promise<void> {
@@ -223,8 +231,8 @@ export class BlockedUsersUI {
             await this.blockedUsersService.removeBlockedUser(userHandle, selectedUri);
             this.notificationManager.displayNotification(MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle), 'success');
         } catch (error) {
-            console.error(ERRORS.FAILED_TO_UNBLOCK_USER, error);
-            this.notificationManager.displayNotification(ERRORS.FAILED_TO_UNBLOCK_USER, 'error');
+            console.error(error);
+            this.notificationManager.displayNotification('An unknown error occurred.', 'error');
         }
     }
 
@@ -233,7 +241,10 @@ export class BlockedUsersUI {
     }
 
     private changeBlockedUsersPage(delta: number): void {
-        const totalPages = Math.max(1, Math.ceil(this.currentBlockedUsersData.length / this.blockedUsersPageSize));
+        const totalPages = Math.max(
+            1,
+            Math.ceil(this.currentBlockedUsersData.length / this.blockedUsersPageSize)
+        );
         const newPage = this.blockedUsersPage + delta;
         if (newPage < 1 || newPage > totalPages) return;
         this.blockedUsersPage = newPage;
@@ -241,7 +252,10 @@ export class BlockedUsersUI {
     }
 
     private updatePaginationControls(totalItems: number): void {
-        const totalPages = Math.max(1, Math.ceil(totalItems / this.blockedUsersPageSize));
+        const totalPages = Math.max(
+            1,
+            Math.ceil(totalItems / this.blockedUsersPageSize)
+        );
         this.view.updatePagination(this.blockedUsersPage, totalPages);
     }
 
