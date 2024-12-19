@@ -1,5 +1,5 @@
 /* Import Bootstrap CSS */
-@import "~bootstrap/dist/css/bootstrap.min.css";
+@import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
 
 /* Import Custom CSS Files */
 @import "./css/variables.css";
@@ -8,4 +8,3 @@
 @import "./css/buttons.css";
 @import "./css/notifications.css";
 @import "./css/utilities.css";
-

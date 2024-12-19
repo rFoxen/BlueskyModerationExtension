@@ -3,11 +3,7 @@
     padding: var(--btn-padding, 6px 12px);
     font-size: var(--font-size-sm);
     border-radius: var(--border-radius);
-    transition:
-            padding var(--transition-duration) ease,
-            font-size var(--transition-duration) ease,
-            transform var(--transition-duration) ease,
-            box-shadow var(--transition-duration) ease;
+    transition: padding var(--transition-duration) ease, font-size var(--transition-duration) ease, transform var(--transition-duration) ease, box-shadow var(--transition-duration) ease;
     cursor: pointer;
     border: none;
     display: inline-flex;
@@ -27,7 +23,6 @@
     background-color: var(--button-bg);
     color: var(--button-text);
 }
-
 .btn-primary:hover {
     background-color: var(--button-hover-bg);
 }
@@ -36,7 +31,6 @@
     background-color: var(--input-bg);
     color: var(--text-color);
 }
-
 .btn-secondary:hover {
     background-color: var(--input-hover-bg);
 }
@@ -45,7 +39,6 @@
     background-color: var(--block-button-bg, #f44336);
     color: #fff;
 }
-
 .btn-danger:hover {
     background-color: var(--block-button-hover-bg, #d32f2f);
 }
@@ -54,11 +47,11 @@
     background-color: var(--report-button-bg, #ffc107);
     color: #000;
 }
-
 .btn-warning:hover {
     background-color: var(--report-button-hover-bg, #ffb300);
 }
 
+/* Close Button */
 .btn-close {
     filter: none;
     padding: 0;
@@ -67,9 +60,14 @@
     border: none;
     cursor: pointer;
 }
-
 .btn-close:hover {
     filter: invert(1) brightness(2.5);
+}
+
+/* Dark mode adjustments for .btn-close */
+body.dark-mode .btn-close {
+    filter: invert(1) brightness(2);
+    opacity: 1;
 }
 
 /* Utility Button Classes */
@@ -83,28 +81,13 @@
     border: 1px solid var(--input-border);
     color: var(--button-bg);
 }
-
 .btn-outline-secondary:hover {
     background-color: var(--input-hover-bg);
     border-color: var(--button-bg);
 }
 
-/* Toggle Slideout Button */
-.toggle-slideout {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-image: linear-gradient(135deg, rgb(90, 113, 250), rgb(0, 133, 255));
-    color: #ffffff;
-    font-size: 1rem;
-    transition:
-            background-color var(--transition-duration),
-            color var(--transition-duration);
-}
-
-.toggle-slideout.hidden {
-    display: none;
-}
+/* Removed .toggle-slideout and .toggle-slideout.hidden 
+   as well as .hidden, .visible, and .button-container since they are now handled elsewhere */
 
 /* Theme Toggle Button */
 .theme-toggle {
@@ -117,8 +100,16 @@
     background-color: var(--unblock-button-bg);
     color: #fff;
 }
-
 .unblock-user-button:hover {
+    background-color: var(--unblock-button-hover-bg);
+}
+
+.unblock-button {
+    background-color: var(--unblock-button-bg);
+    color: #fff;
+    border: none;
+}
+.unblock-button:hover {
     background-color: var(--unblock-button-hover-bg);
 }
 
@@ -126,7 +117,6 @@
     background-color: var(--block-button-bg);
     color: #fff;
 }
-
 .block-user-button:hover {
     background-color: var(--block-button-hover-bg);
 }
@@ -136,43 +126,6 @@
     background-color: var(--report-button-bg);
     color: #000;
 }
-
 .report-user-button:hover {
     background-color: var(--report-button-hover-bg);
-}
-
-/* Button Container */
-.button-container {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0.5rem;
-    max-width: 100%;
-    box-sizing: border-box;
-    flex-wrap: wrap; /* Allow buttons to wrap if necessary */
-}
-
-.button-container .btn {
-    flex: 0 0 auto;
-    text-align: center;
-    font-size: 0.75rem; /* Smaller font size */
-    padding: 0.3rem 0.6rem; /* Reduced padding */
-    max-width: 80px; /* Limit button width */
-    box-sizing: border-box;
-}
-
-/* Focus Styles for Buttons within Button Container */
-.button-container .btn:focus {
-    outline: 2px solid var(--input-focus-outline);
-    outline-offset: 2px;
-}
-
-/* Utility Classes */
-.hidden {
-    display: none !important;
-}
-
-.visible {
-    display: block !important;
 }

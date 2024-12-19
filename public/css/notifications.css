@@ -22,15 +22,12 @@
     transition: transform 0.3s ease, opacity 0.3s ease;
     font-size: var(--font-size-sm);
 }
-
 .notification.success {
     background-color: var(--notification-success-bg);
 }
-
 .notification.error {
     background-color: var(--notification-error-bg);
 }
-
 .notification.info {
     background-color: var(--notification-info-bg);
 }
@@ -49,11 +46,9 @@
     padding: 0;
     line-height: 1;
 }
-
 .notification-close:hover {
     color: #ddd;
 }
-
 .notification-close:focus {
     outline: 2px solid var(--input-focus-outline);
     outline-offset: 2px;
@@ -76,7 +71,6 @@
     opacity: 0.2;
     transition: opacity 0.3s ease;
 }
-
 .unblocked-post {
     opacity: 1;
     transition: opacity 0.3s ease;

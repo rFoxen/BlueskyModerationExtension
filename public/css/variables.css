@@ -12,23 +12,22 @@
     --input-bg: #ffffff;
     --input-border: #ccc;
     --input-focus-outline: #007bff;
+    --input-hover-bg: #f0f0f0;
     --user-info-bg: #f1f1f1;
-
-
     --block-button-bg: #f44336;
     --block-button-hover-bg: #d32f2f;
     --report-button-bg: #ffc107;
     --report-button-hover-bg: #ffb300;
     --unblock-button-bg: #4caf50;
     --unblock-button-hover-bg: #388e3c;
-    
+
     /* Font Sizes */
     --font-size-base: 1.0rem; /* 12px */
-    --font-size-lg: 1.0rem; /* 14px */
-    --font-size-sm: 1.0rem; /* 12px */
+    --font-size-lg: 1.0rem;   /* 14px */
+    --font-size-sm: 1.0rem;   /* 12px */
 
     /* Slideout Dimensions */
-    --slideout-width-desktop: 400px; /* Further reduced width */
+    --slideout-width-desktop: 400px;
     --slideout-width-mobile: 100%;
 
     /* Additional Styling Variables */
@@ -42,7 +41,7 @@
     --notification-error-bg: #dc3545;
     --notification-info-bg: #17a2b8;
     --notification-bg: #323232;
-    
+
     /* Tab Colors */
     --tab-text-color: var(--text-color);
     --tab-active-text-color: var(--button-bg);
@@ -63,6 +62,7 @@ body.dark-mode {
     --input-bg: #2c2c2c;
     --input-border: #555555;
     --input-focus-outline: #bb86fc;
+    --input-hover-bg: #333333;
     --user-info-bg: #2c2c2c;
 
     /* Adjusted Notification Backgrounds for Dark Mode */
@@ -70,10 +70,10 @@ body.dark-mode {
     --notification-error-bg: #f44336;
     --notification-info-bg: #03a9f4;
     --notification-bg: #424242;
-    
+
     /* Tab Colors for Dark Mode */
     --tab-text-color: var(--slideout-text);
     --tab-active-text-color: var(--button-bg);
-    --tab-hover-bg-color: #333333; /* Darker hover background */
+    --tab-hover-bg-color: #333333;
     --tab-active-bg-color: var(--slideout-bg);
 }

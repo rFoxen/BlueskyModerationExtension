@@ -41,18 +41,19 @@
 }
 
 /* Wrapper for Block Button */
-.block-button-wrapper {
-}
-
-/* Button Container */
-.button-container {
+.block-button-wrapper {}
+.buttons-freshness-container {
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 10px;
+}
+/* Button Container */
+.button-container {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
-    margin: 0.5rem 0.5rem;
-    /* Remove the width property */
-    /* width: 100%; */
+    margin: 0.5rem;
     max-width: 100%;
     box-sizing: border-box;
     flex-wrap: wrap; /* Allow buttons to wrap if necessary */
@@ -137,11 +138,11 @@
     transform: rotate(180deg);
 }
 
+/* Blocked Users Toggle */
 #blocked-users-toggle {
     border: none;
 }
 
-/* Hover Effects */
 #blocked-users-toggle:hover {
     background-color: var(--input-bg); /* Subtle background change on hover */
 }
@@ -156,11 +157,6 @@
 #blocked-users-section h3 {
     font-size: 1rem;
     margin-bottom: 0.5rem;
-}
-
-#blocked-users-list .list-group-item {
-    padding: 0.75rem;
-    margin-bottom: 0.25rem;
 }
 
 #blocked-users-pagination {

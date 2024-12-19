@@ -11,7 +11,6 @@
     opacity: 0;
     transition: opacity var(--transition-duration) ease;
 }
-
 .slideout-overlay.show {
     display: block;
     opacity: 1;
@@ -36,9 +35,8 @@
     transform: translateX(100%); /* Initially hidden */
     opacity: 0;
 }
-
 .slideout.show {
-    transform: translateX(0); /* Slide in */
+    transform: translateX(0);
     opacity: 1;
 }
 
@@ -46,32 +44,27 @@
 .nav-tabs {
     margin-bottom: 1rem;
 }
-
 .nav-tabs .nav-link {
     cursor: pointer;
     color: var(--text-color); /* Default text color */
 }
-
 .nav-tabs .nav-link.active {
     background-color: var(--background-color);
     border-color: #dee2e6 #dee2e6 #fff;
-    color: var(--text-color); /* Ensure active tab text color matches theme */
+    color: var(--text-color);
 }
-
 .nav-tabs .nav-link:hover {
     background-color: var(--input-bg);
-    color: var(--text-color); /* Ensure hover tab text color matches theme */
+    color: var(--text-color);
 }
 
 /* Dark Mode Styles for Tabs */
 body.dark-mode .nav-tabs .nav-link {
-    color: var(--slideout-text); /* Light text on dark background */
+    color: var(--slideout-text);
 }
-
 body.dark-mode .nav-tabs .nav-link.active {
     color: var(--slideout-text);
 }
-
 body.dark-mode .nav-tabs .nav-link:hover {
     color: var(--slideout-text);
 }
@@ -80,79 +73,16 @@ body.dark-mode .nav-tabs .nav-link:hover {
 .tab-content {
     padding-top: 0.5rem;
 }
-
 .tab-pane {
     /* Ensure tab panes have proper spacing */
 }
 
-/* Responsive Styles */
-@media (max-width: 480px) {
-    .slideout {
-        width: var(--slideout-width-mobile);
-        padding: 8px;
-    }
-    .slideout-content {
-        padding: 0;
-    }
-    /* Adjust font sizes for mobile */
-    body {
-        font-size: var(--font-size-sm);
-    }
-    .slideout h2 {
-        font-size: var(--font-size-lg);
-    }
-    .btn {
-        padding: 4px 8px;
-        font-size: var(--font-size-sm);
-    }
-    .form-control {
-        padding: 4px 6px;
-        font-size: var(--font-size-sm);
-    }
-    /* Reduce spacing in lists */
-    .list-group-item {
-        padding: 6px;
-        margin-bottom: 4px;
-    }
-    /* Adjust pagination buttons */
-    .pagination button {
-        margin: 0 3px;
-        padding: 2px 6px;
-        font-size: var(--font-size-sm);
-    }
-    #blocked-users-count {
-        font-size: 0.7rem;
-        padding: 0.1em 0.2em;
-    }
-}
-
-/* Tablet Styles */
-@media (min-width: 481px) and (max-width: 768px) {
-    body {
-        font-size: 0.9rem;
-    }
-    .slideout {
-        width: 80%;
-    }
-    .btn {
-        font-size: 0.8rem;
-    }
-}
-
-/* Header Styles */
-#slideout-title {
-    font-size: 1rem; /* Reduced font size */
-    font-weight: bold;
-    color: var(--text-color);
-    margin-bottom: 8px; /* Reduced margin */
-}
-
-/* Toggle Slideout Button */
+/* Toggle Slideout Button (moved from buttons.css to here) */
 .toggle-slideout {
     position: fixed;
     bottom: 128px; /* Slightly adjusted */
     right: 64px;
-    width: 40px; /* Further reduced size */
+    width: 40px; /* Reduced size */
     height: 40px;
     border-radius: 50%;
     display: flex;
@@ -164,21 +94,14 @@ body.dark-mode .nav-tabs .nav-link:hover {
     color: #ffffff;
     z-index: 1001;
 }
-
 .toggle-slideout.hidden {
     display: none;
 }
 
 /* Theme Toggle Button */
 .theme-toggle {
-    font-size: 0.9rem; /* Reduced font size */
+    font-size: 0.9rem;
     padding: 2px 6px;
-}
-
-/* Focus Styles for Toggle Button */
-.toggle-slideout:focus {
-    outline: 2px solid var(--input-focus-outline);
-    outline-offset: 2px;
 }
 
 /* Slideout Show State */
@@ -187,16 +110,11 @@ body.dark-mode .nav-tabs .nav-link:hover {
     opacity: 1;
 }
 
-.list-group-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px; /* Better padding for each list item */
-    border-bottom: 1px solid #ccc; /* Add separator for clarity */
-}
+/* Removed .list-group-item definition from here since it's now fully in base.css */
 
+/* Blocked Users Section */
 #blocked-users-section {
-    margin: 0 auto; /* Center the section */
+    margin: 0 auto;
     padding: 1px;
 }
 
@@ -206,20 +124,19 @@ body.dark-mode .nav-tabs .nav-link:hover {
 
 #blocked-users-list {
     overflow-y: auto;
-    max-height: 400px; /* Set a max height to make the list scrollable */
+    max-height: 400px; /* Ensure a scrollable list */
     padding: 8px 0;
+    padding-right: 0.5rem; /* Prevent scrollbar overlap */
 }
 
 /* Tab Navigation Styles */
 .nav-tabs .nav-link {
     cursor: pointer;
 }
-
 .nav-tabs .nav-link.active {
     background-color: var(--background-color);
     border-color: #dee2e6 #dee2e6 #fff;
 }
-
 .nav-tabs .nav-link:hover {
     background-color: var(--input-bg);
 }
@@ -236,11 +153,9 @@ body.dark-mode .nav-tabs .nav-link:hover {
     transition: background-color var(--transition-duration) ease;
     width: 100%;
 }
-
 .accordion-header:hover {
     background-color: var(--input-bg);
 }
-
 .accordion-header::after {
     content: '';
     display: inline-block;
@@ -252,32 +167,26 @@ body.dark-mode .nav-tabs .nav-link:hover {
     transition: transform var(--transition-duration) ease;
     margin-left: 0.5rem;
 }
-
 .accordion-header[aria-expanded="true"]::after {
     transform: rotate(-135deg);
 }
-
 .accordion-content {
     max-height: 0;
     overflow: hidden;
     transition: max-height var(--transition-duration) ease, opacity var(--transition-duration) ease;
     opacity: 0;
 }
-
 .accordion-content.d-none {
     max-height: 0;
     opacity: 0;
 }
-
 .accordion-content:not(.d-none) {
     max-height: 500px; /* Adjust as needed */
     opacity: 1;
 }
-
 .accordion-icon {
     transition: transform var(--transition-duration) ease;
 }
-
 .accordion-header[aria-expanded="true"] .accordion-icon {
     transform: rotate(180deg);
 }
@@ -291,11 +200,12 @@ body.dark-mode .nav-tabs .nav-link:hover {
 body.dark-mode .nav-tabs .nav-link {
     color: var(--slideout-text);
 }
-
 body.dark-mode .nav-tabs .nav-link.active {
     color: var(--slideout-text);
 }
-
 body.dark-mode .nav-tabs .nav-link:hover {
     color: var(--slideout-text);
+}
+body.dark-mode .list-group-item {
+    border-color: #555555; /* Adjust border color for dark mode */
 }
