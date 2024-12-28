@@ -1,15 +1,12 @@
+import { SELECTORS } from '@src/constants/selectors';
+
 export class PostDetector {
     private listContainerSelectors = [
-        'div.css-175oi2r.r-1ljd8xs.r-13l2t4g.r-1jj8364.r-lchren.r-1ye8kvj.r-13qz1uu.r-sa2ff0',
-        'div.css-175oi2r.r-q5xsgd.r-1jj8364.r-lchren.r-1ye8kvj.r-13qz1uu.r-sa2ff0',
-        'div.css-175oi2r.r-1jj8364.r-lchren.r-1ye8kvj.r-13qz1uu.r-sa2ff0',
-        'div.css-175oi2r.r-sa2ff0',
+        SELECTORS.postContainers,
     ];
 
     private postSelectors = [
-        'div[role="link"][tabindex="0"]',
-        'a[href^="/profile/"]',
-        'div[role="link"][tabindex="0"][aria-label^="Post by"]',
+        SELECTORS.posts,
     ].join(', ');
 
     public getExistingPosts(): HTMLElement[] {
