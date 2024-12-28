@@ -115,7 +115,10 @@ export class PostProcessor {
             wrapper.setAttribute('data-post-type', postType);
 
             const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
-
+            if (isUserBlocked) {
+                wrapper.classList.add('blocked-post');
+            }
+            
             // Insert the wrapper in place of the element
             parent.insertBefore(wrapper, element);
 

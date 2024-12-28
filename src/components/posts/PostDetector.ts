@@ -7,7 +7,7 @@ export class PostDetector {
 
     private postSelectors = [
         SELECTORS.posts,
-    ].join(', ');
+    ].join(',');
 
     public getExistingPosts(): HTMLElement[] {
         const containerQuery = this.listContainerSelectors.join(', ');
