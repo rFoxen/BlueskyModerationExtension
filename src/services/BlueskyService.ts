@@ -214,24 +214,11 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
         }
     }
 
-    public async unblockUser(userHandle: string, listUri: string): Promise<any> {
+    public async unblockUserWithRKey(rkey: string, listUri: string): Promise<any> {
         if (!this.agent.session) {
             throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
         }
         try {
-            const userDid = await this.resolveDidFromHandle(userHandle);
-            console.log(`Resolved DID for ${userHandle}: ${userDid}`); // Log DID
-            const listResponse = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`);
-            console.log(`Fetched block list for ${listUri}:`, listResponse); // Log block list
-            const itemToDelete = listResponse.items.find((item: any) => item.subject.did === userDid);
-            console.log(`Item to delete for ${userHandle}:`, itemToDelete); // Log item to delete
-            if (!itemToDelete) {
-                throw new NotFoundError('User is not in the block list.');
-            }
-            const rkey = itemToDelete.uri.split('/').pop();
-            if (!rkey) {
-                throw new Error('Invalid record key.');
-            }
             const body = {
                 collection: 'app.bsky.graph.listitem',
                 repo: this.agent.session.did,
@@ -239,18 +226,64 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
             };
             const response = await this.fetchWithAuth(API_ENDPOINTS.DELETE_RECORD, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify(body),
             });
-            console.log(`Unblock response for ${userHandle}:`, response); // Log response
+            console.log(`Unblock response for rkey ${rkey}:`, response);
             return response;
         } catch (error) {
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
-            console.error(`Error unblocking user ${userHandle}:`, error); // Enhanced error logging
+            console.error(`Error unblocking rkey ${rkey}:`, error);
             throw error;
         }
     }
 
+    public async unblockUser(userHandle: string, listUri: string): Promise<any> {
+        if (!this.agent.session) {
+            throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
+        }
+        try {
+            const userDid = await this.resolveDidFromHandle(userHandle);
+            console.log(`Resolved DID for ${userHandle}: ${userDid}`);
+
+            // Attempt to get 'rkey' from blockedUsersMap
+            const listResponse = await this.fetchWithAuth(
+                `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`
+            );
+            console.log(`Fetched block list for ${listUri}:`, listResponse);
+
+            const itemToDelete = listResponse.items.find(
+                (item: any) => item.subject.did === userDid
+            );
+            console.log(`Item to delete for ${userHandle}:`, itemToDelete);
+
+            if (!itemToDelete) {
+                throw new NotFoundError('User is not in the block list.');
+            }
+
+            const rkey = this.extractRKey(itemToDelete.uri);
+            if (!rkey) {
+                throw new Error('Invalid record key.');
+            }
+
+            // Use the new method to unblock with rkey
+            const response = await this.unblockUserWithRKey(rkey, listUri);
+            console.log(`Unblock response for ${userHandle}:`, response);
+            return response;
+        } catch (error) {
+            this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
+            console.error(`Error unblocking user ${userHandle}:`, error);
+            throw error;
+        }
+    }
+
+
+    private extractRKey(uri: string): string | null {
+        const parts = uri.split('/');
+        return parts.length > 0 ? parts.pop() || null : null;
+    }
 
     public async reportAccount(userDid: string, reasonType: string, reason: string = ""): Promise<void> {
         if (!this.agent.session) {

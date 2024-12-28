@@ -1,3 +1,4 @@
+// src\components\posts\ActionButtonManager.ts
 import { Button } from '@src/components/common/Button';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlueskyService } from '@src/services/BlueskyService';
@@ -6,6 +7,10 @@ import { UserReporter } from '@src/components/reporting/UserReporter';
 import { LABELS, ARIA_LABELS, MESSAGES, ERRORS } from '@src/constants/Constants';
 import { PostActionButtonsFactory } from './PostActionButtonsFactory';
 
+/**
+ * ActionButtonManager handles the inline “Block”/”Unblock” button logic
+ * that appears next to each post or user reference.
+ */
 export class ActionButtonManager {
     private notificationManager: NotificationManager;
     private blueskyService: BlueskyService;
@@ -42,6 +47,9 @@ export class ActionButtonManager {
         );
     }
 
+    /**
+     * Creates the block/unblock/report buttons for a given post.
+     */
     public createButtons(profileHandle: string, isUserBlocked: boolean): HTMLElement {
         const buttonContainer = this.buttonsFactory.createButtons({
             profileHandle,
@@ -49,10 +57,12 @@ export class ActionButtonManager {
             onBlock: this.handleBlockUser.bind(this),
             onReport: this.handleReportUser.bind(this),
         });
-
         return buttonContainer;
     }
 
+    /**
+     * Called when the user clicks the "Block" or "Unblock" button in the inline action buttons.
+     */
     private async handleBlockUser(userHandle: string, blockButton: Button): Promise<void> {
         if (!this.isLoggedIn()) {
             this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_BLOCK_USERS, 'error');
@@ -67,10 +77,21 @@ export class ActionButtonManager {
 
         try {
             const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
+
             if (isBlocking) {
+                // --- BLOCK FLOW ---
                 const response = await this.blueskyService.blockUser(userHandle, selectedBlockList);
                 if (response) {
+                    // Use the blockUser API response to store the user in local data with its URI
+                    await this.blockedUsersService.addBlockedUserFromResponse(
+                        response,
+                        userHandle,
+                        selectedBlockList
+                    );
+
+                    // Optionally notify other parts of the UI
                     await this.onUserBlocked(userHandle);
+
                     const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
                     this.notificationManager.displayNotification(
                         MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
@@ -80,17 +101,17 @@ export class ActionButtonManager {
                     throw new Error(ERRORS.UNKNOWN_ERROR);
                 }
             } else {
-                const response = await this.blueskyService.unblockUser(userHandle, selectedBlockList);
-                if (response) {
-                    await this.onUserUnblocked(userHandle);
-                    this.blockedUsersService.removeBlockedUser(userHandle, selectedBlockList);
-                    this.notificationManager.displayNotification(
-                        MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
-                        'success'
-                    );
-                } else {
-                    throw new Error(ERRORS.UNKNOWN_ERROR);
-                }
+                // --- UNBLOCK FLOW ---
+                // We remove the user from local data and call unblock with RKey if we have it
+                await this.blockedUsersService.removeBlockedUser(userHandle, selectedBlockList);
+
+                this.notificationManager.displayNotification(
+                    MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
+                    'success'
+                );
+
+                // Notify other parts of the app
+                await this.onUserUnblocked(userHandle);
             }
         } catch (error) {
             console.error(`Error blocking/unblocking user "${userHandle}":`, error);
@@ -102,6 +123,9 @@ export class ActionButtonManager {
         await this.userReporter.reportUser(userHandle);
     }
 
+    /**
+     * Updates the button text/style if the user is blocked or unblocked.
+     */
     public updateButtonState(wrapper: HTMLElement, isBlocked: boolean): void {
         const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLButtonElement | null;
         if (blockButton) {
@@ -111,6 +135,9 @@ export class ActionButtonManager {
         }
     }
 
+    /**
+     * Toggles visibility of block buttons across all posts in the feed.
+     */
     public setButtonsVisibility(visible: boolean): void {
         const buttons = document.querySelectorAll('.toggle-block-button');
         buttons.forEach((button) => {

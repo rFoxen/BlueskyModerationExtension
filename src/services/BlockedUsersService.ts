@@ -1,21 +1,29 @@
+// src\services\BlockedUsersService.ts
 import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { BlueskyService, NotFoundError } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, ERRORS, LABELS } from '@src/constants/Constants';
 
+// Adjust the interface as needed, ensuring `uri` is always present
+interface BlockedUser {
+    subject: {
+        handle?: string;
+        did: string;
+    };
+    uri: string; // Must contain the final record key or full URI
+}
+
 declare var chrome: any;
 
 export class BlockedUsersService extends EventEmitter {
-    private blockedUsersData: any[] = [];
-    // NEW: Introduce a Map for O(1) lookups
-    private blockedUsersMap: Map<string, any> = new Map();
+    private blockedUsersData: BlockedUser[] = [];
+    private blockedUsersMap: Map<string, BlockedUser> = new Map();
 
     constructor(private blueskyService: BlueskyService) {
         super();
     }
 
     public async getBlockListName(listUri: string): Promise<string> {
-        if (!this.blueskyService)
-            throw new Error(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+        if (!this.blueskyService) throw new Error(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
         const response = await this.blueskyService.getBlockListName(listUri);
         return response || LABELS.UNNAMED_LIST;
     }
@@ -51,23 +59,84 @@ export class BlockedUsersService extends EventEmitter {
         }
     }
 
-    // Build the map after fetching or refreshing
+    /**
+     * Rebuilds the in-memory map after fetch or refresh.
+     */
     private buildBlockedUsersMap(): void {
         this.blockedUsersMap.clear();
         for (const user of this.blockedUsersData) {
             const handle = user.subject.handle || user.subject.did;
-            this.blockedUsersMap.set(handle, user);
+            const rkey = this.extractRKey(user.uri);
+            this.blockedUsersMap.set(handle, {
+                ...user,
+                // Optionally store just the RKey if you prefer
+                uri: rkey || '',
+            });
         }
+    }
+
+    private extractRKey(uri: string): string | null {
+        if (!uri) return null;
+        const parts = uri.split('/');
+        return parts.length > 0 ? parts.pop() || null : null;
     }
 
     public isUserBlocked(userHandle: string): boolean {
         return this.blockedUsersMap.has(userHandle);
     }
 
+    /**
+     * Called from the inline "Block" button after receiving the block API response
+     * from BlueskyService. This ensures we store the user's uri/did in local data.
+     */
+// In BlockedUsersService.ts
+    public async addBlockedUserFromResponse(
+        apiResponse: any,
+        userHandle: string,
+        listUri: string
+    ): Promise<void> {
+        try {
+            // The blockUser response no longer returns 'subject.did'
+            // but it does return 'uri'
+            const { uri } = apiResponse;
+            if (!uri) {
+                throw new Error('API response missing uri');
+            }
+
+            // If we still need DID, let's resolve it from userHandle
+            const did = await this.resolveDidFromHandle(userHandle);
+
+            const newItem: BlockedUser = {
+                subject: {
+                    handle: userHandle,
+                    did, // so you have did in local data
+                },
+                uri, // from the API
+            };
+
+            this.blockedUsersData.unshift(newItem);
+            this.blockedUsersMap.set(userHandle, newItem);
+            await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
+            this.emit('blockedUserAdded', newItem);
+        } catch (error) {
+            console.error(
+                `Failed to add blocked user from API response for ${userHandle}:`,
+                error
+            );
+            this.emit('error', `Failed to add blocked user ${userHandle}.`);
+        }
+    }
+
+
+    /**
+     * @deprecated Not used directly from action buttons anymore, but we can keep or remove.
+     * This was used in older flows to block a user by handle without reusing the API response.
+     */
     public async addBlockedUser(userHandle: string, listUri: string): Promise<void> {
         try {
+            // Just keep it if other flows still use it, or remove if not needed.
             const did = await this.blueskyService.resolveDidFromHandle(userHandle);
-            const newItem = { subject: { handle: userHandle, did } };
+            const newItem = { subject: { handle: userHandle, did }, uri: '' };
             this.blockedUsersData.unshift(newItem);
             this.blockedUsersMap.set(userHandle, newItem);
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
@@ -83,28 +152,51 @@ export class BlockedUsersService extends EventEmitter {
             console.warn(`User ${userHandle} is not in the block list.`);
             return;
         }
+
+        const blockedUser = this.blockedUsersMap.get(userHandle);
+        const rkey = blockedUser?.uri;
+
+        if (!rkey) {
+            console.warn(`rkey for user ${userHandle} not found locally. Falling back to full API unblock.`);
+            try {
+                await this.blueskyService.unblockUser(userHandle, listUri);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    // Already unblocked
+                    this.cleanupAfterUnblock(userHandle, listUri);
+                } else {
+                    console.error('Failed to remove blocked user via fallback:', error);
+                    this.emit('error', 'Failed to remove blocked user.');
+                }
+            }
+            return;
+        }
+
+        // If we do have an RKey, we can call unblockUserWithRKey
         try {
-            await this.blueskyService.unblockUser(userHandle, listUri);
-            this.blockedUsersMap.delete(userHandle);
-            this.blockedUsersData = this.blockedUsersData.filter(
-                (item) => (item.subject.handle || item.subject.did) !== userHandle
-            );
-            await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
-            this.emit('blockedUserRemoved', userHandle);
+            await this.blueskyService.unblockUserWithRKey(rkey, listUri);
+            this.cleanupAfterUnblock(userHandle, listUri);
         } catch (error) {
             if (error instanceof NotFoundError) {
-                // User already unblocked
-                this.blockedUsersMap.delete(userHandle);
-                this.blockedUsersData = this.blockedUsersData.filter(
-                    (item) => (item.subject.handle || item.subject.did) !== userHandle
-                );
-                await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
-                this.emit('blockedUserRemoved', userHandle);
+                // Already unblocked
+                this.cleanupAfterUnblock(userHandle, listUri);
             } else {
                 console.error('Failed to remove blocked user:', error);
                 this.emit('error', 'Failed to remove blocked user.');
             }
         }
+    }
+
+    /**
+     * Shared logic for removing user from local structures.
+     */
+    private async cleanupAfterUnblock(userHandle: string, listUri: string): Promise<void> {
+        this.blockedUsersMap.delete(userHandle);
+        this.blockedUsersData = this.blockedUsersData.filter(
+            (item) => (item.subject.handle || item.subject.did) !== userHandle
+        );
+        await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
+        this.emit('blockedUserRemoved', userHandle);
     }
 
     public async resolveHandleFromDid(did: string): Promise<string> {
@@ -119,7 +211,7 @@ export class BlockedUsersService extends EventEmitter {
         await this.blueskyService.reportAccount(userDid, reasonType, reason);
     }
 
-    public getBlockedUsersData(): any[] {
+    public getBlockedUsersData(): BlockedUser[] {
         return this.blockedUsersData;
     }
 
@@ -134,7 +226,7 @@ export class BlockedUsersService extends EventEmitter {
         });
     }
 
-    private getBlockedUsersFromStorage(listUri: string): Promise<any[] | null> {
+    private getBlockedUsersFromStorage(listUri: string): Promise<BlockedUser[] | null> {
         return new Promise((resolve) => {
             chrome.storage.local.get([`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`], (result: any) => {
                 if (result[`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]) {
@@ -146,12 +238,10 @@ export class BlockedUsersService extends EventEmitter {
         });
     }
 
-    private saveBlockedUsersToStorage(listUri: string, blockedUsers: any[]): Promise<void> {
+    private saveBlockedUsersToStorage(listUri: string, blockedUsers: BlockedUser[]): Promise<void> {
         return new Promise((resolve) => {
             chrome.storage.local.set(
-                {
-                    [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers,
-                },
+                { [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers },
                 () => {
                     resolve();
                 }
