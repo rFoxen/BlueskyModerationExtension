@@ -18,6 +18,37 @@
     outline-offset: 2px;
 }
 
+/* Loading State for Buttons */
+.btn.loading {
+    pointer-events: none; /* Disable clicks */
+    opacity: 0.6; /* Reduce opacity */
+    position: relative; /* Ensure spinner is positioned properly */
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--button-text); /* Spinner color */
+    border-top-color: transparent; /* Creates the spinning effect */
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    transform: translate(-50%, -50%);
+}
+
+/* Spinner Animation */
+@keyframes spin {
+    from {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
 /* Button Variants */
 .btn-primary {
     background-color: var(--button-bg);

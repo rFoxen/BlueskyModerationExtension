@@ -22,7 +22,6 @@ export class BlockedUsersUI {
 
     private domEventHandlers: { [key: string]: EventListener } = {};
     private serviceEventHandlers: { [key: string]: (...args: any[]) => void } = {};
-
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
 
     // NEW: Caching the last rendered data and page to skip unnecessary re-renders
@@ -155,6 +154,7 @@ export class BlockedUsersUI {
         this.populateBlockedUsersList();
         this.updateBlockedUsersCount();
         this.showBlockedUsersSection();
+
         if (successMessage) {
             this.notificationManager.displayNotification(successMessage, 'success');
         }
@@ -209,7 +209,7 @@ export class BlockedUsersUI {
             const items: HTMLDivElement[] = [];
             for (const item of currentPageData) {
                 const listItem = await this.itemFactory.create(item);
-                // Optionally store a data attribute to identify the user:
+                // Optionally store a data attribute to identify the user
                 listItem.setAttribute(
                     'data-user-handle',
                     item.subject.handle || item.subject.did
@@ -237,10 +237,7 @@ export class BlockedUsersUI {
     private async handleUnblockUser(userHandle: string): Promise<void> {
         const selectedUri = this.blockListDropdown.getSelectedValue();
         if (!selectedUri) {
-            this.notificationManager.displayNotification(
-                MESSAGES.PLEASE_SELECT_BLOCK_LIST,
-                'error'
-            );
+            this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
             return;
         }
         const confirmMessage = `Are you sure you want to unblock @${userHandle}?`;
@@ -270,7 +267,6 @@ export class BlockedUsersUI {
         );
         const newPage = this.blockedUsersPage + delta;
         if (newPage < 1 || newPage > totalPages) return;
-
         this.blockedUsersPage = newPage;
         this.populateBlockedUsersList();
     }
@@ -309,29 +305,39 @@ export class BlockedUsersUI {
      * PARTIAL UI UPDATE: Add newly blocked user to the top of the list (optimistic approach).
      */
     private async addUserToUI(newItem: any): Promise<void> {
-        // 1. Insert into our current array in memory
+        const newHandle = newItem.subject.handle || newItem.subject.did;
+
+        // 1. Remove old record if it exists in local data (to prevent duplicates)
+        this.currentBlockedUsersData = this.currentBlockedUsersData.filter((existing) => {
+            const handle = existing.subject.handle || existing.subject.did;
+            return handle !== newHandle;
+        });
+
+        // 2. Insert into our current array in memory
         this.currentBlockedUsersData.unshift(newItem);
 
-        // 2. Insert the new DOM element at the top, if it's on the current page
+        // 3. If on page 1, also add the new DOM element at the top
         const listContainer = this.view.getListContainerElement();
-        if (!listContainer) return;
-
-        // If the newly added user is on page 1, we can insert it at the top.
-        // But if we're not on page 1, the user won't be visible anyway.
-        if (this.blockedUsersPage === 1) {
+        if (listContainer && this.blockedUsersPage === 1) {
             try {
                 const listItem = await this.itemFactory.create(newItem);
-                listItem.setAttribute(
-                    'data-user-handle',
-                    newItem.subject.handle || newItem.subject.did
+                listItem.setAttribute('data-user-handle', newHandle);
+
+                // If an old item for that user is in the DOM, remove it first
+                const existingDom = listContainer.querySelector(
+                    `[data-user-handle="${newHandle}"]`
                 );
+                if (existingDom) {
+                    listContainer.removeChild(existingDom);
+                }
+
                 listContainer.insertAdjacentElement('afterbegin', listItem);
             } catch (error) {
                 console.error('Error creating new blocked user item:', error);
             }
         }
 
-        // 3. Update the count and possibly other UI pieces
+        // 4. Update the count and possibly other UI pieces
         this.updateBlockedUsersCount();
     }
 
@@ -359,10 +365,10 @@ export class BlockedUsersUI {
         // 3. Update count and possibly re-check if we need to show empty state
         this.updateBlockedUsersCount();
 
-        // If the current page is now empty, optionally repopulate or show empty state
         const startIndex = (this.blockedUsersPage - 1) * this.blockedUsersPageSize;
         const endIndex = startIndex + this.blockedUsersPageSize;
         const currentPageData = this.currentBlockedUsersData.slice(startIndex, endIndex);
+
         if (currentPageData.length === 0) {
             this.view.showEmptyState();
         }

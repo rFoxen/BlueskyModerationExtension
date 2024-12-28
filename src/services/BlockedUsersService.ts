@@ -1,4 +1,5 @@
 // src\services\BlockedUsersService.ts
+
 import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { BlueskyService, NotFoundError } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, ERRORS, LABELS } from '@src/constants/Constants';
@@ -67,9 +68,9 @@ export class BlockedUsersService extends EventEmitter {
         for (const user of this.blockedUsersData) {
             const handle = user.subject.handle || user.subject.did;
             const rkey = this.extractRKey(user.uri);
+            // Store only the rkey in "uri" if you prefer, to avoid re-fetch
             this.blockedUsersMap.set(handle, {
                 ...user,
-                // Optionally store just the RKey if you prefer
                 uri: rkey || '',
             });
         }
@@ -89,7 +90,6 @@ export class BlockedUsersService extends EventEmitter {
      * Called from the inline "Block" button after receiving the block API response
      * from BlueskyService. This ensures we store the user's uri/did in local data.
      */
-// In BlockedUsersService.ts
     public async addBlockedUserFromResponse(
         apiResponse: any,
         userHandle: string,
@@ -102,31 +102,31 @@ export class BlockedUsersService extends EventEmitter {
             if (!uri) {
                 throw new Error('API response missing uri');
             }
-
             // If we still need DID, let's resolve it from userHandle
             const did = await this.resolveDidFromHandle(userHandle);
 
+            // Before adding, remove any old record if it exists
+            this.blockedUsersData = this.blockedUsersData.filter((item) => {
+                const handle = item.subject.handle || item.subject.did;
+                return handle !== userHandle;
+            });
+
             const newItem: BlockedUser = {
-                subject: {
-                    handle: userHandle,
-                    did, // so you have did in local data
-                },
-                uri, // from the API
+                subject: { handle: userHandle, did },
+                uri, // from the API (full record URI or partial)
             };
 
+            // Insert new item at the top
             this.blockedUsersData.unshift(newItem);
             this.blockedUsersMap.set(userHandle, newItem);
+
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
             this.emit('blockedUserAdded', newItem);
         } catch (error) {
-            console.error(
-                `Failed to add blocked user from API response for ${userHandle}:`,
-                error
-            );
+            console.error(`Failed to add blocked user from API response for ${userHandle}:`, error);
             this.emit('error', `Failed to add blocked user ${userHandle}.`);
         }
     }
-
 
     /**
      * @deprecated Not used directly from action buttons anymore, but we can keep or remove.
@@ -135,8 +135,16 @@ export class BlockedUsersService extends EventEmitter {
     public async addBlockedUser(userHandle: string, listUri: string): Promise<void> {
         try {
             // Just keep it if other flows still use it, or remove if not needed.
+            if (this.isUserBlocked(userHandle)) {
+                return; // Already blocked, do nothing
+            }
             const did = await this.blueskyService.resolveDidFromHandle(userHandle);
-            const newItem = { subject: { handle: userHandle, did }, uri: '' };
+
+            const newItem = {
+                subject: { handle: userHandle, did },
+                uri: '',
+            };
+
             this.blockedUsersData.unshift(newItem);
             this.blockedUsersMap.set(userHandle, newItem);
             await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
@@ -158,6 +166,7 @@ export class BlockedUsersService extends EventEmitter {
 
         if (!rkey) {
             console.warn(`rkey for user ${userHandle} not found locally. Falling back to full API unblock.`);
+
             try {
                 await this.blueskyService.unblockUser(userHandle, listUri);
             } catch (error) {
@@ -169,6 +178,7 @@ export class BlockedUsersService extends EventEmitter {
                     this.emit('error', 'Failed to remove blocked user.');
                 }
             }
+
             return;
         }
 
@@ -192,9 +202,11 @@ export class BlockedUsersService extends EventEmitter {
      */
     private async cleanupAfterUnblock(userHandle: string, listUri: string): Promise<void> {
         this.blockedUsersMap.delete(userHandle);
-        this.blockedUsersData = this.blockedUsersData.filter(
-            (item) => (item.subject.handle || item.subject.did) !== userHandle
-        );
+        this.blockedUsersData = this.blockedUsersData.filter((item) => {
+            const handle = item.subject.handle || item.subject.did;
+            return handle !== userHandle;
+        });
+
         await this.saveBlockedUsersToStorage(listUri, this.blockedUsersData);
         this.emit('blockedUserRemoved', userHandle);
     }
@@ -207,7 +219,7 @@ export class BlockedUsersService extends EventEmitter {
         return this.blueskyService.resolveDidFromHandle(handle);
     }
 
-    public async reportAccount(userDid: string, reasonType: string, reason: string = ""): Promise<void> {
+    public async reportAccount(userDid: string, reasonType: string, reason: string = ''): Promise<void> {
         await this.blueskyService.reportAccount(userDid, reasonType, reason);
     }
 
@@ -241,7 +253,9 @@ export class BlockedUsersService extends EventEmitter {
     private saveBlockedUsersToStorage(listUri: string, blockedUsers: BlockedUser[]): Promise<void> {
         return new Promise((resolve) => {
             chrome.storage.local.set(
-                { [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers },
+                {
+                    [`${STORAGE_KEYS.BLOCKED_USERS_PREFIX}${listUri}`]: blockedUsers,
+                },
                 () => {
                     resolve();
                 }

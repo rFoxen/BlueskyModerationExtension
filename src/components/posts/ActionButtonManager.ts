@@ -1,4 +1,5 @@
 // src\components\posts\ActionButtonManager.ts
+
 import { Button } from '@src/components/common/Button';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlueskyService } from '@src/services/BlueskyService';
@@ -8,7 +9,7 @@ import { LABELS, ARIA_LABELS, MESSAGES, ERRORS } from '@src/constants/Constants'
 import { PostActionButtonsFactory } from './PostActionButtonsFactory';
 
 /**
- * ActionButtonManager handles the inline “Block”/”Unblock” button logic
+ * ActionButtonManager handles the inline "Block"/"Unblock" button logic
  * that appears next to each post or user reference.
  */
 export class ActionButtonManager {
@@ -68,54 +69,85 @@ export class ActionButtonManager {
             this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_BLOCK_USERS, 'error');
             return;
         }
-
         const selectedBlockList = this.getSelectedBlockList();
         if (!selectedBlockList) {
             this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
             return;
         }
 
+        // Check whether user is currently blocked
+        const alreadyBlocked = this.blockedUsersService.isUserBlocked(userHandle);
+
+        // Show "spinner" or disable
+        blockButton.setDisabled(true);
+        blockButton.addClasses('loading');
+
         try {
             const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
 
             if (isBlocking) {
-                // --- BLOCK FLOW ---
+                // If user is already blocked, do nothing
+                if (alreadyBlocked) {
+                    console.log(`User ${userHandle} is already blocked. Skipping re-block.`);
+                    return;
+                }
+
+                // --- BLOCK FLOW (Optimistic) ---
+                const tempItem = {
+                    subject: { handle: userHandle, did: '' },
+                    uri: 'pending',
+                };
+                this.blockedUsersService.emit('blockedUserAdded', tempItem);
+
+                // Call the block API
                 const response = await this.blueskyService.blockUser(userHandle, selectedBlockList);
-                if (response) {
-                    // Use the blockUser API response to store the user in local data with its URI
-                    await this.blockedUsersService.addBlockedUserFromResponse(
-                        response,
-                        userHandle,
-                        selectedBlockList
-                    );
-
-                    // Optionally notify other parts of the UI
-                    await this.onUserBlocked(userHandle);
-
-                    const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
-                    this.notificationManager.displayNotification(
-                        MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
-                        'success'
-                    );
-                } else {
+                if (!response) {
                     throw new Error(ERRORS.UNKNOWN_ERROR);
                 }
-            } else {
-                // --- UNBLOCK FLOW ---
-                // We remove the user from local data and call unblock with RKey if we have it
-                await this.blockedUsersService.removeBlockedUser(userHandle, selectedBlockList);
 
+                // If success, store the real URI
+                await this.blockedUsersService.addBlockedUserFromResponse(
+                    response,
+                    userHandle,
+                    selectedBlockList
+                );
+                // Let UI or PostScanner know
+                await this.onUserBlocked(userHandle);
+
+                const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
+                this.notificationManager.displayNotification(
+                    MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
+                    'success'
+                );
+            } else {
+                // If user is NOT blocked, skip unblocking
+                if (!alreadyBlocked) {
+                    console.log(`User ${userHandle} is not blocked. Skipping unblock.`);
+                    return;
+                }
+
+                // --- UNBLOCK FLOW ---
+                await this.blockedUsersService.removeBlockedUser(userHandle, selectedBlockList);
                 this.notificationManager.displayNotification(
                     MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
                     'success'
                 );
-
                 // Notify other parts of the app
                 await this.onUserUnblocked(userHandle);
             }
         } catch (error) {
             console.error(`Error blocking/unblocking user "${userHandle}":`, error);
+
+            // If we were optimistically blocking, revert
+            const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
+            if (isBlocking && !alreadyBlocked) {
+                this.blockedUsersService.emit('blockedUserRemoved', userHandle);
+            }
             this.notificationManager.displayNotification(ERRORS.FAILED_TO_BLOCK_USER, 'error');
+        } finally {
+            // remove spinner
+            blockButton.setDisabled(false);
+            blockButton.removeClasses('loading');
         }
     }
 
