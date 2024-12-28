@@ -29,6 +29,10 @@ export class BlockedUsersView {
         this.refreshButton = this.section.querySelector('#refresh-blocked-users') as HTMLElement;
     }
 
+    public getListContainerElement(): HTMLElement {
+        return this.blockedUsersList;
+    }
+    
     public showSection(): void {
         this.section.classList.remove('d-none');
     }
