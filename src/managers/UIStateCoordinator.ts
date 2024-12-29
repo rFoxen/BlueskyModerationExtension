@@ -5,7 +5,7 @@ import { PostScanner } from '@src/components/posts/PostScanner';
 import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
-import { MESSAGES } from '@src/constants/Constants';
+import { MESSAGES, STORAGE_KEYS } from '@src/constants/Constants';
 
 /**
  * Coordinates UI states between the slideout, block lists, post scanning, etc.
@@ -70,8 +70,17 @@ export class UIStateCoordinator {
 
     public initializeUIForSite(hostname: string): void {
         if (hostname === 'bsky.app') {
-            this.updateUI();
+            // 1) Construct PostScanner first
             this.setupPostScanner();
+
+            // 2) Retrieve the user’s saved style from localStorage (or any store)
+            const savedStyle = localStorage.getItem(STORAGE_KEYS.BLOCKED_POST_STYLE) || 'darkened';
+
+            // 3) Immediately apply that style so PostScanner uses it
+            this.handleBlockedPostStyleChange(savedStyle);
+
+            // 4) Proceed to usual UI updates
+            this.updateUI();
         }
     }
 
