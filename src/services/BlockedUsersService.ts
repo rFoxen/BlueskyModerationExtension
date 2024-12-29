@@ -1,7 +1,8 @@
 // src\services\BlockedUsersService.ts
 
 import { EventEmitter } from '@src/utils/events/EventEmitter';
-import { BlueskyService, NotFoundError } from '@src/services/BlueskyService';
+import { BlueskyService } from '@src/services/BlueskyService';
+import { NotFoundError } from '@src/services/errors/CustomErrors';
 import { STORAGE_KEYS, ERRORS, LABELS } from '@src/constants/Constants';
 
 // Adjust the interface as needed, ensuring `uri` is always present

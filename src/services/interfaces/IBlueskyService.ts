@@ -1,4 +1,4 @@
-import { AppBskyGraphDefs, BskyAgent } from '@atproto/api';
+import { AppBskyGraphDefs } from '@atproto/api';
 
 /**
  * Interface defining the contract for BlueskyService.
@@ -16,6 +16,8 @@ export interface IBlueskyService {
     blockUser(userHandle: string, listUri: string): Promise<any>;
     unblockUser(userHandle: string, listUri: string): Promise<any>;
     reportAccount(userDid: string, reasonType: string, reason?: string): Promise<void>;
-    getAccountProfile(userDidOrHandle: string): Promise<{ creationDate: Date | null; postsCount: number | null }>;
+    getAccountProfile(
+        userDidOrHandle: string
+    ): Promise<{ creationDate: Date | null; postsCount: number | null }>;
     destroy(): void;
 }

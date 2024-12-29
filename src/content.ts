@@ -1,4 +1,5 @@
 import '@public/styles.css';
+
 import { BlueskyService } from '@src/services/BlueskyService';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
@@ -7,7 +8,11 @@ import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
 import { UIStateCoordinator } from '@src/managers/UIStateCoordinator';
 import { SessionManager } from '@src/managers/SessionManager';
 
-class Content {
+/**
+ * Main entry point for initializing our content script logic.
+ * It wires up all services/managers and starts the UI flow.
+ */
+class ContentScript {
     private notificationManager: NotificationManager;
     private themeManager: ThemeManager;
     private slideoutManager: SlideoutManager;
@@ -33,7 +38,7 @@ class Content {
         this.sessionManager = new SessionManager(
             this.blueskyService,
             this.notificationManager,
-            this.handleLogout.bind(this)
+            this.performLogout.bind(this)
         );
 
         // Initialize UIStateCoordinator for orchestrating UI changes
@@ -42,44 +47,53 @@ class Content {
             this.notificationManager,
             this.blueskyService,
             this.blockedUsersService,
-            () => this.blueskyService.isLoggedIn()
+            () => this.blueskyService.isLoggedIn() // pass a function returning bool
         );
 
         this.initialize();
     }
 
+    /**
+     * Wires up initial UI states, applies saved theme,
+     * and sets up destroy logic on window unload.
+     */
     private initialize(): void {
-        console.log('Content script initialized.');
-        this.checkWebsite();
-        this.syncSessionState();
+        console.log('ContentScript initialized.');
 
-        // Listen for the window unload event to perform cleanup
-        window.addEventListener('unload', () => this.destroy(), { once: true });
-    }
-
-    private checkWebsite(): void {
-        // Apply theme
+        // 1. Apply theme upon initialization
         this.themeManager.applySavedTheme();
-        // Let UIStateCoordinator handle website-specific UI updates
+
+        // 2. Let the UIStateCoordinator handle website-specific UI
         this.uiStateCoordinator.initializeUIForSite(window.location.hostname);
+
+        // 3. Sync UI with session state
+        this.syncUIState();
+
+        // 4. Cleanup on unload
+        window.addEventListener('unload', () => this.cleanup(), { once: true });
     }
 
     /**
-     * Ensure the UI and session states are synced at startup.
+     * Ensure the UI and session states are in sync at startup.
      * If a valid session exists, show logged-in state; otherwise, show login form.
      */
-    private syncSessionState(): void {
-        // The UIStateCoordinator.updateUI() will rely on blueskyService.isLoggedIn()
+    private syncUIState(): void {
+        // The UIStateCoordinator.updateUI() relies on blueskyService.isLoggedIn(),
         // which reads from the restored session. If invalid, it shows the login UI.
         this.uiStateCoordinator.updateUI();
     }
 
-    private async handleLogout(): Promise<void> {
-        // Delegate logout to UIStateCoordinator
+    /**
+     * Called by SessionManager or other components when a logout is needed.
+     */
+    private async performLogout(): Promise<void> {
         await this.uiStateCoordinator.requestLogout();
     }
 
-    private destroy(): void {
+    /**
+     * Cleanup all resources on unload.
+     */
+    private cleanup(): void {
         this.slideoutManager.destroy();
         this.uiStateCoordinator.destroy();
         this.blockedUsersService.destroy();
@@ -89,7 +103,10 @@ class Content {
     }
 }
 
+// ----------------------------------------------------------------
 // Bootstrap the application
+// (Remains basically the same, but new class name is used below.)
+// ----------------------------------------------------------------
 const notificationManager = new NotificationManager();
 const slideoutManager = new SlideoutManager();
 const themeToggleButton = document.getElementById('theme-toggle') as HTMLElement;
@@ -97,4 +114,10 @@ const themeManager = new ThemeManager(themeToggleButton);
 const blueskyService = new BlueskyService();
 const blockedUsersService = new BlockedUsersService(blueskyService);
 
-new Content(notificationManager, slideoutManager, themeManager, blueskyService, blockedUsersService);
+new ContentScript(
+    notificationManager,
+    slideoutManager,
+    themeManager,
+    blueskyService,
+    blockedUsersService
+);

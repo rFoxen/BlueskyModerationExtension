@@ -1,90 +1,80 @@
-﻿import {APP_BSKY_GRAPH, AppBskyGraphDefs, BskyAgent} from '@atproto/api';
-import { EventEmitter } from '@src/utils/events/EventEmitter';
+﻿import { BskyAgent } from '@atproto/api';
 import { IBlueskyService } from '@src/services/interfaces/IBlueskyService';
-import { API_ENDPOINTS, ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
-import { encodeURIComponentSafe } from '@src/utils/encodeURIComponent';
-import { sanitizeHTML } from '@src/utils/sanitize';
+import { API_ENDPOINTS, ERRORS } from '@src/constants/Constants';
+import { AppBskyGraphDefs } from '@atproto/api';
+
+import { SessionService } from '@src/services/session/SessionService';
+import { ApiService } from '@src/services/api/ApiService';
+import { CacheService } from '@src/services/cache/CacheService';
+import { ErrorService } from '@src/services/errors/ErrorService';
+import { EventService } from '@src/services/events/EventService';
+
+import { AuthenticationError, NotFoundError } from '@src/services/errors/CustomErrors';
+import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
 
 /**
- * Custom Error Classes for better error handling.
+ * BlueskyService is now a facade that implements IBlueskyService,
+ * delegating responsibilities to the smaller, focused services.
  */
-class AuthenticationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'AuthenticationError';
-    }
-}
+export class BlueskyService extends EventService implements IBlueskyService {
+    private sessionService: SessionService;
+    private apiService: ApiService;
+    private cacheService: CacheService;
+    private errorService: ErrorService;
 
-export class NotFoundError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'NotFoundError';
-    }
-}
-
-class APIError extends Error {
-    constructor(message: string, public status: number) {
-        super(message);
-        this.name = 'APIError';
-    }
-}
-
-/**
- * BlueskyService handles interactions with the Bluesky API.
- */
-export class BlueskyService extends EventEmitter implements IBlueskyService {
-    private agent: BskyAgent;
-    private didToHandleCache: Map<string, string> = new Map();
-    private handleToDidCache: Map<string, string> = new Map();
-
-    constructor(sessionData: any = null) {
+    constructor() {
         super();
-        this.agent = new BskyAgent({
+        // 1) Create an ErrorService instance
+        this.errorService = new ErrorService();
+
+        // 2) Create the underlying BskyAgent
+        const agent = new BskyAgent({
             service: API_ENDPOINTS.SERVICE,
-            persistSession: this.handleSession.bind(this),
+            // Tell agent how to persist session
+            persistSession: this.handlePersistSession.bind(this),
         });
 
-        if (sessionData) {
-            this.agent.resumeSession(sessionData);
-        } else {
-            const savedSession = this.loadSessionData();
-            if (savedSession) {
-                this.agent.resumeSession(savedSession);
-            }
-        }
+        // 3) SessionService manages session logic
+        this.sessionService = new SessionService(agent, this.errorService);
+        // Attempt to resume any stored session from localStorage
+        this.sessionService.resumeSessionFromStorage();
+
+        // 4) Create ApiService that uses SessionService + ErrorService
+        this.apiService = new ApiService(this.sessionService, this.errorService);
+
+        // 5) Create CacheService for DID <-> Handle caching
+        this.cacheService = new CacheService();
     }
 
     /**
-     * Handles session persistence.
+     * Hooked into BskyAgent's persistSession. We emit 'sessionUpdated'
+     * whenever a session is saved or cleared.
      */
-    private handleSession(evt: string, session?: any): void {
-        if (session) {
-            localStorage.setItem(STORAGE_KEYS.BLUESKY_SESSION, JSON.stringify(session));
-        } else {
-            localStorage.removeItem(STORAGE_KEYS.BLUESKY_SESSION);
-        }
-        this.emit('sessionUpdated', this.agent.session);
+    private handlePersistSession(evt: string, session?: any): void {
+        this.sessionService.persistSession(evt, session);
+        this.emit('sessionUpdated', session);
     }
 
-    /**
-     * Loads session data from localStorage.
-     */
-    private loadSessionData(): any {
-        const sessionData = localStorage.getItem(STORAGE_KEYS.BLUESKY_SESSION);
-        return sessionData ? JSON.parse(sessionData) : null;
-    }
+    // -------------------
+    // IBlueskyService API
+    // -------------------
 
     public isLoggedIn(): boolean {
-        return !!this.agent.session;
+        return this.sessionService.isLoggedIn();
     }
 
     public getLoggedInUsername(): string | null {
-        return this.agent.session?.handle || null;
+        return this.sessionService.getLoggedInUsername();
     }
 
     public async login(username: string, password: string): Promise<boolean> {
         try {
-            await this.agent.login({ identifier: username, password });
+            const success = await this.sessionService.login(username, password);
+            if (!success) {
+                this.emit('loginFailed');
+                return false;
+            }
+            // Otherwise, successful
             return true;
         } catch (error) {
             this.emit('loginFailed', error);
@@ -94,7 +84,11 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
 
     public async logout(): Promise<boolean> {
         try {
-            await this.agent.logout();
+            const success = await this.sessionService.logout();
+            if (!success) {
+                this.emit('logoutFailed');
+                return false;
+            }
             return true;
         } catch (error) {
             this.emit('logoutFailed', error);
@@ -103,93 +97,101 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     }
 
     public async getBlockLists(): Promise<AppBskyGraphDefs.ListView[]> {
-        if (!this.agent.session) return [];
+        if (!this.sessionService.isLoggedIn()) return [];
         try {
-            const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LISTS}?actor=${encodeURIComponent(this.agent.session.did)}`);
-            return response.lists.filter((list: AppBskyGraphDefs.ListView) => list.purpose === APP_BSKY_GRAPH.DefsModlist);
+            const agent = this.sessionService.getAgent();
+            const response = await this.apiService.fetchLists(agent.session?.did!);
+            // Filter modlists
+            return response.lists.filter(
+                (list: AppBskyGraphDefs.ListView) => list.purpose === 'app.bsky.graph.defs#modlist'
+            );
         } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCK_LISTS);
             return [];
         }
     }
 
     public async getBlockListName(listUri: string): Promise<string> {
-        if (!this.agent.session) return '';
+        if (!this.sessionService.isLoggedIn()) return '';
         try {
-            const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`);
-            return response.list.name || 'Unnamed List';
-        } catch (error) { 
+            const response = await this.apiService.fetchWithAuth(
+                `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`
+            );
+            return response.list?.name || 'Unnamed List';
+        } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCK_LISTS);
             return 'Unnamed List';
         }
     }
 
-    public async getBlockedUsers(listUri: string): Promise<any[]> {
-        if (!this.agent.session) return [];
+    public async getBlockedUsers(listUri: string): Promise<BlockedUser[]> {
+        if (!this.sessionService.isLoggedIn()) return [];
         try {
-            let items: any[] = [];
+            let items: BlockedUser[] = [];
             let cursor: string | null = null;
             const MAX_LIMIT = 100;
 
             do {
-                const url: string = `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}&limit=${MAX_LIMIT}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
-                const response = await this.fetchWithAuth(url);
+                const response: FetchListResponse = await this.apiService.fetchList(listUri, cursor, MAX_LIMIT);
                 items = items.concat(response.items || []);
                 cursor = response.cursor || null;
             } while (cursor);
 
             return items;
         } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
             return [];
         }
     }
 
     public async resolveHandleFromDid(did: string): Promise<string> {
-        if (this.didToHandleCache.has(did)) {
-            return this.didToHandleCache.get(did)!;
-        }
+        // Check cache first
+        const cachedHandle = this.cacheService.getHandleFromDid(did);
+        if (cachedHandle) return cachedHandle;
+
+        // If not found in cache, call the ApiService
         try {
-            const response = await this.fetchWithAuth(`${API_ENDPOINTS.RESOLVE_DID}?did=${encodeURIComponent(did)}`);
+            const response = await this.apiService.resolveDid(did);
             if (response.handle) {
-                this.didToHandleCache.set(did, response.handle);
-                this.handleToDidCache.set(response.handle, did);
+                this.cacheService.setHandleForDid(did, response.handle);
                 return response.handle;
             } else {
-                throw new NotFoundError(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+                throw this.errorService.createNotFoundError();
             }
         } catch (error) {
-            this.emit('error', ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+            this.errorService.handleError(error as Error);
             throw error;
         }
     }
 
     public async resolveDidFromHandle(handle: string): Promise<string> {
-        if (this.handleToDidCache.has(handle)) {
-            return this.handleToDidCache.get(handle)!;
-        }
+        const cachedDid = this.cacheService.getDidFromHandle(handle);
+        if (cachedDid) return cachedDid;
+
         try {
-            const response = await this.fetchWithAuth(`${API_ENDPOINTS.GET_PROFILE}?actor=${encodeURIComponent(handle)}`);
+            const response = await this.apiService.resolveHandle(handle);
             if (response.did) {
-                this.handleToDidCache.set(handle, response.did);
-                this.didToHandleCache.set(response.did, handle);
+                this.cacheService.setHandleForDid(response.did, handle);
                 return response.did;
             } else {
-                throw new NotFoundError(ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+                throw this.errorService.createNotFoundError();
             }
         } catch (error) {
-            this.emit('error', ERRORS.FAILED_TO_RESOLVE_HANDLE_FROM_DID);
+            this.errorService.handleError(error as Error);
             throw error;
         }
     }
 
     public async blockUser(userHandle: string, listUri: string): Promise<any> {
-        if (!this.agent.session) {
-            throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
-        }
+        this.sessionService.ensureAuthenticated();
         try {
             const userDid = await this.resolveDidFromHandle(userHandle);
-            if (userDid === this.agent.session.did) {
+            const agent = this.sessionService.getAgent();
+
+            if (userDid === agent.session?.did) {
                 throw new Error('Cannot block yourself.');
             }
             const body = {
@@ -200,207 +202,101 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                     list: listUri,
                     subject: userDid,
                 },
-                repo: this.agent.session.did,
+                repo: agent.session?.did,
             };
-            const response = await this.fetchWithAuth(API_ENDPOINTS.CREATE_RECORD, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            return response;
+            return this.apiService.postCreateRecord(body);
         } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_BLOCK_USER);
             throw error;
         }
     }
 
-    public async unblockUserWithRKey(rkey: string, listUri: string): Promise<any> {
-        if (!this.agent.session) {
-            throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
-        }
-        try {
-            const body = {
-                collection: 'app.bsky.graph.listitem',
-                repo: this.agent.session.did,
-                rkey: rkey,
-            };
-            const response = await this.fetchWithAuth(API_ENDPOINTS.DELETE_RECORD, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(body),
-            });
-            console.log(`Unblock response for rkey ${rkey}:`, response);
-            return response;
-        } catch (error) {
-            this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
-            console.error(`Error unblocking rkey ${rkey}:`, error);
-            throw error;
-        }
-    }
-
     public async unblockUser(userHandle: string, listUri: string): Promise<any> {
-        if (!this.agent.session) {
-            throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
-        }
+        this.sessionService.ensureAuthenticated();
         try {
+            // We try to find the correct rkey for the user in the list
             const userDid = await this.resolveDidFromHandle(userHandle);
-            console.log(`Resolved DID for ${userHandle}: ${userDid}`);
-
-            // Attempt to get 'rkey' from blockedUsersMap
-            const listResponse = await this.fetchWithAuth(
+            const listResponse = await this.apiService.fetchWithAuth(
                 `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`
             );
-            console.log(`Fetched block list for ${listUri}:`, listResponse);
-
-            const itemToDelete = listResponse.items.find(
-                (item: any) => item.subject.did === userDid
-            );
-            console.log(`Item to delete for ${userHandle}:`, itemToDelete);
-
+            const itemToDelete = listResponse.items.find((item: any) => item.subject.did === userDid);
             if (!itemToDelete) {
+                // not found in block list
                 throw new NotFoundError('User is not in the block list.');
             }
-
             const rkey = this.extractRKey(itemToDelete.uri);
-            if (!rkey) {
-                throw new Error('Invalid record key.');
-            }
+            if (!rkey) throw new Error('Invalid record key.');
 
-            // Use the new method to unblock with rkey
-            const response = await this.unblockUserWithRKey(rkey, listUri);
-            console.log(`Unblock response for ${userHandle}:`, response);
-            return response;
+            return this.unblockUserWithRKey(rkey, listUri);
         } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
-            console.error(`Error unblocking user ${userHandle}:`, error);
             throw error;
         }
     }
 
-
-    private extractRKey(uri: string): string | null {
-        const parts = uri.split('/');
-        return parts.length > 0 ? parts.pop() || null : null;
+    /**
+     * Helper for calls that already know the `rkey`.
+     */
+    public async unblockUserWithRKey(rkey: string, listUri: string): Promise<any> {
+        this.sessionService.ensureAuthenticated();
+        try {
+            const agent = this.sessionService.getAgent();
+            const body = {
+                collection: 'app.bsky.graph.listitem',
+                repo: agent.session?.did,
+                rkey,
+            };
+            return this.apiService.postDeleteRecord(body);
+        } catch (error) {
+            this.errorService.handleError(error as Error);
+            this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
+            throw error;
+        }
     }
 
-    public async reportAccount(userDid: string, reasonType: string, reason: string = ""): Promise<void> {
-        if (!this.agent.session) {
-            throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
-        }
-        const subject = {
-            $type: "com.atproto.admin.defs#repoRef",
-            did: userDid,
-            type: "account",
-        };
-        const body = {
-            reason,
-            reasonType,
-            subject,
-        };
+    public async reportAccount(userDid: string, reasonType: string, reason?: string): Promise<void> {
+        this.sessionService.ensureAuthenticated();
         try {
-            await this.fetchWithAuth(API_ENDPOINTS.REPORT_ACCOUNT, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
+            const subject = {
+                $type: 'com.atproto.admin.defs#repoRef',
+                did: userDid,
+                type: 'account',
+            };
+            const body = { reason, reasonType, subject };
+            await this.apiService.reportAccount(body);
         } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_REPORT_USER);
             throw error;
         }
     }
 
     public async getAccountProfile(userDidOrHandle: string): Promise<{ creationDate: Date | null; postsCount: number | null }> {
-        const url = `${API_ENDPOINTS.GET_PROFILE}?actor=${encodeURIComponent(userDidOrHandle)}`;
         try {
-            const profile = await this.fetchWithAuth(url, {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-            });
+            const profile = await this.apiService.fetchProfile(userDidOrHandle);
             const creationDate = profile.createdAt ? new Date(profile.createdAt) : null;
             const postsCount = profile.postsCount ?? null;
             return { creationDate, postsCount };
         } catch (error) {
+            this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
             return { creationDate: null, postsCount: null };
         }
     }
 
-    /**
-     * Centralized method for making authenticated API requests.
-     */
-    private async fetchWithAuth(url: string, options: RequestInit = {}): Promise<any> {
-        const accessJwt = this.agent.session?.accessJwt;
-        if (!accessJwt) {
-            this.emit('sessionExpired');
-            throw new AuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
-        }
-
-        const authOptions: RequestInit = {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization: `Bearer ${accessJwt}`,
-            },
-        };
-
-        try {
-            const response = await fetch(url, authOptions);
-            if (response.ok) {
-                return response.json();
-            }
-
-            if (response.status === 401) {
-                const refreshed = await this.tryRefreshSession();
-                if (refreshed) {
-                    const newAccessJwt = this.agent.session?.accessJwt;
-                    if (!newAccessJwt) {
-                        this.emit('sessionExpired');
-                        throw new AuthenticationError(ERRORS.SESSION_EXPIRED);
-                    }
-                    authOptions.headers = {
-                        ...authOptions.headers,
-                        Authorization: `Bearer ${newAccessJwt}`,
-                    };
-                    const retryResponse = await fetch(url, authOptions);
-                    if (retryResponse.ok) {
-                        return retryResponse.json();
-                    } else {
-                        const errorData = await retryResponse.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
-                        throw new APIError(errorData.message || ERRORS.UNKNOWN_ERROR, retryResponse.status);
-                    }
-                } else {
-                    this.emit('sessionExpired');
-                    throw new AuthenticationError(ERRORS.SESSION_EXPIRED);
-                }
-            }
-
-            const errorData = await response.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
-            throw new APIError(errorData.message || ERRORS.UNKNOWN_ERROR, response.status);
-        } catch (error) {
-            this.emit('error', ERRORS.UNKNOWN_ERROR);
-            throw error;
-        }
-    }
-
-    /**
-     * Attempts to refresh the session using the refresh JWT.
-     */
-    private async tryRefreshSession(): Promise<boolean> {
-        if (!this.agent.session?.refreshJwt) return false;
-        try {
-            await (this.agent as any).sessionManager.refreshSession();
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
     public destroy(): void {
-        this.didToHandleCache.clear();
-        this.handleToDidCache.clear();
+        // Clear caches, remove event listeners, etc.
+        this.cacheService = new CacheService();
         this.removeAllListeners();
-        // Additional cleanup if necessary
+    }
+
+    // ------------
+    // Helpers
+    // ------------
+    private extractRKey(uri: string): string | null {
+        const parts = uri.split('/');
+        return parts.length > 0 ? parts.pop() || null : null;
     }
 }

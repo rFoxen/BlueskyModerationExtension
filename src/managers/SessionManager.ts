@@ -3,15 +3,15 @@ import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 
 /**
- * SessionManager is responsible for handling session expiration logic and ensuring
- * UI updates when session changes (via sessionUpdated event).
+ * SessionManager is responsible for handling session expiration logic
+ * and ensuring UI updates when session changes (via sessionUpdated event).
  */
 export class SessionManager {
     private blueskyService: BlueskyService;
     private notificationManager: NotificationManager;
     private onLogout: () => void;
-    private sessionUpdatedHandler: (...args: any[]) => void;
-    private sessionExpiredHandler: (...args: any[]) => void;
+    private onSessionExpiredHandler: () => void;
+    private onSessionUpdatedHandler: (session: any) => void;
 
     constructor(
         blueskyService: BlueskyService,
@@ -22,12 +22,13 @@ export class SessionManager {
         this.notificationManager = notificationManager;
         this.onLogout = onLogout;
 
-        this.sessionExpiredHandler = this.handleSessionExpired.bind(this);
-        this.sessionUpdatedHandler = this.handleSessionUpdated.bind(this);
+        // We rename the private methods for clarity:
+        this.onSessionExpiredHandler = this.handleSessionExpired.bind(this);
+        this.onSessionUpdatedHandler = this.handleSessionUpdated.bind(this);
 
         // Listen to session changes
-        this.blueskyService.on('sessionExpired', this.sessionExpiredHandler);
-        this.blueskyService.on('sessionUpdated', this.sessionUpdatedHandler);
+        this.blueskyService.on('sessionExpired', this.onSessionExpiredHandler);
+        this.blueskyService.on('sessionUpdated', this.onSessionUpdatedHandler);
     }
 
     private handleSessionExpired(): void {
@@ -42,14 +43,13 @@ export class SessionManager {
      */
     private handleSessionUpdated(session: any): void {
         if (!session || !session.accessJwt) {
-            // Session no longer valid
             console.warn('Session updated but no valid JWT, logging out.');
             this.onLogout();
         }
     }
 
     public destroy(): void {
-        this.blueskyService.off('sessionExpired', this.sessionExpiredHandler);
-        this.blueskyService.off('sessionUpdated', this.sessionUpdatedHandler);
+        this.blueskyService.off('sessionExpired', this.onSessionExpiredHandler);
+        this.blueskyService.off('sessionUpdated', this.onSessionUpdatedHandler);
     }
 }
