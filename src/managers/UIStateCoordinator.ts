@@ -8,8 +8,7 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { MESSAGES } from '@src/constants/Constants';
 
 /**
- * UIStateCoordinator manages the UI components and their states based on user login status
- * and other conditions. It ensures that Content class doesn't do too much UI logic.
+ * Coordinates UI states between the slideout, block lists, post scanning, etc.
  */
 export class UIStateCoordinator {
     private isLoggedIn: boolean;
@@ -35,32 +34,37 @@ export class UIStateCoordinator {
         this.blockedUsersService = blockedUsersService;
         this.getIsLoggedIn = isLoggedIn;
         this.isLoggedIn = isLoggedIn();
+
         this.setupSlideoutEvents();
     }
 
     private setupSlideoutEvents(): void {
         this.slideoutManager.on('login', this.handleLogin.bind(this));
         this.slideoutManager.on('logout', this.handleLogout.bind(this));
+
         this.slideoutManager.on('blockButtonsToggle', (visible: boolean) => {
             this.postScanner?.setBlockButtonsVisibility(visible);
         });
+
         this.slideoutManager.on('blockListSelectionChange', this.handleBlockListSelectionChange.bind(this));
         this.slideoutManager.on('refreshBlockLists', () => this.blockListDropdown?.refreshBlockLists());
 
-        // Optionally, listen to loginFailed and logoutFailed events if BlueskyService emits them
+        // Listen for loginFailed and logoutFailed from BlueskyService
         this.blueskyService.on('loginFailed', () => {
             this.notificationManager.displayNotification(MESSAGES.LOGIN_FAILED, 'error');
-            this.updateUI(); // Reflect that login failed
+            this.updateUI();
         });
         this.blueskyService.on('logoutFailed', () => {
             this.notificationManager.displayNotification(MESSAGES.LOGOUT_FAILED, 'error');
-            this.updateUI(); // Reflect that logout failed (still logged in?)
+            this.updateUI();
+        });
+        this.blueskyService.on('sessionUpdated', (session) => {
+            this.updateUI();
         });
 
-        // Listen for sessionUpdated as well (optional, since SessionManager handles it):
-        this.blueskyService.on('sessionUpdated', (session) => {
-            // If session changed, update UI immediately
-            this.updateUI();
+        // NEW: Listen for blockPostStyleChange
+        this.slideoutManager.on('blockPostStyleChange', (newStyle: string) => {
+            this.handleBlockedPostStyleChange(newStyle);
         });
     }
 
@@ -94,6 +98,7 @@ export class UIStateCoordinator {
     public updateUI(): void {
         this.isLoggedIn = this.getIsLoggedIn();
         console.log('UIStateCoordinator: updateUI called, isLoggedIn:', this.isLoggedIn);
+
         if (this.isLoggedIn) {
             this.slideoutManager.displayLoginInfo(this.blueskyService.getLoggedInUsername());
 
@@ -162,6 +167,14 @@ export class UIStateCoordinator {
             return;
         }
         await this.blockedUsersUI?.loadBlockedUsersUI(selectedUri);
+    }
+
+    private handleBlockedPostStyleChange(newStyle: string): void {
+        // Forward to postScanner => postProcessor => apply style
+        console.log('UIStateCoordinator: blockPostStyleChange =>', newStyle);
+        if (this.postScanner) {
+            this.postScanner.setBlockedPostStyle(newStyle);
+        }
     }
 
     public destroy(): void {

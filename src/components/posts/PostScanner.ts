@@ -93,6 +93,10 @@ export class PostScanner {
         this.postProcessor.processPosts(existingPosts);
     }
 
+    public setBlockedPostStyle(style: string): void {
+        this.postProcessor.setBlockedPostStyle(style);
+    }
+
     public setBlockButtonsVisibility(visible: boolean): void {
         this.blockButtonsVisible = visible;
         this.postProcessor.setBlockButtonsVisibility(visible);

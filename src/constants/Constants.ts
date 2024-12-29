@@ -105,6 +105,7 @@ export const STORAGE_KEYS = {
     SLIDEOUT_STATE: 'slideoutState',
     BLOCKED_USERS_PREFIX: 'blockedUsers_',
     THEME_PREFERENCE: 'theme',
+    BLOCKED_POST_STYLE: 'blockedPostStyle',
 };
 
 export const API_ENDPOINTS = {

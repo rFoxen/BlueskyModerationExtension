@@ -32,7 +32,6 @@ a:hover {
 .form-check {
     margin-bottom: 1rem; /* Add spacing between form controls */
 }
-
 /* Added focus state for form controls */
 .form-control:focus {
     outline: 2px solid var(--input-focus-outline);
@@ -93,4 +92,21 @@ a:hover {
 /* .list-group-item .btn-group prevents button compression */
 .list-group-item .btn-group {
     flex-shrink: 0;
+}
+
+/* NEW: Additional classes for blocked post appearance */
+.blocked-post--darkened {
+    opacity: 0.2;
+    transition: opacity 0.3s ease;
+}
+
+/* Hidden style: remove from layout entirely */
+.blocked-post--hidden {
+    display: none !important;
+}
+
+/* Blurred style: blur the content but keep layout space */
+.blocked-post--blurred {
+    filter: blur(4px);
+    transition: filter 0.3s ease;
 }
