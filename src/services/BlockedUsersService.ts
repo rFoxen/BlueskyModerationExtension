@@ -1,5 +1,3 @@
-// src\services\BlockedUsersService.ts
-
 import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotFoundError } from '@src/services/errors/CustomErrors';

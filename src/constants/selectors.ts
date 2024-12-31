@@ -4,7 +4,8 @@ export const SELECTORS = {
     div[data-testid^="postThreadItem"],
     div[data-testid^="user-"],
     div[role="link"][tabindex="0"],
-    a[data-testid^="user-"]
+    a[data-testid^="user-"],
+    a[href^="/profile/"]
     `,
     posts: `
     div[role="link"][tabindex="0"],
