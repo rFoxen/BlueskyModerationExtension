@@ -126,27 +126,60 @@ export class BlueskyService extends EventService implements IBlueskyService {
         }
     }
 
-    public async getBlockedUsers(listUri: string): Promise<BlockedUser[]> {
+    /**
+     * Enhanced getBlockedUsers with retry and partial data handling.
+     * @param listUri The URI of the block list to fetch.
+     * @param maxRetries Maximum number of retries per chunk.
+     * @returns An array of BlockedUser objects.
+     */
+    public async getBlockedUsers(listUri: string, maxRetries: number = 3): Promise<BlockedUser[]> {
         if (!this.sessionService.isLoggedIn()) return [];
-        try {
-            let items: BlockedUser[] = [];
-            let cursor: string | null = null;
-            const MAX_LIMIT = 100;
+        const items: BlockedUser[] = [];
+        let cursor: string | null = null;
+        const MAX_LIMIT = 100;
 
-            do {
-                const response: FetchListResponse = await this.apiService.fetchList(listUri, cursor, MAX_LIMIT);
-                items = items.concat(response.items || []);
+        try {
+            while (true) {
+                let attempt = 0;
+                let success = false;
+                let response: FetchListResponse | null = null;
+
+                // Retry mechanism for each chunk
+                while (attempt < maxRetries && !success) {
+                    try {
+                        response = await this.apiService.fetchList(listUri, cursor, MAX_LIMIT);
+                        success = true;
+                    } catch (error) {
+                        attempt++;
+                        console.warn(`Attempt ${attempt} failed for cursor ${cursor}. Retrying...`);
+                        if (attempt >= maxRetries) {
+                            this.errorService.handleError(error as Error);
+                            this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
+                            break; // Exit retry loop
+                        }
+                        // Exponential backoff can be added here if desired
+                    }
+                }
+
+                if (!success || !response) {
+                    // Exit the main loop if fetching this chunk failed after retries
+                    break;
+                }
+
+                items.push(...(response.items || []));
                 cursor = response.cursor || null;
-            } while (cursor);
+
+                if (!cursor) break; // No more pages
+            }
 
             return items;
         } catch (error) {
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
-            return [];
+            return items; // Return whatever has been fetched so far
         }
     }
-
+    
     public async resolveHandleFromDid(did: string): Promise<string> {
         // Check cache first
         const cachedHandle = this.cacheService.getHandleFromDid(did);
