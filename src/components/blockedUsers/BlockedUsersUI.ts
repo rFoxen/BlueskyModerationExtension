@@ -54,7 +54,7 @@ export class BlockedUsersUI {
     }
 
     public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
-        this.view.setLoadingState(true);
+        this.view.showLoading();
         await this.blockedUsersService.loadBlockedUsers(selectedUri);
     }
 
@@ -138,7 +138,7 @@ export class BlockedUsersUI {
             },
             error: (message: string) => {
                 this.notificationManager.displayNotification(message, 'error');
-                this.view.setLoadingState(false);
+                this.view.hideLoading();
             },
         };
 
@@ -158,7 +158,7 @@ export class BlockedUsersUI {
         if (successMessage) {
             this.notificationManager.displayNotification(successMessage, 'success');
         }
-        this.view.setLoadingState(false);
+        this.view.hideLoading();
     }
 
     private async refreshBlockedUsers(): Promise<void> {
@@ -170,7 +170,7 @@ export class BlockedUsersUI {
             );
             return;
         }
-        this.view.setLoadingState(true);
+        this.view.showLoading();
         await this.blockedUsersService.refreshBlockedUsers(selectedUri);
     }
 

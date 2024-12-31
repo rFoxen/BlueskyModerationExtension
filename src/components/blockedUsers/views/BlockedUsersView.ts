@@ -29,6 +29,12 @@ export class BlockedUsersView {
         this.refreshButton = this.section.querySelector('#refresh-blocked-users') as HTMLElement;
     }
 
+    public clearBlockedUsersList(): void {
+        this.blockedUsersList.innerHTML = '';
+        this.updateCount(0);
+        this.section.classList.add('d-none');
+    }
+    
     public getListContainerElement(): HTMLElement {
         return this.blockedUsersList;
     }
@@ -41,9 +47,21 @@ export class BlockedUsersView {
         this.section.classList.add('d-none');
     }
 
-    public setLoadingState(isLoading: boolean): void {
-        this.loadingIndicator.classList.toggle('d-none', !isLoading);
-        this.content.classList.toggle('d-none', isLoading);
+    /**
+     * Shows the loading indicator and hides the content.
+     */
+    public showLoading(): void {
+        this.clearBlockedUsersList(); // Clear the list immediately
+        this.loadingIndicator.classList.remove('d-none'); // Show the loading spinner
+    }
+
+    /**
+     * Hides the loading indicator and shows the content.
+     */
+    public hideLoading(): void {
+        this.loadingIndicator.classList.add('d-none'); // Hide the loading spinner
+        this.section.classList.remove('d-none');
+        this.expandSection();
     }
 
     public isSectionExpanded(): boolean {
