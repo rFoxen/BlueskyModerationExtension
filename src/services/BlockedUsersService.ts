@@ -39,7 +39,7 @@ export class BlockedUsersService extends EventEmitter {
                 await this.saveBlockedUsersToStorage(listUri, blockedUsers);
             }
             this.buildBlockedUsersMap();
-            this.emit('blockedUsersLoaded', this.blockedUsersData);
+            this.emit('blockedUsersLoaded', this.blockedUsersData); // Emit the event after loading
         } catch (error) {
             console.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);

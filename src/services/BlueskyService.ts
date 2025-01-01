@@ -7,7 +7,7 @@ import { SessionService } from '@src/services/session/SessionService';
 import { ApiService } from '@src/services/api/ApiService';
 import { CacheService } from '@src/services/cache/CacheService';
 import { ErrorService } from '@src/services/errors/ErrorService';
-import { EventService } from '@src/services/events/EventService';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
 
 import { AuthenticationError, NotFoundError } from '@src/services/errors/CustomErrors';
 import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
@@ -16,7 +16,7 @@ import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
  * BlueskyService is now a facade that implements IBlueskyService,
  * delegating responsibilities to the smaller, focused services.
  */
-export class BlueskyService extends EventService implements IBlueskyService {
+export class BlueskyService extends EventEmitter implements IBlueskyService {
     private sessionService: SessionService;
     private apiService: ApiService;
     private cacheService: CacheService;
@@ -167,6 +167,8 @@ export class BlueskyService extends EventService implements IBlueskyService {
                 }
 
                 items.push(...(response.items || []));
+                this.emit('blockedUsersProgress', items.length);
+                
                 cursor = response.cursor || null;
 
                 if (!cursor) break; // No more pages

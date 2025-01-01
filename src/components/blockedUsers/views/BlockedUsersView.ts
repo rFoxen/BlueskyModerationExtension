@@ -52,6 +52,7 @@ export class BlockedUsersView {
      */
     public showLoading(): void {
         this.clearBlockedUsersList(); // Clear the list immediately
+        this.updateLoadingCount(0);
         this.loadingIndicator.classList.remove('d-none'); // Show the loading spinner
     }
 
@@ -64,6 +65,24 @@ export class BlockedUsersView {
         this.expandSection();
     }
 
+    /**
+     * Updates the loading indicator with the current count of loaded blocked users.
+     * @param count The number of blocked users loaded so far.
+     */
+    public updateLoadingCount(count: number): void {
+        let loadingText = this.loadingIndicator.querySelector('.loading-text') as HTMLElement | null;
+
+        if (!loadingText) {
+            // Create a span to hold the dynamic loading text if it doesn't exist
+            loadingText = document.createElement('span');
+            loadingText.classList.add('loading-text');
+            this.loadingIndicator.appendChild(loadingText);
+        }
+
+        // Update the text content with the current count
+        loadingText.textContent = `Loaded ${count} blocked user${count !== 1 ? 's' : ''}...`;
+    }
+    
     public isSectionExpanded(): boolean {
         return this.toggleButton.getAttribute('aria-expanded') === 'true';
     }

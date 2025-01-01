@@ -1,6 +1,5 @@
-// src\components\blockedUsers\BlockedUsersUI.ts
-
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
+import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
 import { MESSAGES } from '@src/constants/Constants';
@@ -10,6 +9,7 @@ import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
 
 export class BlockedUsersUI {
     private blockedUsersService: BlockedUsersService;
+    private blueskyService: BlueskyService;
     private notificationManager: NotificationManager;
     private blockListDropdown: BlockListDropdown;
     private isLoggedIn: () => boolean;
@@ -31,11 +31,13 @@ export class BlockedUsersUI {
     constructor(
         blockedUsersSectionId: string,
         blockedUsersService: BlockedUsersService,
+        blueskyService: BlueskyService,
         notificationManager: NotificationManager,
         blockListDropdown: BlockListDropdown,
         isLoggedIn: () => boolean
     ) {
         this.blockedUsersService = blockedUsersService;
+        this.blueskyService = blueskyService;
         this.notificationManager = notificationManager;
         this.blockListDropdown = blockListDropdown;
         this.isLoggedIn = isLoggedIn;
@@ -136,6 +138,9 @@ export class BlockedUsersUI {
             blockedUserRemoved: (userHandle: string) => {
                 this.removeUserFromUI(userHandle);
             },
+            blockedUsersProgress: (currentCount: number) => {
+                this.view.updateLoadingCount(currentCount); // Update the loading text with current count
+            },
             error: (message: string) => {
                 this.notificationManager.displayNotification(message, 'error');
                 this.view.hideLoading();
@@ -145,6 +150,7 @@ export class BlockedUsersUI {
         for (const [event, handler] of Object.entries(handlers)) {
             this.serviceEventHandlers[event] = handler;
             this.blockedUsersService.on(event, handler);
+            this.blueskyService.on(event, handler);
         }
     }
 

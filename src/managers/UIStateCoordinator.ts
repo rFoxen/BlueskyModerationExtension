@@ -122,6 +122,7 @@ export class UIStateCoordinator {
                 this.blockedUsersUI = new BlockedUsersUI(
                     'blocked-users-section',
                     this.blockedUsersService,
+                    this.blueskyService,
                     this.notificationManager,
                     this.blockListDropdown,
                     this.getIsLoggedIn
