@@ -116,10 +116,17 @@ export class BlockListDropdown {
     private handleSelectionChange(event: Event): void {
         const select = event.target as HTMLSelectElement;
         const selectedUri = select.value;
+        const selectedOption = select.options[select.selectedIndex];
+        const selectedName = selectedOption.textContent || '';
+        
         StorageHelper.setString(STORAGE_KEYS.SELECTED_BLOCK_LIST, selectedUri);
+        
         if (this.selectionChangeCallback) {
             this.selectionChangeCallback(selectedUri);
         }
+        
+        const customEvent = new CustomEvent('blockListChanged', { detail: { listName: selectedName } });
+        document.dispatchEvent(customEvent);
     }
 
     private setLoadingState(isLoading: boolean): void {

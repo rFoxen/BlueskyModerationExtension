@@ -77,25 +77,65 @@ body.dark-mode .nav-tabs .nav-link:hover {
     /* Ensure tab panes have proper spacing */
 }
 
-/* Toggle Slideout Button (moved from buttons.css to here) */
+/* Updated Toggle Slideout Button */
 .toggle-slideout {
     position: fixed;
-    bottom: 128px; /* Slightly adjusted */
+    bottom: 128px;
     right: 64px;
-    width: 40px; /* Reduced size */
+    min-width: 120px; /* Increased minimum width to accommodate text */
+    max-width: 200px; /* Set a reasonable maximum width */
     height: 40px;
-    border-radius: 50%;
+    border-radius: 20px; /* Pill-shaped border radius */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem; /* Reduced font size */
-    transition: background-color var(--transition-duration), color var(--transition-duration);
+    padding: 0 12px; /* Horizontal padding for better spacing */
+    font-size: 1rem;
+    transition:
+            background-color var(--transition-duration),
+            color var(--transition-duration),
+            width var(--transition-duration),
+            padding var(--transition-duration);
     background-image: linear-gradient(135deg, rgb(90, 113, 250), rgb(0, 133, 255));
     color: #ffffff;
     z-index: 1001;
+    white-space: nowrap; /* Prevent text from wrapping */
+    cursor: pointer; /* Indicate interactivity */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Optional: Add subtle shadow */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Show ellipsis when text overflows */
 }
-.toggle-slideout.hidden {
-    display: none;
+
+.toggle-slideout:hover {
+    background-image: linear-gradient(135deg, rgb(80, 103, 240), rgb(0, 123, 245)); /* Slightly darker on hover */
+}
+
+.toggle-slideout:focus {
+    outline: 2px solid var(--input-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Responsive Adjustments for Toggle Slideout */
+@media (max-width: 768px) {
+    .toggle-slideout {
+        right: 20px; /* Closer to the edge on smaller screens */
+        bottom: 100px; /* Adjusted bottom spacing */
+        min-width: 110px; /* Adjusted min-width */
+        max-width: 180px; /* Adjusted max-width */
+        font-size: 0.95rem; /* Slightly smaller font */
+        padding: 0 10px; /* Adjusted padding */
+    }
+}
+
+@media (max-width: 480px) {
+    .toggle-slideout {
+        right: 16px;
+        bottom: 80px;
+        min-width: 100px;
+        max-width: 160px;
+        font-size: 0.9rem;
+        padding: 0 8px;
+    }
 }
 
 /* Theme Toggle Button */

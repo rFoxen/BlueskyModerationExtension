@@ -2,17 +2,12 @@ import { SlideoutView } from '@src/components/slideout/SlideoutView';
 import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { FocusManager } from '@src/utils/dom/FocusManager';
 import { SwipeGestureHandler } from '@src/utils/dom/SwipeGestureHandler';
-import {
-    LABELS,
-    ARIA_LABELS,
-    ERRORS,
-    STORAGE_KEYS,
-    MESSAGES,
-} from '@src/constants/Constants';
+import { LABELS, ARIA_LABELS, ERRORS, STORAGE_KEYS, MESSAGES } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
 import { StateManager } from '@src/utils/state/StateManager';
 import { LoginHandler } from '@src/components/authentication/LoginHandler';
 import { UserInfoManager } from '@src/components/authentication/UserInfoManager';
+import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 
 /**
  * Manages the slideout UI, login form, block list toggles, etc.
@@ -54,6 +49,29 @@ export class SlideoutManager extends EventEmitter {
         this.addEventListeners();
         this.applySavedState();
         this.initializeTabListeners();
+
+
+        document.addEventListener('blockListChanged', this.handleBlockListChanged.bind(this));
+    }
+
+    /**
+     * Handles the custom 'blockListChanged' event.
+     * @param event - The event object, expected to be a CustomEvent with a 'detail' property.
+     */
+    private handleBlockListChanged(event: Event): void {
+        // Cast the generic Event to CustomEvent to access 'detail'
+        const customEvent = event as CustomEvent<{ listName: string }>;
+        const listName = customEvent.detail.listName;
+        this.updateToggleButtonText(listName);
+    }
+
+    /**
+     * Updates the toggle button's text to include the selected block list name.
+     * @param listName - The name of the currently selected block list.
+     */
+    public updateToggleButtonText(listName: string): void {
+        // Update the toggle button's text to include the selected block list name
+        this.view.toggleButton.textContent = `☰ ${listName}`;
     }
 
     private addEventListeners(): void {
