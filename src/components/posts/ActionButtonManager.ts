@@ -1,5 +1,3 @@
-// src\components\posts\ActionButtonManager.ts
-
 import { Button } from '@src/components/common/Button';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlueskyService } from '@src/services/BlueskyService';
@@ -8,10 +6,6 @@ import { UserReporter } from '@src/components/reporting/UserReporter';
 import { LABELS, ARIA_LABELS, MESSAGES, ERRORS } from '@src/constants/Constants';
 import { PostActionButtonsFactory } from './PostActionButtonsFactory';
 
-/**
- * ActionButtonManager handles the inline "Block"/"Unblock" button logic
- * that appears next to each post or user reference.
- */
 export class ActionButtonManager {
     private notificationManager: NotificationManager;
     private blueskyService: BlueskyService;
@@ -48,9 +42,6 @@ export class ActionButtonManager {
         );
     }
 
-    /**
-     * Creates the block/unblock/report buttons for a given post.
-     */
     public createButtons(profileHandle: string, isUserBlocked: boolean): HTMLElement {
         const buttonContainer = this.buttonsFactory.createButtons({
             profileHandle,
@@ -61,19 +52,20 @@ export class ActionButtonManager {
         return buttonContainer;
     }
 
-    /**
-     * Called when the user clicks the "Block" or "Unblock" button in the inline action buttons.
-     */
     private async handleBlockUser(userHandle: string, blockButton: Button): Promise<void> {
         if (!this.isLoggedIn()) {
             this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_BLOCK_USERS, 'error');
             return;
         }
+
         const selectedBlockList = this.getSelectedBlockList();
         if (!selectedBlockList) {
             this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
             return;
         }
+
+        // For debugging performance: track start time
+        console.time(`[DEBUG] handleBlockUser: ${userHandle}`);
 
         // Check whether user is currently blocked
         const alreadyBlocked = this.blockedUsersService.isUserBlocked(userHandle);
@@ -83,68 +75,82 @@ export class ActionButtonManager {
         blockButton.addClasses('loading');
 
         try {
+            // Determine if we are blocking or unblocking
             const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
 
             if (isBlocking) {
-                // If user is already blocked, do nothing
                 if (alreadyBlocked) {
-                    console.log(`User ${userHandle} is already blocked. Skipping re-block.`);
+                    console.log(`[DEBUG] User ${userHandle} is already blocked. Skipping re-block.`);
                     return;
                 }
 
                 // --- BLOCK FLOW (Optimistic) ---
-                const tempItem = {
-                    subject: { handle: userHandle, did: '' },
-                    uri: 'pending',
-                };
+                this.debugLog(`Optimistic block -> ${userHandle}`);
+                const tempItem = { subject: { handle: userHandle, did: '' }, uri: 'pending' };
                 this.blockedUsersService.emit('blockedUserAdded', tempItem);
 
-                // Call the block API
+                // API call
+                this.debugLog(`Calling blueskyService.blockUser(...) for ${userHandle}`);
                 const response = await this.blueskyService.blockUser(userHandle, selectedBlockList);
                 if (!response) {
                     throw new Error(ERRORS.UNKNOWN_ERROR);
                 }
 
                 // If success, store the real URI
-                await this.blockedUsersService.addBlockedUserFromResponse(
-                    response,
-                    userHandle,
-                    selectedBlockList
-                );
-                // Let UI or PostScanner know
+                this.debugLog(`API returned success for blocking ${userHandle}. addBlockedUserFromResponse(...)`);
+                await this.blockedUsersService.addBlockedUserFromResponse(response, userHandle, selectedBlockList);
+                console.log('[DEBUG] intermediate timeEnd for handleBlockUser...');
+                console.timeEnd(`[DEBUG] handleBlockUser: ${userHandle}`);
+                
+                // Let other parts know
                 await this.onUserBlocked(userHandle);
 
+                console.time('[DEBUG] getBlockListName');
                 const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
+                console.timeEnd('[DEBUG] getBlockListName');
+                
                 this.notificationManager.displayNotification(
                     MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
                     'success'
                 );
+
+                // Update button to show "Unblock"
+                this.setBlockButtonToBlockedState(blockButton);
+
             } else {
                 // If user is NOT blocked, skip unblocking
                 if (!alreadyBlocked) {
-                    console.log(`User ${userHandle} is not blocked. Skipping unblock.`);
+                    console.log(`[DEBUG] User ${userHandle} is not blocked. Skipping unblock.`);
                     return;
                 }
 
                 // --- UNBLOCK FLOW ---
+                this.debugLog(`Calling removeBlockedUser(...) for ${userHandle}`);
                 await this.blockedUsersService.removeBlockedUser(userHandle, selectedBlockList);
+
                 this.notificationManager.displayNotification(
                     MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
                     'success'
                 );
-                // Notify other parts of the app
+
+                // Let others know
                 await this.onUserUnblocked(userHandle);
+
+                // Switch the button to "Block"
+                this.setBlockButtonToUnblockedState(blockButton);
             }
         } catch (error) {
-            console.error(`Error blocking/unblocking user "${userHandle}":`, error);
+            console.error(`[DEBUG] Error blocking/unblocking user "${userHandle}":`, error);
 
             // If we were optimistically blocking, revert
             const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
             if (isBlocking && !alreadyBlocked) {
                 this.blockedUsersService.emit('blockedUserRemoved', userHandle);
             }
+
             this.notificationManager.displayNotification(ERRORS.FAILED_TO_BLOCK_USER, 'error');
         } finally {
+            console.log('[DEBUG] About to end handleBlockUser, no more steps remain...');
             // remove spinner
             blockButton.setDisabled(false);
             blockButton.removeClasses('loading');
@@ -155,9 +161,6 @@ export class ActionButtonManager {
         await this.userReporter.reportUser(userHandle);
     }
 
-    /**
-     * Updates the button text/style if the user is blocked or unblocked.
-     */
     public updateButtonState(wrapper: HTMLElement, isBlocked: boolean): void {
         const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLButtonElement | null;
         if (blockButton) {
@@ -167,9 +170,27 @@ export class ActionButtonManager {
         }
     }
 
+    private setBlockButtonToBlockedState(blockButton: Button): void {
+        blockButton.setText(LABELS.UNBLOCK);
+        blockButton.removeClasses('btn-outline-secondary');
+        blockButton.addClasses('btn-danger');
+    }
+
+    private setBlockButtonToUnblockedState(blockButton: Button): void {
+        blockButton.setText(LABELS.BLOCK);
+        blockButton.removeClasses('btn-danger');
+        blockButton.addClasses('btn-outline-secondary');
+    }
+
     /**
-     * Toggles visibility of block buttons across all posts in the feed.
+     * Simple helper to unify debug logging.
+     * If you want to disable debugging, comment out this method’s content
+     * or wrap in a condition check.
      */
+    private debugLog(...args: any[]): void {
+        console.log('[DEBUG]', ...args);
+    }
+
     public setButtonsVisibility(visible: boolean): void {
         const buttons = document.querySelectorAll('.toggle-block-button');
         buttons.forEach((button) => {
@@ -179,6 +200,6 @@ export class ActionButtonManager {
 
     public destroy(): void {
         this.buttonsFactory.destroy();
-        // Additional cleanup if necessary
+        // Additional cleanup if needed
     }
 }

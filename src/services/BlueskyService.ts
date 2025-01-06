@@ -203,29 +203,19 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     }
 
     public async resolveDidFromHandle(handle: string): Promise<string> {
-        const cachedDid = this.cacheService.getDidFromHandle(handle);
-        if (cachedDid) return cachedDid;
-
-        try {
-            const response = await this.apiService.resolveHandle(handle);
-            if (response.did) {
-                this.cacheService.setHandleForDid(response.did, handle);
-                return response.did;
-            } else {
-                throw this.errorService.createNotFoundError();
-            }
-        } catch (error) {
-            this.errorService.handleError(error as Error);
-            throw error;
-        }
+        const did = await this.apiService.resolveHandle(handle);
+        return did;
     }
 
+
     public async blockUser(userHandle: string, listUri: string): Promise<any> {
+        console.time(`[DEBUG] blockUser => ${userHandle}`);
         this.sessionService.ensureAuthenticated();
         try {
+            console.log(`[DEBUG] blockUser: Resolving DID for handle="${userHandle}"...`);
             const userDid = await this.resolveDidFromHandle(userHandle);
-            const agent = this.sessionService.getAgent();
 
+            const agent = this.sessionService.getAgent();
             if (userDid === agent.session?.did) {
                 throw new Error('Cannot block yourself.');
             }
@@ -239,35 +229,55 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 },
                 repo: agent.session?.did,
             };
-            return this.apiService.postCreateRecord(body);
+
+            console.log(`[DEBUG] blockUser: Creating record for ${userHandle} at listUri=${listUri}`);
+            // Time the actual API call
+            console.time(`[DEBUG] blockUser -> apiService.postCreateRecord`);
+            const response = await this.apiService.postCreateRecord(body);
+            console.timeEnd(`[DEBUG] blockUser -> apiService.postCreateRecord`);
+
+            return response;
         } catch (error) {
+            console.error(`[DEBUG] blockUser => error:`, error);
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_BLOCK_USER);
             throw error;
+        } finally {
+            console.timeEnd(`[DEBUG] blockUser => ${userHandle}`);
         }
     }
 
     public async unblockUser(userHandle: string, listUri: string): Promise<any> {
+        console.time(`[DEBUG] unblockUser => ${userHandle}`);
         this.sessionService.ensureAuthenticated();
         try {
-            // We try to find the correct rkey for the user in the list
+            console.log(`[DEBUG] unblockUser: Resolving DID for handle="${userHandle}"...`);
             const userDid = await this.resolveDidFromHandle(userHandle);
+
+            console.log(`[DEBUG] unblockUser: Searching in listUri=${listUri} for userDid=${userDid}`);
             const listResponse = await this.apiService.fetchWithAuth(
                 `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`
             );
+
             const itemToDelete = listResponse.items.find((item: any) => item.subject.did === userDid);
             if (!itemToDelete) {
-                // not found in block list
                 throw new NotFoundError('User is not in the block list.');
             }
             const rkey = this.extractRKey(itemToDelete.uri);
             if (!rkey) throw new Error('Invalid record key.');
 
-            return this.unblockUserWithRKey(rkey, listUri);
+            // Time the actual “unblockUserWithRKey” call
+            console.time(`[DEBUG] unblockUser -> unblockUserWithRKey`);
+            const result = await this.unblockUserWithRKey(rkey, listUri);
+            console.timeEnd(`[DEBUG] unblockUser -> unblockUserWithRKey`);
+            return result;
         } catch (error) {
+            console.error(`[DEBUG] unblockUser => error:`, error);
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             throw error;
+        } finally {
+            console.timeEnd(`[DEBUG] unblockUser => ${userHandle}`);
         }
     }
 
@@ -275,16 +285,24 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
      * Helper for calls that already know the `rkey`.
      */
     public async unblockUserWithRKey(rkey: string, listUri: string): Promise<any> {
+        console.log(`[DEBUG] unblockUserWithRKey: rkey=${rkey}, listUri=${listUri}`);
         this.sessionService.ensureAuthenticated();
         try {
             const agent = this.sessionService.getAgent();
             const body = {
-                collection: 'app.bsky.graph.listitem',
                 repo: agent.session?.did,
+                collection: "app.bsky.graph.listitem",
                 rkey,
             };
-            return this.apiService.postDeleteRecord(body);
+
+            // Time the createRecord -> deleteRecord call
+            console.time(`[DEBUG] unblockUserWithRKey -> apiService.postDeleteRecord`);
+            const response = await this.apiService.postDeleteRecord(body);
+            console.timeEnd(`[DEBUG] unblockUserWithRKey -> apiService.postDeleteRecord`);
+
+            return response;
         } catch (error) {
+            console.error(`[DEBUG] unblockUserWithRKey => error:`, error);
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             throw error;

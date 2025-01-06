@@ -95,6 +95,7 @@ a:hover {
 }
 
 /* NEW: Additional classes for blocked post appearance */
+/* Darkened style: darken the content */
 .blocked-post--darkened {
     opacity: 0.2;
     transition: opacity 0.3s ease;
@@ -105,7 +106,7 @@ a:hover {
     display: none !important;
 }
 
-/* Blurred style: blur the content but keep layout space */
+/* Blurred style: blur the content */
 .blocked-post--blurred {
     filter: blur(4px);
     transition: filter 0.3s ease;

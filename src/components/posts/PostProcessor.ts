@@ -24,7 +24,6 @@ export class PostProcessor {
     private accountFreshnessManager: AccountFreshnessManager;
     private blockButtonsVisible: boolean = true;
 
-    // NEW: track the chosen style for blocked posts
     private blockedPostStyle: string = 'darkened'; // default
 
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
@@ -107,7 +106,6 @@ export class PostProcessor {
                 wrapper.classList.add('blocked-post--blurred');
                 break;
             default:
-                // darkened
                 wrapper.classList.add('blocked-post--darkened');
                 break;
         }
@@ -240,6 +238,11 @@ export class PostProcessor {
         return match ? match[1] : null;
     }
 
+    /**
+     * Updates all posts by the specified user to reflect their block status.
+     * @param profileHandle - The handle or DID of the user.
+     * @param isBlocked - Whether the user is blocked.
+     */
     public updatePostsByUser(profileHandle: string, isBlocked: boolean): void {
         const wrappers = document.querySelectorAll<HTMLElement>(
             `.block-button-wrapper[data-profile-handle="${profileHandle}"]`
@@ -248,7 +251,6 @@ export class PostProcessor {
             if (isBlocked) {
                 // Apply the chosen style
                 this.applyBlockedStyle(wrapper);
-                wrapper.classList.add('blocked-post'); // optional legacy class
             } else {
                 // Remove all possible styles
                 wrapper.classList.remove(
@@ -259,6 +261,20 @@ export class PostProcessor {
                 );
             }
             wrapper.classList.toggle('unblocked-post', !isBlocked);
+
+            // Update the block/unblock button text and styles
+            const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement | null;
+            if (blockButton) {
+                if (isBlocked) {
+                    blockButton.textContent = 'Unblock';
+                    blockButton.classList.remove('btn-outline-secondary');
+                    blockButton.classList.add('btn-danger');
+                } else {
+                    blockButton.textContent = 'Block';
+                    blockButton.classList.remove('btn-danger');
+                    blockButton.classList.add('btn-outline-secondary');
+                }
+            }
         });
     }
 
