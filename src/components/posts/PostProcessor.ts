@@ -5,7 +5,7 @@ import { UserReporter } from '@src/components/reporting/UserReporter';
 import { PostTypeDeterminer } from '@src/utils/helpers/PostTypeDeterminer';
 import { ActionButtonManager } from './ActionButtonManager';
 import { AccountFreshnessManager } from './AccountFreshnessManager';
-
+import { isElementHiddenByCss } from '@src/utils/helpers/isElementHidden';
 export class PostProcessor {
     private notificationManager: NotificationManager;
     private blueskyService: BlueskyService;
@@ -82,6 +82,9 @@ export class PostProcessor {
         );
 
         blockedWrappers.forEach((wrapper) => {
+            if (isElementHiddenByCss(wrapper as HTMLElement)) {
+                return;
+            }
             wrapper.classList.remove(
                 'blocked-post',
                 'blocked-post--darkened',
@@ -118,6 +121,9 @@ export class PostProcessor {
      */
     public processElement(element: HTMLElement): void {
         if (this.processedPosts.has(element)) return;
+        if (isElementHiddenByCss(element)) {
+            return;
+        }
 
         const postType = this.postTypeDeterminer.determinePostType(element);
         if (!postType) {

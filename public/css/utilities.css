@@ -41,7 +41,10 @@
 }
 
 /* Wrapper for Block Button */
-.block-button-wrapper {}
+.block-button-wrapper {
+    border: 2px solid rgb(46, 64, 82);
+}
+
 .buttons-freshness-container {
     display: flex;
     justify-content: flex-end;
