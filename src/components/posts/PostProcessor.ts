@@ -212,7 +212,7 @@ export class PostProcessor {
             const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
             buttonsAndFreshnessContainer.appendChild(buttonContainer);
 
-            wrapper.appendChild(buttonsAndFreshnessContainer);
+            wrapper.prepend(buttonsAndFreshnessContainer);
 
             // asynchronously fetch freshness data
             this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
