@@ -48,7 +48,6 @@ export class BlockedUsersService extends EventEmitter {
         try {
             // 1) Attempt to load from IndexedDB
             let localData = await this.blockedUsersRepo.getAllByListUri(listUri);
-
             if (localData && localData.length > 0) {
                 // Build our in-memory data from these records
                 this.blockedUsersData = localData.map((item) => ({
@@ -58,24 +57,27 @@ export class BlockedUsersService extends EventEmitter {
             } else {
                 // 2) If nothing in IDB, fetch from the Bluesky API
                 const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
+
                 this.blockedUsersData = blockedUsers;
 
-                // Persist to IDB with positions
-                for (let i = 0; i < blockedUsers.length; i++) {
-                    const user = blockedUsers[i];
+                // ### Use bulk method here ###
+                // Build an array of objects for bulk add
+                const bulkItems = blockedUsers.map((user, index) => {
                     const handle = user.subject.handle || user.subject.did;
-                    await this.blockedUsersRepo.addOrUpdate(
-                        listUri,
-                        handle,
-                        user.subject.did,
-                        user.uri,
-                        i // position based on API order
-                    );
-                }
+                    return {
+                        userHandle: handle,
+                        did: user.subject.did,
+                        recordUri: user.uri,
+                        timestamp: index,
+                    };
+                });
+
+                await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
             }
 
             // (Re)build the map in memory
             this.buildBlockedUsersMap();
+
             // Emit success
             this.emit('blockedUsersLoaded', this.blockedUsersData);
         } catch (error) {
@@ -85,29 +87,28 @@ export class BlockedUsersService extends EventEmitter {
     }
 
     /**
-     * Force a re-fetch from the Bluesky API, then update IDB.
+     * Refresh blocked users from server. Then clear local and bulk write again.
      */
     public async refreshBlockedUsers(listUri: string): Promise<void> {
         try {
             const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
             this.blockedUsersData = blockedUsers;
-            this.buildBlockedUsersMap();
 
+            this.buildBlockedUsersMap();
             // Clear old data from this list in IDB
             await this.blockedUsersRepo.clearAll(listUri);
 
-            // Save fresh data to IDB with updated positions
-            for (let i = 0; i < blockedUsers.length; i++) {
-                const user = blockedUsers[i];
+            // ### Also do bulk here ###
+            const bulkItems = blockedUsers.map((user, index) => {
                 const handle = user.subject.handle || user.subject.did;
-                await this.blockedUsersRepo.addOrUpdate(
-                    listUri,
-                    handle,
-                    user.subject.did,
-                    user.uri,
-                    i // position based on API order
-                );
-            }
+                return {
+                    userHandle: handle,
+                    did: user.subject.did,
+                    recordUri: user.uri,
+                    timestamp: index,
+                };
+            });
+            await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
 
             this.emit('blockedUsersRefreshed', this.blockedUsersData);
         } catch (error) {

@@ -24,14 +24,8 @@ export class ApiService {
         this.baseUrl = baseUrl;
     }
 
-    public async fetchWithAuth(
-        endpoint: string,
-        options: RequestInit = {},
-        timeout: number = 5000
-    ): Promise<any> {
-        // ----------------------------
-        // NEW: Pre-check token expiry
-        // ----------------------------
+    public async fetchWithAuth(endpoint: string, options: RequestInit = {}, timeout: number = 5000): Promise<any> {
+        // Pre-check token expiry
         await this.sessionService.ensureAccessTokenFresh();
 
         // Then proceed with normal "authenticated request" logic

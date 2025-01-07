@@ -6,10 +6,6 @@ import { PostTypeDeterminer } from '@src/utils/helpers/PostTypeDeterminer';
 import { ActionButtonManager } from './ActionButtonManager';
 import { AccountFreshnessManager } from './AccountFreshnessManager';
 
-/**
- * PostProcessor handles the logic of scanning posts, adding block/unblock actions,
- * and applying styling for blocked posts.
- */
 export class PostProcessor {
     private notificationManager: NotificationManager;
     private blueskyService: BlueskyService;
@@ -22,11 +18,15 @@ export class PostProcessor {
     private postTypeDeterminer: PostTypeDeterminer;
     private actionButtonManager: ActionButtonManager;
     private accountFreshnessManager: AccountFreshnessManager;
-    private blockButtonsVisible: boolean = true;
 
+    private blockButtonsVisible: boolean = true;
     private blockedPostStyle: string = 'darkened'; // default
 
-    private processedElements: WeakSet<HTMLElement> = new WeakSet();
+    /**
+     * We track which posts we have processed so we don't re-wrap them.
+     * But we still want to update styles or button text if the user’s block list changes.
+     */
+    private processedPosts: Set<HTMLElement> = new Set();
 
     constructor(
         notificationManager: NotificationManager,
@@ -64,25 +64,23 @@ export class PostProcessor {
         );
     }
 
-    /**
-     * Called when user changes blocked post style in the Slideout.
-     */
     public setBlockedPostStyle(style: string): void {
         this.blockedPostStyle = style;
         this.updateAllBlockedPosts();
     }
 
     /**
-     * Loops over all "blocked" posts in the DOM to re-apply styling.
+     * Re-apply block style to all wrappers that currently show a blocked style
      */
     private updateAllBlockedPosts(): void {
-        // Any element that has a blocked style
+        // find existing .block-button-wrapper elements that had a blocked style
         const blockedWrappers = document.querySelectorAll(
             '.block-button-wrapper.blocked-post, \
              .block-button-wrapper.blocked-post--darkened, \
              .block-button-wrapper.blocked-post--hidden, \
              .block-button-wrapper.blocked-post--blurred'
         );
+
         blockedWrappers.forEach((wrapper) => {
             wrapper.classList.remove(
                 'blocked-post',
@@ -94,9 +92,6 @@ export class PostProcessor {
         });
     }
 
-    /**
-     * Applies the correct class based on this.blockedPostStyle.
-     */
     private applyBlockedStyle(wrapper: HTMLElement): void {
         switch (this.blockedPostStyle) {
             case 'hidden':
@@ -111,16 +106,26 @@ export class PostProcessor {
         }
     }
 
+    /**
+     * Called when new posts are discovered (MutationObserver).
+     */
     public processPosts(posts: HTMLElement[]): void {
         posts.forEach((post) => this.processElement(post));
     }
 
+    /**
+     * Wrap the post with block/unblock buttons, but only if not processed before.
+     */
     public processElement(element: HTMLElement): void {
-        if (this.processedElements.has(element)) return;
+        if (this.processedPosts.has(element)) return;
 
         const postType = this.postTypeDeterminer.determinePostType(element);
-        if (!postType) return;
+        if (!postType) {
+            this.processedPosts.add(element);
+            return;
+        }
 
+        // Identify the user handle
         let profileHandle: string | null = null;
         if (['repost', 'quoted-repost'].includes(postType)) {
             const dataTestId = element.getAttribute('data-testid') || '';
@@ -132,24 +137,33 @@ export class PostProcessor {
         }
 
         if (!profileHandle) {
-            this.processedElements.add(element);
+            this.processedPosts.add(element);
             return;
         }
 
-        if (element.querySelector('.toggle-block-button') || element.closest('.block-button-wrapper')) {
-            return; // Already processed
+        // If it's already wrapped or has a .toggle-block-button, skip re-wrapping
+        if (
+            element.querySelector('.toggle-block-button') ||
+            element.closest('.block-button-wrapper')
+        ) {
+            return;
         }
 
+        // Actually wrap
         const wrapper = this.ensureWrapper(element, profileHandle, postType);
         if (wrapper) {
-            this.processedElements.add(element);
+            this.processedPosts.add(element);
         }
     }
 
-    private ensureWrapper(element: HTMLElement, profileHandle: string, postType: string): HTMLElement | null {
+    private ensureWrapper(
+        element: HTMLElement,
+        profileHandle: string,
+        postType: string
+    ): HTMLElement | null {
         const existingWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
         if (existingWrapper) {
-            // already wrapped
+            // Already wrapped once; just ensure button/freshness exist
             if (!existingWrapper.querySelector('.toggle-block-button')) {
                 this.addActionButtons(existingWrapper, profileHandle);
             }
@@ -169,47 +183,47 @@ export class PostProcessor {
             wrapper.setAttribute('data-profile-handle', profileHandle);
             wrapper.setAttribute('data-post-type', postType);
 
-            // If user is blocked, apply style
+            // If user is already blocked, apply style
             const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
             if (isUserBlocked) {
                 this.applyBlockedStyle(wrapper);
             }
 
+            // Insert the wrapper before `element`
             parent.insertBefore(wrapper, element);
 
+            // Move children from `element` -> new wrapper
             while (element.firstChild) {
                 wrapper.appendChild(element.firstChild);
             }
-
             element.remove();
 
-            // Create container for buttons/freshness
+            // Buttons + freshness container
             const buttonsAndFreshnessContainer = document.createElement('div');
             buttonsAndFreshnessContainer.classList.add('buttons-freshness-container');
 
-            // Add Account Freshness
+            // Add account freshness
             const freshnessElement = document.createElement('div');
             freshnessElement.className = 'account-freshness';
             freshnessElement.textContent = 'Loading...';
             buttonsAndFreshnessContainer.appendChild(freshnessElement);
 
-            // Add Action Buttons
+            // Add block/unblock & report
             const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
             buttonsAndFreshnessContainer.appendChild(buttonContainer);
 
             wrapper.appendChild(buttonsAndFreshnessContainer);
 
-            // Update account freshness asynchronously
+            // asynchronously fetch freshness data
             this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
 
-            // If block buttons are currently hidden, hide them
+            // If block buttons are hidden, hide them
             if (!this.blockButtonsVisible) {
                 const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
                 if (blockButton) {
                     blockButton.style.display = 'none';
                 }
             }
-
             return wrapper;
         } catch (e) {
             console.error('Error wrapping element:', e);
@@ -239,17 +253,15 @@ export class PostProcessor {
     }
 
     /**
-     * Updates all posts by the specified user to reflect their block status.
-     * @param profileHandle - The handle or DID of the user.
-     * @param isBlocked - Whether the user is blocked.
+     * Called when the user is blocked or unblocked, to update style & button text
      */
     public updatePostsByUser(profileHandle: string, isBlocked: boolean): void {
         const wrappers = document.querySelectorAll<HTMLElement>(
             `.block-button-wrapper[data-profile-handle="${profileHandle}"]`
         );
+
         wrappers.forEach((wrapper) => {
             if (isBlocked) {
-                // Apply the chosen style
                 this.applyBlockedStyle(wrapper);
             } else {
                 // Remove all possible styles
@@ -260,9 +272,10 @@ export class PostProcessor {
                     'blocked-post--blurred'
                 );
             }
+            // Possibly highlight unblocked
             wrapper.classList.toggle('unblocked-post', !isBlocked);
 
-            // Update the block/unblock button text and styles
+            // Update block/unblock button text & style
             const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement | null;
             if (blockButton) {
                 if (isBlocked) {
@@ -278,13 +291,62 @@ export class PostProcessor {
         });
     }
 
+    /**
+     * Whether to show/hide the block/unblock buttons
+     */
     public setBlockButtonsVisibility(visible: boolean): void {
         this.blockButtonsVisible = visible;
         this.actionButtonManager.setButtonsVisibility(visible);
     }
 
+    /**
+     * If the block list changes, we can re-check each post in `processedPosts`
+     * to see if it's now blocked or unblocked, and update styles + button text accordingly.
+     */
+    public refreshAllProcessedPosts(): void {
+        for (const post of this.processedPosts) {
+            // Each "post" is the original element. The actual wrapper is:
+            const wrapper = post.closest('.block-button-wrapper') as HTMLElement | null;
+            if (!wrapper) continue;
+
+            const profileHandle = wrapper.getAttribute('data-profile-handle');
+            if (!profileHandle) continue;
+
+            const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
+
+            // Re-apply or remove blocked style
+            if (isUserBlocked) {
+                this.applyBlockedStyle(wrapper);
+                wrapper.classList.remove('unblocked-post');
+            } else {
+                wrapper.classList.remove(
+                    'blocked-post',
+                    'blocked-post--darkened',
+                    'blocked-post--hidden',
+                    'blocked-post--blurred'
+                );
+                wrapper.classList.add('unblocked-post');
+            }
+
+            // Also update block/unblock button text
+            const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement | null;
+            if (blockButton) {
+                if (isUserBlocked) {
+                    blockButton.textContent = 'Unblock';
+                    blockButton.classList.remove('btn-outline-secondary');
+                    blockButton.classList.add('btn-danger');
+                } else {
+                    blockButton.textContent = 'Block';
+                    blockButton.classList.remove('btn-danger');
+                    blockButton.classList.add('btn-outline-secondary');
+                }
+            }
+        }
+    }
+
     public destroy(): void {
         this.actionButtonManager.destroy();
         this.accountFreshnessManager.destroy();
+        this.processedPosts.clear();
     }
 }

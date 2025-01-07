@@ -81,18 +81,16 @@ export class PostScanner {
 
     public start(): void {
         this.observerManager.start(document.body);
-        this.scanForPosts();
     }
 
     private handleMutations(mutations: MutationRecord[]): void {
         this.postDetector.detectAndProcessPosts(mutations, this.postProcessor);
     }
-
-    private scanForPosts(): void {
-        const existingPosts = this.postDetector.getExistingPosts();
-        this.postProcessor.processPosts(existingPosts);
+    
+    public reprocessAllPosts(): void {
+        this.postProcessor.refreshAllProcessedPosts();
     }
-
+    
     public setBlockedPostStyle(style: string): void {
         this.postProcessor.setBlockedPostStyle(style);
     }

@@ -9,17 +9,6 @@ export class PostDetector {
         SELECTORS.posts,
     ].join(',');
 
-    public getExistingPosts(): HTMLElement[] {
-        const containerQuery = this.listContainerSelectors.join(', ');
-        const listContainers = document.querySelectorAll<HTMLElement>(containerQuery);
-        const posts: HTMLElement[] = [];
-        listContainers.forEach((container) => {
-            const elements = container.querySelectorAll<HTMLElement>(this.postSelectors);
-            elements.forEach((element) => posts.push(element));
-        });
-        return posts;
-    }
-
     public detectAndProcessPosts(
         mutations: MutationRecord[],
         postProcessor: any // Replace with actual PostProcessor type if available

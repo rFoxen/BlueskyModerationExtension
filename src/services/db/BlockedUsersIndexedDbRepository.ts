@@ -103,7 +103,7 @@ export class BlockedUsersIndexedDbRepository {
                 userHandle,
                 did,
                 recordUri,
-                timestamp, // Use timestamp instead of position
+                timestamp,
             };
             const request = store.put(data);
             request.onsuccess = () => {
@@ -118,6 +118,47 @@ export class BlockedUsersIndexedDbRepository {
         });
     }
 
+    /**
+     * Inserts or updates multiple users in one transaction to reduce overhead.
+     */
+    public addOrUpdateBulk(
+        listUri: string,
+        items: { userHandle: string; did: string; recordUri: string; timestamp: number }[]
+    ): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (!this.dbInstance) {
+                return resolve();
+            }
+            console.time('[DEBUG] addOrUpdateBulk');
+            const transaction = this.dbInstance.transaction(this.storeName, 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+
+            transaction.oncomplete = () => {
+                console.timeEnd('[DEBUG] addOrUpdateBulk');
+                resolve();
+            };
+            transaction.onerror = () => {
+                console.error('Failed in addOrUpdateBulk transaction:', transaction.error);
+                console.timeEnd('[DEBUG] addOrUpdateBulk');
+                reject(transaction.error);
+            };
+
+            // Bulk put each user
+            for (const item of items) {
+                const { userHandle, did, recordUri, timestamp } = item;
+                const id = `${listUri}#${userHandle}`;
+                const data: IndexedDbBlockedUser = {
+                    id,
+                    listUri,
+                    userHandle,
+                    did,
+                    recordUri,
+                    timestamp,
+                };
+                store.put(data);
+            }
+        });
+    }
 
     /**
      * Removes a single blocked user record by listUri and userHandle.

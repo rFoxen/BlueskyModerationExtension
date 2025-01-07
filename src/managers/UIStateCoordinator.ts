@@ -61,8 +61,6 @@ export class UIStateCoordinator {
         this.blueskyService.on('sessionUpdated', (session) => {
             this.updateUI();
         });
-
-        // NEW: Listen for blockPostStyleChange
         this.slideoutManager.on('blockPostStyleChange', (newStyle: string) => {
             this.handleBlockedPostStyleChange(newStyle);
         });
@@ -176,7 +174,14 @@ export class UIStateCoordinator {
             this.blockedUsersUI?.hideBlockedUsersSection();
             return;
         }
+        
+        // Load the blocked users in memory
         await this.blockedUsersUI?.loadBlockedUsersUI(selectedUri);
+        
+        // IMPORTANT: Re-scan existing posts so they reflect the newly loaded block data
+        if (this.postScanner) {
+            this.postScanner.reprocessAllPosts();
+        }
     }
 
     private handleBlockedPostStyleChange(newStyle: string): void {
