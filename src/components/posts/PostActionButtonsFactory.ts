@@ -34,7 +34,7 @@ export class PostActionButtonsFactory {
 
         const reportButton = new Button({
             classNames: 'report-user-button btn btn-warning btn-sm',
-            text: LABELS.REPORT,
+            text: LABELS.REPORT_ACCOUNT,
             ariaLabel: ARIA_LABELS.REPORT_USER(profileHandle),
         });
 

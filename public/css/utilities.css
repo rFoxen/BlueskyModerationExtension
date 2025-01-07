@@ -64,7 +64,7 @@
     text-align: center;
     font-size: 0.75rem; /* Smaller font size */
     padding: 0.3rem 0.6rem; /* Reduced padding */
-    max-width: 80px; /* Limit button width */
+    max-width: 200px; /* Limit button width */
     box-sizing: border-box;
 }
 

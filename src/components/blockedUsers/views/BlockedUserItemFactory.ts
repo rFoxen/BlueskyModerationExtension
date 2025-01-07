@@ -58,7 +58,7 @@ export class BlockedUserItemFactory {
             '.report-button',
             {
                 classNames: 'btn btn-outline-danger btn-sm report-button',
-                text: LABELS.REPORT,
+                text: LABELS.REPORT_ACCOUNT,
                 ariaLabel: ariaLabels.reportUserLabel,
             },
             (event: Event) => {

@@ -40,7 +40,7 @@ export const LABELS = {
     PAGE_INFO: (currentPage: number, totalPages: number) => `Page ${currentPage} of ${totalPages}`,
     BLOCK: 'Block',
     UNBLOCK: 'Unblock',
-    REPORT: 'Report',
+    REPORT_ACCOUNT: 'Report User',
     REFRESH_BLOCK_LISTS: 'Refresh Block Lists',
     REFRESH_BLOCKED_USERS: 'Refresh Blocked Users',
     LOADING_BLOCKED_USERS: 'Loading blocked users...',
