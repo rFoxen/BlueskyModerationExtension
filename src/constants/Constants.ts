@@ -91,6 +91,7 @@ export const ERRORS = {
     FAILED_TO_RETRIEVE_BLOCKED_USERS_TOGGLE_STATE: 'Failed to retrieve blocked users toggle state.',
     FAILED_TO_SAVE_BLOCKED_USERS: 'Failed to save blocked users data.',
     FAILED_TO_LOAD_BLOCKED_USERS: 'Failed to load blocked users data.',
+    FAILED_TO_LOAD_FRESHNESS_DATA: (userHandle: string) => `Failed to load @${userHandle} fresshness data`,
     FAILED_TO_RESOLVE_HANDLE_FROM_DID: 'Failed to resolve handle from DID.',
     FAILED_TO_UNBLOCK_USER: 'Failed to unblock the user. Please try again.',
     FAILED_TO_SAVE_BLOCK_BUTTONS_TOGGLE_STATE: 'Failed to save block buttons toggle state.',

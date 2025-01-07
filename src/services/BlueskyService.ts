@@ -334,7 +334,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
             return { creationDate, postsCount };
         } catch (error) {
             this.errorService.handleError(error as Error);
-            this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
+            this.emit('error', ERRORS.FAILED_TO_LOAD_FRESHNESS_DATA(userDidOrHandle));
             return { creationDate: null, postsCount: null };
         }
     }
