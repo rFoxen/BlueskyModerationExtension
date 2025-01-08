@@ -18,12 +18,24 @@ export class AccountFreshnessManager {
             if (creationDate) {
                 const now = new Date();
                 const diffInMilliseconds = now.getTime() - creationDate.getTime();
+                const diffInSeconds = Math.floor(diffInMilliseconds / 1000);
+                const diffInMinutes = Math.floor(diffInSeconds / 60);
+                const diffInHours = Math.floor(diffInMinutes / 60);
                 const diffInDays = Math.floor(diffInMilliseconds / (1000 * 60 * 60 * 24));
 
-                const accountAgeText =
-                    diffInDays < 30
-                        ? `${diffInDays} day${diffInDays !== 1 ? 's' : ''} old`
-                        : `${Math.floor(diffInDays / 30)} month${Math.floor(diffInDays / 30) !== 1 ? 's' : ''} old`;
+                let accountAgeText = '';
+                if (diffInSeconds < 60) {
+                    accountAgeText = `${diffInSeconds} sec${diffInSeconds !== 1 ? 's' : ''} old`;
+                } else if (diffInMinutes < 60) {
+                    accountAgeText = `${diffInMinutes} min${diffInMinutes !== 1 ? 's' : ''} old`;
+                } else if (diffInHours < 24) {
+                    accountAgeText = `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} old`;
+                } else if (diffInDays < 30) {
+                    accountAgeText = `${diffInDays} day${diffInDays !== 1 ? 's' : ''} old`;
+                } else {
+                    const diffInMonths = Math.floor(diffInDays / 30);
+                    accountAgeText = `${diffInMonths} month${diffInMonths !== 1 ? 's' : ''} old`;
+                }
 
                 const postCountText =
                     postsCount !== null ? `${postsCount} post${postsCount !== 1 ? 's' : ''}` : 'Unknown posts count';
@@ -43,10 +55,11 @@ export class AccountFreshnessManager {
 
     private getFreshnessColor(diffInDays: number): string {
         // Example logic to determine color based on account age
-        if (diffInDays < 7) return 'red'; // Very new
-        if (diffInDays < 30) return 'orange'; // New
-        if (diffInDays < 365) return 'yellow'; // Established
-        return 'green'; // Old
+        if (diffInDays < 1) return 'red'; // Very new (less than a day)
+        if (diffInDays < 7) return 'orange'; // New (1-6 days)
+        if (diffInDays < 30) return 'yellow'; // Established (7-29 days)
+        if (diffInDays < 365) return 'lightgreen'; // Mature (1-11 months)
+        return 'green'; // Very old (1+ years)
     }
 
     public destroy(): void {
