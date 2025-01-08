@@ -15,6 +15,9 @@ export class SlideoutView {
     public closeSlideoutButton: HTMLElement;
     public blockButtonsToggle: HTMLInputElement;
 
+    public prependRadio: HTMLInputElement;
+    public appendRadio: HTMLInputElement;
+    
     // New References for Tabs
     public tabList: HTMLElement;
     public tabContent: HTMLElement;
@@ -42,6 +45,10 @@ export class SlideoutView {
         // Initialize accordion references
         this.blockedUsersToggle = this.slideoutElement.querySelector('#blocked-users-toggle')!;
         this.blockedUsersContent = this.slideoutElement.querySelector('#blocked-users-content')!;
+        
+        // Initialize new radio button references
+        this.prependRadio = this.slideoutElement.querySelector('#prepend-radio') as HTMLInputElement;
+        this.appendRadio = this.slideoutElement.querySelector('#append-radio') as HTMLInputElement;
     }
 
     private injectSlideout(): void {
@@ -59,5 +66,8 @@ export class SlideoutView {
         if (this.overlayElement && this.overlayElement.parentElement) {
             this.overlayElement.parentElement.removeChild(this.overlayElement);
         }
+        // Clean up references
+        this.prependRadio = null!;
+        this.appendRadio = null!;
     }
 }

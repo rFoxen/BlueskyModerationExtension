@@ -144,8 +144,28 @@ export class SlideoutManager extends EventEmitter {
             this.blockPostStyleSelect.addEventListener('change', blockPostStyleChangeHandler);
             this.eventHandlers['blockPostStyleChange'] = blockPostStyleChangeHandler;
         }
-    }
 
+        // Add event listeners for radio buttons
+        const prependChangeHandler = () => this.handlePrependAppendChange('prepend');
+        const appendChangeHandler = () => this.handlePrependAppendChange('append');
+
+        this.eventHandlers['prependChange'] = prependChangeHandler;
+        this.eventHandlers['appendChange'] = appendChangeHandler;
+
+        EventListenerHelper.addEventListener(this.view.prependRadio, 'change', prependChangeHandler);
+        EventListenerHelper.addEventListener(this.view.appendRadio, 'change', appendChangeHandler);
+    }
+    
+    private handlePrependAppendChange(option: 'prepend' | 'append'): void {
+        // Persist the selection
+        StorageHelper.setString(STORAGE_KEYS.PREPEND_APPEND_OPTION, option);
+
+        // Emit an event for other components if they need to react
+        this.emit('prependAppendChanged', option);
+
+        console.log(`[DEBUG] Prepend/Append option changed to: ${option}`);
+    }
+    
     private initializeSwipeGesture(): void {
         if (this.swipeHandler) {
             this.swipeHandler.destroy();
@@ -258,6 +278,19 @@ export class SlideoutManager extends EventEmitter {
         }
         // Emit event to initialize style
         this.emit('blockPostStyleChange', savedStyle);
+        
+        // Apply Prepend/Append option
+        const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
+        if (savedOption === 'prepend') {
+            this.view.prependRadio.checked = true;
+        } else if (savedOption === 'append') {
+            this.view.appendRadio.checked = true;
+        } else {
+            this.view.prependRadio.checked = true; // Default to prepend
+        }
+
+        // Emit the initial state
+        this.emit('prependAppendChanged', savedOption);
     }
 
     public getBlockButtonsToggleState(): boolean {
@@ -387,5 +420,19 @@ export class SlideoutManager extends EventEmitter {
         // Destroy LoginHandler and UserInfoManager
         this.loginHandler.destroy();
         this.userInfoManager.destroy();
+
+
+        // Remove radio button event listeners
+        const prependChangeHandler = this.eventHandlers['prependChange'];
+        const appendChangeHandler = this.eventHandlers['appendChange'];
+
+        if (prependChangeHandler) {
+            EventListenerHelper.removeEventListener(this.view.prependRadio, 'change', prependChangeHandler);
+            delete this.eventHandlers['prependChange'];
+        }
+        if (appendChangeHandler) {
+            EventListenerHelper.removeEventListener(this.view.appendRadio, 'change', appendChangeHandler);
+            delete this.eventHandlers['appendChange'];
+        }
     }
 }

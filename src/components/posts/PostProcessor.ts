@@ -6,6 +6,9 @@ import { PostTypeDeterminer } from '@src/utils/helpers/PostTypeDeterminer';
 import { ActionButtonManager } from './ActionButtonManager';
 import { AccountFreshnessManager } from './AccountFreshnessManager';
 import { isElementHiddenByCss } from '@src/utils/helpers/isElementHidden';
+import { STORAGE_KEYS } from '@src/constants/Constants';
+import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+
 export class PostProcessor {
     private notificationManager: NotificationManager;
     private blueskyService: BlueskyService;
@@ -218,7 +221,12 @@ export class PostProcessor {
             const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
             buttonsAndFreshnessContainer.appendChild(buttonContainer);
 
-            wrapper.prepend(buttonsAndFreshnessContainer);
+            const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
+            if (savedOption === 'prepend') {
+                wrapper.prepend(buttonsAndFreshnessContainer);
+            } else if (savedOption === 'append') {
+                wrapper.append(buttonsAndFreshnessContainer);
+            }
 
             // asynchronously fetch freshness data
             this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);

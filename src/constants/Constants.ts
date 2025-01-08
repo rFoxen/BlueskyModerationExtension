@@ -53,6 +53,9 @@ export const LABELS = {
     // New Labels for Tabs
     LOGIN_TAB: 'Login',
     BLOCKED_USERS_TAB: 'Blocked Users',
+    POST_INSERTION_METHOD: 'Post Insertion Method',
+    PREPEND: 'Prepend',
+    APPEND: 'Append',
 };
 
 export const ARIA_LABELS = {
@@ -68,6 +71,8 @@ export const ARIA_LABELS = {
     BLOCK_USER: (userHandle: string) => `Block user ${userHandle}`,
     UNBLOCK_USER: (userHandle: string) => `Unblock user ${userHandle}`,
     REPORT_USER: (username: string) => `Report user ${username}`,
+    PREPEND_OPTION: 'Select to prepend blocked posts to the top',
+    APPEND_OPTION: 'Select to append blocked posts to the bottom',
 };
 
 export const ERRORS = {
@@ -107,6 +112,7 @@ export const STORAGE_KEYS = {
     BLOCKED_USERS_PREFIX: 'blockedUsers_',
     THEME_PREFERENCE: 'theme',
     BLOCKED_POST_STYLE: 'blockedPostStyle',
+    PREPEND_APPEND_OPTION: 'prependAppendOption',
 };
 
 export const API_ENDPOINTS = {

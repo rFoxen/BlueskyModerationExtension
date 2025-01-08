@@ -114,8 +114,38 @@
                         </label>
                     </div>
                 </div>
+                
+                <!-- Prepend or Append Option -->
+                <div id="prepend-append-section" class="mt-3">
+                    <label class="form-label">{{labels.POST_INSERTION_METHOD}}</label>
+                    <div class="form-check">
+                        <input
+                                class="form-check-input"
+                                type="radio"
+                                name="post-insertion-method"
+                                id="append-radio"
+                                value="append"
+                                checked
+                        />
+                        <label class="form-check-label" for="append-radio">
+                            {{labels.APPEND}}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input
+                                class="form-check-input"
+                                type="radio"
+                                name="post-insertion-method"
+                                id="prepend-radio"
+                                value="prepend"
+                        />
+                        <label class="form-check-label" for="prepend-radio">
+                            {{labels.PREPEND}}
+                        </label>
+                    </div>
+                </div>
 
-                <!-- NEW: Blocked Post Appearance -->
+                <!-- Blocked Post Appearance -->
                 <div id="block-post-style-section" class="mt-3">
                     <label for="block-post-style-select" class="form-label">Blocked Post Appearance</label>
                     <select id="block-post-style-select" class="form-select">
