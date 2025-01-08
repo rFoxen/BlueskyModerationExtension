@@ -108,6 +108,6 @@ a:hover {
 
 /* Blurred style: blur the content */
 .blocked-post--blurred {
-    filter: blur(4px);
+    filter: blur(8px);
     transition: filter 0.3s ease;
 }
