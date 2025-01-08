@@ -34,7 +34,7 @@
     --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     --border-radius: 4px;
     --transition-duration: 0.3s;
-    --overlay-opacity: 0.35;
+    --overlay-opacity: 0.5;
     --overlay-hover-opacity: 0.5;
     --slideout-box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
     --notification-success-bg: #28a745;

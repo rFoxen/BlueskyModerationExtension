@@ -190,7 +190,7 @@ export class SlideoutManager extends EventEmitter {
 
         // Reset transform and opacity in case they were altered during swipe
         this.view.slideoutElement.style.transform = 'translateX(0)';
-        this.view.overlayElement.style.opacity = '0.35';
+        this.view.overlayElement.style.opacity = '0.5';
 
         // Initialize focus trapping
         this.focusManager.initialize();
