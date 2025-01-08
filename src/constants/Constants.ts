@@ -30,8 +30,13 @@ export const LABELS = {
     PASSWORD: 'Password',
     LOGIN: 'Login',
     LOGOUT: 'Logout',
+    REFRESH: '↻',
     SWITCH_THEME: 'Switch Theme',
-    BLOCK_LIST_SELECTION: 'Select Block List (Used when you click "Block")',
+    BLOCK_LIST_SELECTION: 'Block List Selection")',
+    BLOCK_LIST_SELECTION_INFO: 'Select Block List (Used when you click "Block")',
+    ADDITIONAL_BLOCK_LISTS: 'Additional Block Lists for Styling',
+    ADDITIONAL_BLOCK_LISTS_INFO: 'These lists won\'t be used for block/unblock, but any user found in them will be styled as "blocked" in your feed.',
+    ADDITIONAL_BLOCK_LISTS_INSTRUCTION: 'Select Additional Block Lists',
     BLOCKED_USERS: 'Blocked Users',
     BLOCKED_USERS_IN_LIST: (listName: string) => `Blocked Users in "${listName}"`,
     NO_USERS_FOUND: 'No users found.',
@@ -113,6 +118,7 @@ export const STORAGE_KEYS = {
     THEME_PREFERENCE: 'theme',
     BLOCKED_POST_STYLE: 'blockedPostStyle',
     PREPEND_APPEND_OPTION: 'prependAppendOption',
+    ADDITIONAL_BLOCK_LISTS: 'additionalBlockLists'
 };
 
 export const API_ENDPOINTS = {

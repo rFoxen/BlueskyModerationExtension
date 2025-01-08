@@ -11,7 +11,7 @@ import { UserReporter } from '@src/components/reporting/UserReporter';
 export class PostScanner {
     private notificationManager: NotificationManager;
     private isLoggedIn: () => boolean;
-    private getSelectedBlockList: () => string | null;
+    private getActiveBlockLists: () => string[];
     private onUserBlocked: (userHandle: string) => Promise<void>;
     private onUserUnblocked: (userHandle: string) => Promise<void>;
     private blueskyService: BlueskyService;
@@ -28,7 +28,7 @@ export class PostScanner {
         blueskyService: BlueskyService,
         blockedUsersService: BlockedUsersService,
         isLoggedIn: () => boolean,
-        getSelectedBlockList: () => string | null,
+        getActiveBlockLists: () => string[],
         onUserBlocked: (userHandle: string) => Promise<void>,
         onUserUnblocked: (userHandle: string) => Promise<void>
     ) {
@@ -36,7 +36,7 @@ export class PostScanner {
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
         this.isLoggedIn = isLoggedIn;
-        this.getSelectedBlockList = getSelectedBlockList;
+        this.getActiveBlockLists = getActiveBlockLists;
         this.onUserBlocked = onUserBlocked;
         this.onUserUnblocked = onUserUnblocked;
 
@@ -53,7 +53,7 @@ export class PostScanner {
             this.blueskyService,
             this.blockedUsersService,
             this.isLoggedIn,
-            this.getSelectedBlockList,
+            this.getActiveBlockLists,
             this.onUserBlocked,
             this.onUserUnblocked,
             this.userReporter

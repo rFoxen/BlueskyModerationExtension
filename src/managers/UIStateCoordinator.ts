@@ -1,11 +1,12 @@
-import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
-import { BlockedUsersUI } from '@src/components/blockedUsers/BlockedUsersUI';
-import { NotificationManager } from '@src/components/common/NotificationManager';
-import { PostScanner } from '@src/components/posts/PostScanner';
-import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
-import { BlueskyService } from '@src/services/BlueskyService';
-import { BlockedUsersService } from '@src/services/BlockedUsersService';
-import { MESSAGES, STORAGE_KEYS } from '@src/constants/Constants';
+import {BlockListDropdown} from '@src/components/blockedUsers/BlockListDropdown';
+import {AdditionalBlockListsDropdown} from '@src/components/blockedUsers/AdditionalBlockListsDropdown';
+import {BlockedUsersUI} from '@src/components/blockedUsers/BlockedUsersUI';
+import {NotificationManager} from '@src/components/common/NotificationManager';
+import {PostScanner} from '@src/components/posts/PostScanner';
+import {SlideoutManager} from '@src/components/slideout/SlideoutManager';
+import {BlueskyService} from '@src/services/BlueskyService';
+import {BlockedUsersService} from '@src/services/BlockedUsersService';
+import {MESSAGES, STORAGE_KEYS} from '@src/constants/Constants';
 
 /**
  * Coordinates UI states between the slideout, block lists, post scanning, etc.
@@ -17,18 +18,21 @@ export class UIStateCoordinator {
     private blueskyService: BlueskyService;
     private blockedUsersService: BlockedUsersService;
     private blockListDropdown: BlockListDropdown | null = null;
+    private additionalBlockListsDropdown: AdditionalBlockListsDropdown;
     private blockedUsersUI: BlockedUsersUI | null = null;
     private postScanner: PostScanner | null = null;
     private getIsLoggedIn: () => boolean;
 
     constructor(
         slideoutManager: SlideoutManager,
+        additionalBlockListsDropdown: AdditionalBlockListsDropdown,
         notificationManager: NotificationManager,
         blueskyService: BlueskyService,
         blockedUsersService: BlockedUsersService,
         isLoggedIn: () => boolean
     ) {
         this.slideoutManager = slideoutManager;
+        this.additionalBlockListsDropdown = additionalBlockListsDropdown;
         this.notificationManager = notificationManager;
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
@@ -36,6 +40,7 @@ export class UIStateCoordinator {
         this.isLoggedIn = isLoggedIn();
 
         this.setupSlideoutEvents();
+        this.subscribeToAdditionalListsEvents();
     }
 
     private setupSlideoutEvents(): void {
@@ -65,7 +70,15 @@ export class UIStateCoordinator {
             this.handleBlockedPostStyleChange(newStyle);
         });
     }
-
+    
+    private subscribeToAdditionalListsEvents(): void {
+        document.addEventListener('additionalBlockListsChanged', (event: Event) => {
+            console.log('[DEBUG] additionalBlockListsChanged event triggered, re-scanning posts...');
+            // Force a re-scan so the new lists apply
+            this.postScanner?.reprocessAllPosts();
+        });
+    }
+    
     public initializeUIForSite(hostname: string): void {
         if (hostname === 'bsky.app') {
             // 1) Construct PostScanner first
@@ -88,7 +101,26 @@ export class UIStateCoordinator {
             this.blueskyService,
             this.blockedUsersService,
             this.getIsLoggedIn,
-            () => this.blockListDropdown?.getSelectedValue() || null,
+            () => {
+                // 1) Get the “primary” list URI from blockListDropdown
+                const mainList = this.blockListDropdown?.getSelectedValue() || null;
+
+                // 2) Get the additional list URIs (an array) from AdditionalBlockListsDropdown
+                const additionalLists = this.additionalBlockListsDropdown?.getSelectedValues() || [];
+
+                // 3) Combine them, removing duplicates
+                //    simplest approach is just to put them all in a Set
+                const combinedSet = new Set<string>();
+                if (mainList) {
+                    combinedSet.add(mainList);
+                }
+                for (const uri of additionalLists) {
+                    combinedSet.add(uri);
+                }
+
+                // Return as an array
+                return Array.from(combinedSet);
+            },
             async (userHandle: string) => {
                 const selectedUri = this.blockListDropdown?.getSelectedValue();
                 if (!selectedUri) return;
@@ -107,6 +139,7 @@ export class UIStateCoordinator {
         console.log('UIStateCoordinator: updateUI called, isLoggedIn:', this.isLoggedIn);
 
         if (this.isLoggedIn) {
+            this.additionalBlockListsDropdown.loadBlockLists();
             this.slideoutManager.displayLoginInfo(this.blueskyService.getLoggedInUsername());
 
             if (!this.blockListDropdown) {
@@ -174,10 +207,10 @@ export class UIStateCoordinator {
             this.blockedUsersUI?.hideBlockedUsersSection();
             return;
         }
-        
+
         // Load the blocked users in memory
         await this.blockedUsersUI?.loadBlockedUsersUI(selectedUri);
-        
+
         // IMPORTANT: Re-scan existing posts so they reflect the newly loaded block data
         if (this.postScanner) {
             this.postScanner.reprocessAllPosts();

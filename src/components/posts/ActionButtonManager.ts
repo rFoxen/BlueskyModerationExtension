@@ -11,7 +11,7 @@ export class ActionButtonManager {
     private blueskyService: BlueskyService;
     private blockedUsersService: BlockedUsersService;
     private isLoggedIn: () => boolean;
-    private getSelectedBlockList: () => string | null;
+    private getActiveBlockLists: () => string[];
     private onUserBlocked: (userHandle: string) => Promise<void>;
     private onUserUnblocked: (userHandle: string) => Promise<void>;
     private userReporter: UserReporter;
@@ -22,7 +22,7 @@ export class ActionButtonManager {
         blueskyService: BlueskyService,
         blockedUsersService: BlockedUsersService,
         isLoggedIn: () => boolean,
-        getSelectedBlockList: () => string | null,
+        getActiveBlockLists: () => string[],
         onUserBlocked: (userHandle: string) => Promise<void>,
         onUserUnblocked: (userHandle: string) => Promise<void>,
         userReporter: UserReporter
@@ -31,7 +31,7 @@ export class ActionButtonManager {
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
         this.isLoggedIn = isLoggedIn;
-        this.getSelectedBlockList = getSelectedBlockList;
+        this.getActiveBlockLists = getActiveBlockLists;
         this.onUserBlocked = onUserBlocked;
         this.onUserUnblocked = onUserUnblocked;
         this.userReporter = userReporter;
@@ -58,7 +58,7 @@ export class ActionButtonManager {
             return;
         }
 
-        const selectedBlockList = this.getSelectedBlockList();
+        const selectedBlockList = this.getActiveBlockLists()[0];
         if (!selectedBlockList) {
             this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
             return;
@@ -66,9 +66,10 @@ export class ActionButtonManager {
 
         // For debugging performance: track start time
         console.time(`[DEBUG] handleBlockUser: ${userHandle}`);
-
+        
+        const activeListUris = this.getActiveBlockLists();
         // Check whether user is currently blocked
-        const alreadyBlocked = this.blockedUsersService.isUserBlocked(userHandle);
+        const alreadyBlocked = await this.blockedUsersService.isUserBlocked(userHandle, [activeListUris[0]]);
 
         // Show "spinner" or disable
         blockButton.setDisabled(true);

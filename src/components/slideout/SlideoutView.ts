@@ -14,6 +14,7 @@ export class SlideoutView {
     public blockListsSection: HTMLElement;
     public closeSlideoutButton: HTMLElement;
     public blockButtonsToggle: HTMLInputElement;
+    public additionalSection: HTMLElement;
 
     public prependRadio: HTMLInputElement;
     public appendRadio: HTMLInputElement;
@@ -35,9 +36,11 @@ export class SlideoutView {
         this.userInfoSection = document.getElementById('user-info')!;
         this.loggedInUsername = document.getElementById('logged-in-username')!;
         this.blockListsSection = document.getElementById('block-lists-section')!;
+        this.additionalSection = document.getElementById('refresh-additional-block-lists')!;
+
         this.closeSlideoutButton = document.getElementById('close-slideout')!;
         this.blockButtonsToggle = document.getElementById('block-buttons-toggle') as HTMLInputElement;
-
+        
         // Initialize new tab references
         this.tabList = this.slideoutElement.querySelector('#slideoutTabs')!;
         this.tabContent = this.slideoutElement.querySelector('#slideoutTabsContent')!;

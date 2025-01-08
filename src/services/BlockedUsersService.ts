@@ -120,9 +120,21 @@ export class BlockedUsersService extends EventEmitter {
     /**
      * Check if a given user handle is currently blocked (in memory).
      */
-    public isUserBlocked(userHandle: string): boolean {
-        return this.blockedUsersMap.has(userHandle);
-    }
+    public async isUserBlocked(userHandle: string, listUris: string[]): Promise<boolean> {
+        try {
+            if (this.blockedUsersMap.has(userHandle)){
+                return true;
+            }
+            else{
+                // Query the repo directly
+                return await this.blockedUsersRepo.isUserHandleBlocked(userHandle, listUris);
+            }
+        } catch (error) {
+            console.error('Error checking if user is blocked:', error);
+            // If an error occurs, default to not blocked
+            return false;
+        }
+    } 
 
     /**
      * Used after a successful block API call, to add the blocked user
@@ -168,7 +180,8 @@ export class BlockedUsersService extends EventEmitter {
      */
     public async addBlockedUser(userHandle: string, listUri: string): Promise<void> {
         try {
-            if (this.isUserBlocked(userHandle)) return;
+            const isUserBlocked = await this.isUserBlocked(userHandle, [listUri]);
+            if (isUserBlocked) return;
 
             const did = await this.resolveDidFromHandle(userHandle);
             const newItem: BlockedUser = {
@@ -201,7 +214,8 @@ export class BlockedUsersService extends EventEmitter {
      * remove from memory + IDB, and emit events so the UI can refresh.
      */
     public async removeBlockedUser(userHandle: string, listUri: string): Promise<void> {
-        if (!this.isUserBlocked(userHandle)) {
+        const isUserBlocked = await this.isUserBlocked(userHandle, [listUri])
+        if (!isUserBlocked) {
             console.warn(`User ${userHandle} is not in the block list.`);
             return;
         }

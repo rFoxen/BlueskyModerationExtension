@@ -7,6 +7,7 @@ import { ThemeManager } from '@src/components/theme/ThemeManager';
 import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
 import { UIStateCoordinator } from '@src/managers/UIStateCoordinator';
 import { SessionManager } from '@src/managers/SessionManager';
+import {AdditionalBlockListsDropdown} from "./components/blockedUsers/AdditionalBlockListsDropdown";
 
 /**
  * Main entry point for initializing our content script logic.
@@ -20,6 +21,7 @@ class ContentScript {
     private blockedUsersService: BlockedUsersService;
     private uiStateCoordinator: UIStateCoordinator;
     private sessionManager: SessionManager;
+    private additionalBlockListsDropdown: AdditionalBlockListsDropdown;
 
     constructor(
         notificationManager: NotificationManager,
@@ -40,13 +42,20 @@ class ContentScript {
             this.notificationManager,
             this.performLogout.bind(this)
         );
+        
+        this.additionalBlockListsDropdown = new AdditionalBlockListsDropdown(
+            'additional-block-lists-dropdown',
+            this.blueskyService
+        )
 
         // Initialize UIStateCoordinator for orchestrating UI changes
         this.uiStateCoordinator = new UIStateCoordinator(
             this.slideoutManager,
+            this.additionalBlockListsDropdown,
             this.notificationManager,
             this.blueskyService,
             this.blockedUsersService,
+            
             () => this.blueskyService.isLoggedIn() // pass a function returning bool
         );
 

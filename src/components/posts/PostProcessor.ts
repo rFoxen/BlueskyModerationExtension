@@ -14,7 +14,7 @@ export class PostProcessor {
     private blueskyService: BlueskyService;
     private blockedUsersService: BlockedUsersService;
     private isLoggedIn: () => boolean;
-    private getSelectedBlockList: () => string | null;
+    private getActiveBlockLists: () => string[];
     private onUserBlocked: (userHandle: string) => Promise<void>;
     private onUserUnblocked: (userHandle: string) => Promise<void>;
     private userReporter: UserReporter;
@@ -36,7 +36,7 @@ export class PostProcessor {
         blueskyService: BlueskyService,
         blockedUsersService: BlockedUsersService,
         isLoggedIn: () => boolean,
-        getSelectedBlockList: () => string | null,
+        getActiveBlockLists: () => string[],
         onUserBlocked: (userHandle: string) => Promise<void>,
         onUserUnblocked: (userHandle: string) => Promise<void>,
         userReporter: UserReporter
@@ -45,7 +45,7 @@ export class PostProcessor {
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
         this.isLoggedIn = isLoggedIn;
-        this.getSelectedBlockList = getSelectedBlockList;
+        this.getActiveBlockLists = getActiveBlockLists;
         this.onUserBlocked = onUserBlocked;
         this.onUserUnblocked = onUserUnblocked;
         this.userReporter = userReporter;
@@ -56,7 +56,7 @@ export class PostProcessor {
             this.blueskyService,
             this.blockedUsersService,
             this.isLoggedIn,
-            this.getSelectedBlockList,
+            this.getActiveBlockLists,
             this.onUserBlocked,
             this.onUserUnblocked,
             this.userReporter
@@ -119,7 +119,7 @@ export class PostProcessor {
     /**
      * Wrap the post with block/unblock buttons, but only if not processed before.
      */
-    public processElement(element: HTMLElement): void {
+    public async processElement(element: HTMLElement): Promise<void> {
         if (this.processedPosts.has(element)) return;
         if (isElementHiddenByCss(element)) {
             return;
@@ -156,17 +156,17 @@ export class PostProcessor {
         }
 
         // Actually wrap
-        const wrapper = this.ensureWrapper(element, profileHandle, postType);
+        const wrapper = await this.ensureWrapper(element, profileHandle, postType);
         if (wrapper) {
             this.processedPosts.add(element);
         }
     }
 
-    private ensureWrapper(
+    private async ensureWrapper(
         element: HTMLElement,
         profileHandle: string,
         postType: string
-    ): HTMLElement | null {
+    ): Promise<HTMLElement | null> {
         const existingWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
         if (existingWrapper) {
             // Already wrapped once; just ensure button/freshness exist
@@ -190,7 +190,8 @@ export class PostProcessor {
             wrapper.setAttribute('data-post-type', postType);
 
             // If user is already blocked, apply style
-            const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
+            const activeListUris = this.getActiveBlockLists();
+            const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, [activeListUris[0]]);
             if (isUserBlocked) {
                 this.applyBlockedStyle(wrapper);
             }
@@ -242,8 +243,9 @@ export class PostProcessor {
         }
     }
 
-    private addActionButtons(wrapper: HTMLElement, profileHandle: string): void {
-        const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
+    private async addActionButtons(wrapper: HTMLElement, profileHandle: string): Promise<void> {
+        const activeListUris = this.getActiveBlockLists();
+        const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, [activeListUris[0]]);
         const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
         wrapper.appendChild(buttonContainer);
     }
@@ -314,7 +316,7 @@ export class PostProcessor {
      * If the block list changes, we can re-check each post in `processedPosts`
      * to see if it's now blocked or unblocked, and update styles + button text accordingly.
      */
-    public refreshAllProcessedPosts(): void {
+    public async refreshAllProcessedPosts(): Promise<void> {
         for (const post of this.processedPosts) {
             // Each "post" is the original element. The actual wrapper is:
             const wrapper = post.closest('.block-button-wrapper') as HTMLElement | null;
@@ -323,7 +325,8 @@ export class PostProcessor {
             const profileHandle = wrapper.getAttribute('data-profile-handle');
             if (!profileHandle) continue;
 
-            const isUserBlocked = this.blockedUsersService.isUserBlocked(profileHandle);
+            const activeListUris = this.getActiveBlockLists();
+            const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, activeListUris);
 
             // Re-apply or remove blocked style
             if (isUserBlocked) {
