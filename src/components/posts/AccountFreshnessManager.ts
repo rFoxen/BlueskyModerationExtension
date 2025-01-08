@@ -1,6 +1,7 @@
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { LABELS, ERRORS } from '@src/constants/Constants';
+import Logger from '@src/utils/logger/Logger';
 
 export class AccountFreshnessManager {
     private blueskyService: BlueskyService;
@@ -34,7 +35,7 @@ export class AccountFreshnessManager {
                 element.style.color = 'gray';
             }
         } catch (error) {
-            console.error(`Error fetching account freshness for ${profileHandle}:`, error);
+            Logger.error(`Error fetching account freshness for ${profileHandle}:`, error);
             element.textContent = 'Account age: Error, posts count: Error';
             element.style.color = 'gray';
         }

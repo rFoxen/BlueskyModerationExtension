@@ -8,6 +8,7 @@ import { StateManager } from '@src/utils/state/StateManager';
 import { LoginHandler } from '@src/components/authentication/LoginHandler';
 import { UserInfoManager } from '@src/components/authentication/UserInfoManager';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+import Logger from '@src/utils/logger/Logger';
 
 /**
  * Manages the slideout UI, login form, block list toggles, etc.
@@ -163,7 +164,7 @@ export class SlideoutManager extends EventEmitter {
         // Emit an event for other components if they need to react
         this.emit('prependAppendChanged', option);
 
-        console.log(`[DEBUG] Prepend/Append option changed to: ${option}`);
+        Logger.debug(`Prepend/Append option changed to: ${option}`);
     }
     
     private initializeSwipeGesture(): void {

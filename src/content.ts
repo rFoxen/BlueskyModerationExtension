@@ -8,6 +8,7 @@ import { SlideoutManager } from '@src/components/slideout/SlideoutManager';
 import { UIStateCoordinator } from '@src/managers/UIStateCoordinator';
 import { SessionManager } from '@src/managers/SessionManager';
 import {AdditionalBlockListsDropdown} from "./components/blockedUsers/AdditionalBlockListsDropdown";
+import Logger from '@src/utils/logger/Logger';
 
 /**
  * Main entry point for initializing our content script logic.
@@ -67,7 +68,7 @@ class ContentScript {
      * and sets up destroy logic on window unload.
      */
     private initialize(): void {
-        console.log('ContentScript initialized.');
+        Logger.debug('ContentScript initialized.');
 
         // 1. Apply theme upon initialization
         this.themeManager.applySavedTheme();

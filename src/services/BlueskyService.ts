@@ -11,6 +11,7 @@ import { EventEmitter } from '@src/utils/events/EventEmitter';
 
 import { AuthenticationError, NotFoundError } from '@src/services/errors/CustomErrors';
 import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
+import Logger from '@src/utils/logger/Logger';
 
 /**
  * BlueskyService is now a facade that implements IBlueskyService,
@@ -151,7 +152,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                         success = true;
                     } catch (error) {
                         attempt++;
-                        console.warn(`Attempt ${attempt} failed for cursor ${cursor}. Retrying...`);
+                        Logger.warn(`Attempt ${attempt} failed for cursor ${cursor}. Retrying...`);
                         if (attempt >= maxRetries) {
                             this.errorService.handleError(error as Error);
                             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
@@ -209,10 +210,10 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
 
 
     public async blockUser(userHandle: string, listUri: string): Promise<any> {
-        console.time(`[DEBUG] blockUser => ${userHandle}`);
+        Logger.time(`blockUser => ${userHandle}`);
         this.sessionService.ensureAuthenticated();
         try {
-            console.log(`[DEBUG] blockUser: Resolving DID for handle="${userHandle}"...`);
+            Logger.debug(`blockUser: Resolving DID for handle="${userHandle}"...`);
             const userDid = await this.resolveDidFromHandle(userHandle);
 
             const agent = this.sessionService.getAgent();
@@ -230,31 +231,31 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 repo: agent.session?.did,
             };
 
-            console.log(`[DEBUG] blockUser: Creating record for ${userHandle} at listUri=${listUri}`);
+            Logger.debug(`blockUser: Creating record for ${userHandle} at listUri=${listUri}`);
             // Time the actual API call
-            console.time(`[DEBUG] blockUser -> apiService.postCreateRecord`);
+            Logger.time(`blockUser -> apiService.postCreateRecord`);
             const response = await this.apiService.postCreateRecord(body);
-            console.timeEnd(`[DEBUG] blockUser -> apiService.postCreateRecord`);
+            Logger.timeEnd(`blockUser -> apiService.postCreateRecord`);
 
             return response;
         } catch (error) {
-            console.error(`[DEBUG] blockUser => error:`, error);
+            Logger.error(`blockUser => error:`, error);
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_BLOCK_USER);
             throw error;
         } finally {
-            console.timeEnd(`[DEBUG] blockUser => ${userHandle}`);
+            Logger.timeEnd(`blockUser => ${userHandle}`);
         }
     }
 
     public async unblockUser(userHandle: string, listUri: string): Promise<any> {
-        console.time(`[DEBUG] unblockUser => ${userHandle}`);
+        Logger.time(`unblockUser => ${userHandle}`);
         this.sessionService.ensureAuthenticated();
         try {
-            console.log(`[DEBUG] unblockUser: Resolving DID for handle="${userHandle}"...`);
+            Logger.debug(`unblockUser: Resolving DID for handle="${userHandle}"...`);
             const userDid = await this.resolveDidFromHandle(userHandle);
 
-            console.log(`[DEBUG] unblockUser: Searching in listUri=${listUri} for userDid=${userDid}`);
+            Logger.debug(`unblockUser: Searching in listUri=${listUri} for userDid=${userDid}`);
             const listResponse = await this.apiService.fetchWithAuth(
                 `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`
             );
@@ -267,17 +268,17 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
             if (!rkey) throw new Error('Invalid record key.');
 
             // Time the actual “unblockUserWithRKey” call
-            console.time(`[DEBUG] unblockUser -> unblockUserWithRKey`);
+            Logger.time(`unblockUser -> unblockUserWithRKey`);
             const result = await this.unblockUserWithRKey(rkey, listUri);
-            console.timeEnd(`[DEBUG] unblockUser -> unblockUserWithRKey`);
+            Logger.timeEnd(`unblockUser -> unblockUserWithRKey`);
             return result;
         } catch (error) {
-            console.error(`[DEBUG] unblockUser => error:`, error);
+            Logger.error(`unblockUser => error:`, error);
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             throw error;
         } finally {
-            console.timeEnd(`[DEBUG] unblockUser => ${userHandle}`);
+            Logger.timeEnd(`unblockUser => ${userHandle}`);
         }
     }
 
@@ -285,7 +286,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
      * Helper for calls that already know the `rkey`.
      */
     public async unblockUserWithRKey(rkey: string, listUri: string): Promise<any> {
-        console.log(`[DEBUG] unblockUserWithRKey: rkey=${rkey}, listUri=${listUri}`);
+        Logger.debug(`unblockUserWithRKey: rkey=${rkey}, listUri=${listUri}`);
         this.sessionService.ensureAuthenticated();
         try {
             const agent = this.sessionService.getAgent();
@@ -296,13 +297,13 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
             };
 
             // Time the createRecord -> deleteRecord call
-            console.time(`[DEBUG] unblockUserWithRKey -> apiService.postDeleteRecord`);
+            Logger.time(`unblockUserWithRKey -> apiService.postDeleteRecord`);
             const response = await this.apiService.postDeleteRecord(body);
-            console.timeEnd(`[DEBUG] unblockUserWithRKey -> apiService.postDeleteRecord`);
+            Logger.timeEnd(`unblockUserWithRKey -> apiService.postDeleteRecord`);
 
             return response;
         } catch (error) {
-            console.error(`[DEBUG] unblockUserWithRKey => error:`, error);
+            Logger.error(`unblockUserWithRKey => error:`, error);
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             throw error;

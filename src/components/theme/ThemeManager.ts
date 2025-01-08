@@ -1,5 +1,6 @@
 import { ERRORS, STORAGE_KEYS } from '@src/constants/Constants';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+import Logger from '@src/utils/logger/Logger';
 
 export class ThemeManager {
     private themeToggleButton: HTMLElement;
@@ -20,7 +21,7 @@ export class ThemeManager {
         const isDarkMode = body.classList.contains('dark-mode');
         this.updateThemeToggleButton(isDarkMode);
         StorageHelper.setString(STORAGE_KEYS.THEME_PREFERENCE, isDarkMode ? 'dark' : 'light');
-        console.log(`Theme toggled to ${isDarkMode ? 'dark' : 'light'} mode.`);
+        Logger.debug(`Theme toggled to ${isDarkMode ? 'dark' : 'light'} mode.`);
     }
 
     public applySavedTheme(): void {
@@ -28,11 +29,11 @@ export class ThemeManager {
         if (theme === 'dark') {
             document.body.classList.add('dark-mode');
             this.updateThemeToggleButton(true);
-            console.log('Applied saved theme: dark mode.');
+            Logger.debug('Applied saved theme: dark mode.');
         } else {
             document.body.classList.remove('dark-mode');
             this.updateThemeToggleButton(false);
-            console.log('Applied saved theme: light mode.');
+            Logger.debug('Applied saved theme: light mode.');
         }
     }
 

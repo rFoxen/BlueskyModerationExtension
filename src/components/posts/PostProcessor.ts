@@ -8,6 +8,7 @@ import { AccountFreshnessManager } from './AccountFreshnessManager';
 import { isElementHiddenByCss } from '@src/utils/helpers/isElementHidden';
 import { STORAGE_KEYS } from '@src/constants/Constants';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+import Logger from '@src/utils/logger/Logger';
 
 export class PostProcessor {
     private notificationManager: NotificationManager;
@@ -238,7 +239,7 @@ export class PostProcessor {
             }
             return wrapper;
         } catch (e) {
-            console.error('Error wrapping element:', e);
+            Logger.error('Error wrapping element:', e);
             return null;
         }
     }

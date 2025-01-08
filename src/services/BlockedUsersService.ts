@@ -3,6 +3,7 @@ import { BlueskyService } from '@src/services/BlueskyService';
 import { NotFoundError } from '@src/services/errors/CustomErrors';
 import { ERRORS, LABELS } from '@src/constants/Constants';
 import { BlockedUsersIndexedDbRepository } from '@src/services/db/BlockedUsersIndexedDbRepository';
+import Logger from '@src/utils/logger/Logger';
 
 interface BlockedUser {
     subject: { handle?: string; did: string };
@@ -81,7 +82,7 @@ export class BlockedUsersService extends EventEmitter {
             // Emit success
             this.emit('blockedUsersLoaded', this.blockedUsersData);
         } catch (error) {
-            console.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
+            Logger.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
         }
     }
@@ -112,7 +113,7 @@ export class BlockedUsersService extends EventEmitter {
 
             this.emit('blockedUsersRefreshed', this.blockedUsersData);
         } catch (error) {
-            console.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
+            Logger.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
         }
     }
@@ -130,7 +131,7 @@ export class BlockedUsersService extends EventEmitter {
                 return await this.blockedUsersRepo.isUserHandleBlocked(userHandle, listUris);
             }
         } catch (error) {
-            console.error('Error checking if user is blocked:', error);
+            Logger.error('Error checking if user is blocked:', error);
             // If an error occurs, default to not blocked
             return false;
         }
@@ -142,14 +143,14 @@ export class BlockedUsersService extends EventEmitter {
      */
     public async addBlockedUserFromResponse(apiResponse: any, userHandle: string, listUri: string): Promise<void> {
         try {
-            console.time(`[DEBUG] addBlockedUserFromResponse => ${userHandle}`);
+            Logger.time(`addBlockedUserFromResponse => ${userHandle}`);
             const { uri } = apiResponse;
             if (!uri) {
                 throw new Error('API response missing record uri');
             }
-            console.log(`[DEBUG] Resolving DID for handle="${userHandle}"...`);
+            Logger.debug(`Resolving DID for handle="${userHandle}"...`);
             const did = await this.resolveDidFromHandle(userHandle);
-            console.log(`[DEBUG] Resolved DID for handle="${userHandle}": ${did}`);
+            Logger.debug(`Resolved DID for handle="${userHandle}": ${did}`);
 
             const newItem: BlockedUser = {
                 subject: { handle: userHandle, did },
@@ -164,10 +165,10 @@ export class BlockedUsersService extends EventEmitter {
             await this.blockedUsersRepo.addOrUpdate(listUri, userHandle, did, uri, Date.now());
 
             this.emit('blockedUserAdded', newItem);
-            console.timeEnd(`[DEBUG] addBlockedUserFromResponse => ${userHandle}`);
+            Logger.timeEnd(`addBlockedUserFromResponse => ${userHandle}`);
         } catch (error) {
-            console.timeEnd(`[DEBUG] addBlockedUserFromResponse => ${userHandle}`);
-            console.error(`Failed to add blocked user from API for ${userHandle}:`, error);
+            Logger.timeEnd(`addBlockedUserFromResponse => ${userHandle}`);
+            Logger.error(`Failed to add blocked user from API for ${userHandle}:`, error);
             this.emit('error', `Failed to add blocked user ${userHandle}.`);
         }
     }
@@ -204,7 +205,7 @@ export class BlockedUsersService extends EventEmitter {
 
             this.emit('blockedUserAdded', newItem);
         } catch (error) {
-            console.error('Failed to add blocked user:', error);
+            Logger.error('Failed to add blocked user:', error);
             this.emit('error', 'Failed to add blocked user.');
         }
     }
@@ -216,7 +217,7 @@ export class BlockedUsersService extends EventEmitter {
     public async removeBlockedUser(userHandle: string, listUri: string): Promise<void> {
         const isUserBlocked = await this.isUserBlocked(userHandle, [listUri])
         if (!isUserBlocked) {
-            console.warn(`User ${userHandle} is not in the block list.`);
+            Logger.warn(`User ${userHandle} is not in the block list.`);
             return;
         }
 
@@ -232,7 +233,7 @@ export class BlockedUsersService extends EventEmitter {
                 if (error instanceof NotFoundError) {
                     await this.cleanupAfterUnblock(userHandle, listUri);
                 } else {
-                    console.error('Failed to remove blocked user via fallback:', error);
+                    Logger.error('Failed to remove blocked user via fallback:', error);
                     this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
                 }
             }
@@ -242,7 +243,7 @@ export class BlockedUsersService extends EventEmitter {
         // Extract the rkey from the full URI
         const rkey = this.extractRKey(fullUri);
         if (!rkey) {
-            console.error('Invalid rkey extracted from URI:', fullUri);
+            Logger.error('Invalid rkey extracted from URI:', fullUri);
             return;
         }
 
@@ -253,7 +254,7 @@ export class BlockedUsersService extends EventEmitter {
             if (error instanceof NotFoundError) {
                 await this.cleanupAfterUnblock(userHandle, listUri);
             } else {
-                console.error('Failed to remove blocked user:', error);
+                Logger.error('Failed to remove blocked user:', error);
                 this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             }
         }

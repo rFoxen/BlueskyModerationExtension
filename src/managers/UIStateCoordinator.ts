@@ -7,6 +7,7 @@ import {SlideoutManager} from '@src/components/slideout/SlideoutManager';
 import {BlueskyService} from '@src/services/BlueskyService';
 import {BlockedUsersService} from '@src/services/BlockedUsersService';
 import {MESSAGES, STORAGE_KEYS} from '@src/constants/Constants';
+import Logger from '@src/utils/logger/Logger';
 
 /**
  * Coordinates UI states between the slideout, block lists, post scanning, etc.
@@ -73,7 +74,7 @@ export class UIStateCoordinator {
     
     private subscribeToAdditionalListsEvents(): void {
         document.addEventListener('additionalBlockListsChanged', (event: Event) => {
-            console.log('[DEBUG] additionalBlockListsChanged event triggered, re-scanning posts...');
+            Logger.debug('additionalBlockListsChanged event triggered, re-scanning posts...');
             // Force a re-scan so the new lists apply
             this.postScanner?.reprocessAllPosts();
         });
@@ -136,7 +137,7 @@ export class UIStateCoordinator {
 
     public updateUI(): void {
         this.isLoggedIn = this.getIsLoggedIn();
-        console.log('UIStateCoordinator: updateUI called, isLoggedIn:', this.isLoggedIn);
+        Logger.debug('UIStateCoordinator: updateUI called, isLoggedIn:', this.isLoggedIn);
 
         if (this.isLoggedIn) {
             this.additionalBlockListsDropdown.loadBlockLists();
@@ -172,15 +173,15 @@ export class UIStateCoordinator {
     }
 
     private async handleLogin(username: string, password: string): Promise<void> {
-        console.log('UIStateCoordinator: Handling login for', username);
+        Logger.debug('UIStateCoordinator: Handling login for', username);
         const loginSuccess = await this.blueskyService.login(username, password);
         if (loginSuccess) {
             this.isLoggedIn = true;
-            console.log('UIStateCoordinator: Login successful');
+            Logger.debug('UIStateCoordinator: Login successful');
             this.updateUI();
             this.notificationManager.displayNotification(MESSAGES.LOGIN_SUCCESS, 'success');
         } else {
-            console.log('UIStateCoordinator: Login failed');
+            Logger.debug('UIStateCoordinator: Login failed');
             this.slideoutManager.displayFormFeedback(MESSAGES.LOGIN_FAILED, 'danger');
         }
     }
@@ -189,7 +190,7 @@ export class UIStateCoordinator {
         const logoutSuccess = await this.blueskyService.logout();
         if (logoutSuccess) {
             this.isLoggedIn = false;
-            console.log('UIStateCoordinator: Logout successful');
+            Logger.debug('UIStateCoordinator: Logout successful');
             this.updateUI();
             this.notificationManager.displayNotification(MESSAGES.LOGOUT_SUCCESS, 'success');
             this.blockListDropdown?.clearSelection();
@@ -197,7 +198,7 @@ export class UIStateCoordinator {
             this.blockListDropdown = null;
             this.blockedUsersUI = null;
         } else {
-            console.log('UIStateCoordinator: Logout failed');
+            Logger.debug('UIStateCoordinator: Logout failed');
             this.notificationManager.displayNotification(MESSAGES.LOGOUT_FAILED, 'error');
         }
     }
@@ -219,7 +220,7 @@ export class UIStateCoordinator {
 
     private handleBlockedPostStyleChange(newStyle: string): void {
         // Forward to postScanner => postProcessor => apply style
-        console.log('UIStateCoordinator: blockPostStyleChange =>', newStyle);
+        Logger.debug('UIStateCoordinator: blockPostStyleChange =>', newStyle);
         if (this.postScanner) {
             this.postScanner.setBlockedPostStyle(newStyle);
         }

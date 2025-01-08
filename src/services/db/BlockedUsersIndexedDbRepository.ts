@@ -1,4 +1,4 @@
-// File: BlockedUsersIndexedDbRepository.ts
+import Logger from '@src/utils/logger/Logger';
 
 interface IndexedDbBlockedUser {
     id: string;          // "listUri#userHandle"
@@ -48,7 +48,7 @@ export class BlockedUsersIndexedDbRepository {
         };
 
         request.onerror = () => {
-            console.error('Failed to open IndexedDB:', request.error);
+            Logger.error('Failed to open IndexedDB:', request.error);
         };
     }
 
@@ -71,7 +71,7 @@ export class BlockedUsersIndexedDbRepository {
             };
 
             request.onerror = () => {
-                console.error('Failed to getAllByListUri:', request.error);
+                Logger.error('Failed to getAllByListUri:', request.error);
                 reject(request.error);
             };
         });
@@ -107,7 +107,7 @@ export class BlockedUsersIndexedDbRepository {
                 resolve(false);
             };
             request.onerror = () => {
-                console.error('Failed to query userHandleListUriIndex:', request.error);
+                Logger.error('Failed to query userHandleListUriIndex:', request.error);
                 reject(request.error);
             };
         });
@@ -121,7 +121,7 @@ export class BlockedUsersIndexedDbRepository {
         recordUri: string,
         timestamp: number
     ): Promise<void> {
-        console.time(`[DEBUG] addOrUpdate => ${userHandle}`);
+        Logger.time(`addOrUpdate => ${userHandle}`);
         return new Promise((resolve, reject) => {
             if (!this.dbInstance) {
                 return resolve();
@@ -142,13 +142,13 @@ export class BlockedUsersIndexedDbRepository {
             const request = store.put(data);
 
             request.onsuccess = () => {
-                console.timeEnd(`[DEBUG] addOrUpdate => ${userHandle}`);
+                Logger.timeEnd(`addOrUpdate => ${userHandle}`);
                 resolve();
             };
 
             request.onerror = () => {
-                console.error('Failed to add/update blocked user:', request.error);
-                console.timeEnd(`[DEBUG] addOrUpdate => ${userHandle}`);
+                Logger.error('Failed to add/update blocked user:', request.error);
+                Logger.timeEnd(`addOrUpdate => ${userHandle}`);
                 reject(request.error);
             };
         });
@@ -163,18 +163,18 @@ export class BlockedUsersIndexedDbRepository {
                 return resolve();
             }
 
-            console.time('[DEBUG] addOrUpdateBulk');
+            Logger.time('addOrUpdateBulk');
             const transaction = this.dbInstance.transaction(this.storeName, 'readwrite');
             const store = transaction.objectStore(this.storeName);
 
             transaction.oncomplete = () => {
-                console.timeEnd('[DEBUG] addOrUpdateBulk');
+                Logger.timeEnd('addOrUpdateBulk');
                 resolve();
             };
 
             transaction.onerror = () => {
-                console.error('Failed in addOrUpdateBulk transaction:', transaction.error);
-                console.timeEnd('[DEBUG] addOrUpdateBulk');
+                Logger.error('Failed in addOrUpdateBulk transaction:', transaction.error);
+                Logger.timeEnd('addOrUpdateBulk');
                 reject(transaction.error);
             };
 
@@ -211,7 +211,7 @@ export class BlockedUsersIndexedDbRepository {
             };
 
             request.onerror = () => {
-                console.error('Failed to remove blocked user:', request.error);
+                Logger.error('Failed to remove blocked user:', request.error);
                 reject(request.error);
             };
         });

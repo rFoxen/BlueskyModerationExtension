@@ -1,4 +1,5 @@
 import template from '@public/templates/button.hbs';
+import Logger from '@src/utils/logger/Logger';
 
 type ButtonType = 'button' | 'submit' | 'reset';
 
@@ -21,7 +22,7 @@ export class Button {
         try {
             buttonHTML = template({ id, classNames, text, type, ariaLabel });
         } catch (error) {
-            console.error('Error rendering button template:', error);
+            Logger.error('Error rendering button template:', error);
             // Fallback to a simple button if template rendering fails
             buttonHTML = `<button id="${id}" class="${classNames}" type="${type}" aria-label="${ariaLabel || ''}">${text}</button>`;
         }

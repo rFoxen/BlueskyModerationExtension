@@ -6,6 +6,7 @@ import { MESSAGES } from '@src/constants/Constants';
 import { debounce } from '@src/utils/helpers/debounce';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
+import Logger from '@src/utils/logger/Logger';
 
 export class BlockedUsersUI {
     private blockedUsersService: BlockedUsersService;
@@ -56,10 +57,10 @@ export class BlockedUsersUI {
     }
 
     public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
-        console.time(`[DEBUG] loadBlockedUsersUI => ${selectedUri}`);
+        Logger.time(`loadBlockedUsersUI => ${selectedUri}`);
         this.view.showLoading();
         await this.blockedUsersService.loadBlockedUsers(selectedUri);
-        console.timeEnd(`[DEBUG] loadBlockedUsersUI => ${selectedUri}`);
+        Logger.timeEnd(`loadBlockedUsersUI => ${selectedUri}`);
     }
 
     public showBlockedUsersSection(): void {
@@ -126,28 +127,28 @@ export class BlockedUsersUI {
     private subscribeToServiceEvents(): void {
         const handlers = {
             blockedUsersLoaded: () => {
-                console.log('[DEBUG] event: blockedUsersLoaded -> reloadBlockedUsersUI');
+                Logger.debug('event: blockedUsersLoaded -> reloadBlockedUsersUI');
                 this.reloadBlockedUsersUI();
             },
             blockedUsersRefreshed: () => {
-                console.log('[DEBUG] event: blockedUsersRefreshed -> reloadBlockedUsersUI');
+                Logger.debug('event: blockedUsersRefreshed -> reloadBlockedUsersUI');
                 this.reloadBlockedUsersUI(MESSAGES.BLOCKED_USERS_LIST_REFRESHED);
             },
             // Instead of reloading the entire list on each new block/unblock,
             // we do partial updates:
             blockedUserAdded: (newItem: any) => {
-                console.log('[DEBUG] event: blockedUserAdded -> addUserToUI');
+                Logger.debug('event: blockedUserAdded -> addUserToUI');
                 this.addUserToUI(newItem);
             },
             blockedUserRemoved: (userHandle: string) => {
-                console.log('[DEBUG] event: blockedUserRemoved -> removeUserFromUI');
+                Logger.debug('event: blockedUserRemoved -> removeUserFromUI');
                 this.removeUserFromUI(userHandle);
             },
             blockedUsersProgress: (currentCount: number) => {
                 this.view.updateLoadingCount(currentCount);
             },
             error: (message: string) => {
-                console.log('[DEBUG] event: error ->', message);
+                Logger.debug('event: error ->', message);
                 this.notificationManager.displayNotification(message, 'error');
                 this.view.hideLoading();
             },
@@ -161,7 +162,7 @@ export class BlockedUsersUI {
     }
 
     private reloadBlockedUsersUI(successMessage?: string): void {
-        console.time('[DEBUG] reloadBlockedUsersUI');
+        Logger.time('reloadBlockedUsersUI');
         this.syncBlockedUsersData();
         this.blockedUsersPage = 1;
         this.populateBlockedUsersList();
@@ -171,7 +172,7 @@ export class BlockedUsersUI {
             this.notificationManager.displayNotification(successMessage, 'success');
         }
         this.view.hideLoading();
-        console.timeEnd('[DEBUG] reloadBlockedUsersUI');
+        Logger.timeEnd('reloadBlockedUsersUI');
     }
 
     private async refreshBlockedUsers(): Promise<void> {
@@ -183,10 +184,10 @@ export class BlockedUsersUI {
             );
             return;
         }
-        console.time(`[DEBUG] refreshBlockedUsers => ${selectedUri}`);
+        Logger.time(`refreshBlockedUsers => ${selectedUri}`);
         this.view.showLoading();
         await this.blockedUsersService.refreshBlockedUsers(selectedUri);
-        console.timeEnd(`[DEBUG] refreshBlockedUsers => ${selectedUri}`);
+        Logger.timeEnd(`refreshBlockedUsers => ${selectedUri}`);
     }
 
     private toggleBlockedUsersSection(): void {
@@ -203,41 +204,27 @@ export class BlockedUsersUI {
     }
 
     private async populateBlockedUsersList(): Promise<void> {
-        const data = this.currentBlockedUsersData;
-        // PERFORMANCE OPTIMIZATION:
-        // If data and page are unchanged, skip re-rendering the list.
-        if (
-            this.lastRenderedPage === this.blockedUsersPage &&
-            this.arraysEqual(this.lastRenderedData, data)
-        ) {
-            return; // no changes, no need to reflow DOM
+        if (this.lastRenderedPage === this.blockedUsersPage && this.lastRenderedData === this.currentBlockedUsersData) {
+            return;
         }
 
         const startIndex = (this.blockedUsersPage - 1) * this.blockedUsersPageSize;
         const endIndex = startIndex + this.blockedUsersPageSize;
-        const currentPageData = data.slice(startIndex, endIndex);
+        const currentPageData = this.currentBlockedUsersData.slice(startIndex, endIndex);
 
         if (currentPageData.length === 0) {
             this.view.showEmptyState();
         } else {
-            const items: HTMLDivElement[] = [];
-            for (const item of currentPageData) {
-                const listItem = await this.itemFactory.create(item);
-                // Optionally store a data attribute to identify the user
-                listItem.setAttribute(
-                    'data-user-handle',
-                    item.subject.handle || item.subject.did
-                );
-                items.push(listItem);
-            }
+            const itemsPromises = currentPageData.map(item => this.itemFactory.create(item));
+            const items = await Promise.all(itemsPromises);
             this.view.renderBlockedUsersList(items);
         }
-        this.updatePaginationControls(data.length);
 
-        // Update caches after rendering
-        this.lastRenderedData = data.slice();
+        this.updatePaginationControls(this.currentBlockedUsersData.length);
+        this.lastRenderedData = [...this.currentBlockedUsersData];
         this.lastRenderedPage = this.blockedUsersPage;
     }
+
 
     private arraysEqual(arr1: any[], arr2: any[]): boolean {
         if (arr1.length !== arr2.length) return false;
@@ -248,7 +235,7 @@ export class BlockedUsersUI {
     }
 
     private async handleUnblockUser(userHandle: string): Promise<void> {
-        console.log('[DEBUG] handleUnblockUser =>', userHandle);
+        Logger.debug('handleUnblockUser =>', userHandle);
         const selectedUri = this.blockListDropdown.getSelectedValue();
         if (!selectedUri) {
             this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
@@ -265,13 +252,13 @@ export class BlockedUsersUI {
                 'success'
             );
         } catch (error) {
-            console.error('[DEBUG] handleUnblockUser => error:', error);
+            Logger.error('handleUnblockUser => error:', error);
             this.notificationManager.displayNotification('An unknown error occurred.', 'error');
         }
     }
 
     private handleReportUser(userHandle: string): void {
-        console.log('[DEBUG] handleReportUser =>', userHandle);
+        Logger.debug('handleReportUser =>', userHandle);
         // Reporting logic can be handled via an event or callback
     }
 
@@ -295,7 +282,7 @@ export class BlockedUsersUI {
     }
 
     private handleBlockedUsersSearch(query: string): void {
-        console.log('[DEBUG] handleBlockedUsersSearch =>', query);
+        Logger.debug('handleBlockedUsersSearch =>', query);
         query = query.toLowerCase().trim();
         const allData = this.blockedUsersService.getBlockedUsersData();
         if (query) {
@@ -317,7 +304,7 @@ export class BlockedUsersUI {
     }
 
     private async addUserToUI(newItem: any): Promise<void> {
-        console.time(`[DEBUG] addUserToUI => ${newItem.subject.handle || newItem.subject.did}`);
+        Logger.time(`addUserToUI => ${newItem.subject.handle || newItem.subject.did}`);
         const newHandle = newItem.subject.handle || newItem.subject.did;
         // 1. Remove old record if it exists in local data (to prevent duplicates)
         this.currentBlockedUsersData = this.currentBlockedUsersData.filter((existing) => {
@@ -341,16 +328,16 @@ export class BlockedUsersUI {
                 }
                 listContainer.insertAdjacentElement('afterbegin', listItem);
             } catch (error) {
-                console.error('[DEBUG] addUserToUI => error creating new blocked user item:', error);
+                Logger.error('addUserToUI => error creating new blocked user item:', error);
             }
         }
         // 4. Update the count
         this.updateBlockedUsersCount();
-        console.timeEnd(`[DEBUG] addUserToUI => ${newItem.subject.handle || newItem.subject.did}`);
+        Logger.timeEnd(`addUserToUI => ${newItem.subject.handle || newItem.subject.did}`);
     }
 
     private removeUserFromUI(userHandle: string): void {
-        console.time(`[DEBUG] removeUserFromUI => ${userHandle}`);
+        Logger.time(`removeUserFromUI => ${userHandle}`);
         // 1. Remove from local array
         this.currentBlockedUsersData = this.currentBlockedUsersData.filter((item) => {
             const handle = item.subject.handle || item.subject.did;
@@ -374,6 +361,6 @@ export class BlockedUsersUI {
         if (currentPageData.length === 0) {
             this.view.showEmptyState();
         }
-        console.timeEnd(`[DEBUG] removeUserFromUI => ${userHandle}`);
+        Logger.timeEnd(`removeUserFromUI => ${userHandle}`);
     }
 }

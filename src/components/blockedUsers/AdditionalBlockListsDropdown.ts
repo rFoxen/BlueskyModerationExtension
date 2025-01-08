@@ -3,6 +3,7 @@ import { BlueskyService } from '@src/services/BlueskyService';
 import { STORAGE_KEYS, MESSAGES, LABELS, ERRORS } from '@src/constants/Constants';
 import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
+import Logger from '@src/utils/logger/Logger';
 
 export class AdditionalBlockListsDropdown {
     private dropdownElement: HTMLSelectElement;
@@ -32,7 +33,7 @@ export class AdditionalBlockListsDropdown {
             const blockLists = await this.service.getBlockLists();
             this.populateDropdown(blockLists);
         } catch (error) {
-            console.error(ERRORS.FAILED_TO_LOAD_BLOCK_LISTS, error);
+            Logger.error(ERRORS.FAILED_TO_LOAD_BLOCK_LISTS, error);
             // Show some error option
             this.dropdownElement.innerHTML = '';
             const option = document.createElement('option');
@@ -83,23 +84,24 @@ export class AdditionalBlockListsDropdown {
 
     private populateDropdown(blockLists: AppBskyGraphDefs.ListView[]): void {
         this.dropdownElement.innerHTML = '';
+        const fragment = document.createDocumentFragment();
 
         if (blockLists.length === 0) {
             const option = document.createElement('option');
             option.text = MESSAGES.NO_BLOCK_LISTS_FOUND;
             option.disabled = true;
             option.selected = true;
-            this.dropdownElement.add(option);
-            return;
+            fragment.appendChild(option);
+        } else {
+            blockLists.forEach((list) => {
+                const option = document.createElement('option');
+                option.value = list.uri;
+                option.text = list.name || LABELS.UNNAMED_LIST;
+                fragment.appendChild(option);
+            });
         }
 
-        // Create options
-        blockLists.forEach((list) => {
-            const option = document.createElement('option');
-            option.value = list.uri;
-            option.text = list.name || LABELS.UNNAMED_LIST;
-            this.dropdownElement.add(option);
-        });
+        this.dropdownElement.appendChild(fragment);
     }
 
     private handleSelectionChange(event: Event): void {

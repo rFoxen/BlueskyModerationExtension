@@ -1,6 +1,7 @@
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { MESSAGES, LABELS, ERRORS } from '@src/constants/Constants';
+import Logger from '@src/utils/logger/Logger';
 
 export class UserReporter {
     private notificationManager: NotificationManager;
@@ -25,7 +26,7 @@ export class UserReporter {
         try {
             await this.handleReportUser(profileHandle);
         } catch (error) {
-            console.error('Error handling report user:', error);
+            Logger.error('Error handling report user:', error);
             this.notificationManager.displayNotification(
                 ERRORS.FAILED_TO_REPORT_USER,
                 'error'
@@ -89,7 +90,7 @@ export class UserReporter {
                 'success'
             );
         } catch (error) {
-            console.error('Error reporting user:', error);
+            Logger.error('Error reporting user:', error);
             this.notificationManager.displayNotification(
                 ERRORS.FAILED_TO_REPORT_USER,
                 'error'

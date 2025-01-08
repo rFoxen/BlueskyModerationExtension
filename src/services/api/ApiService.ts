@@ -4,6 +4,7 @@ import { SessionService } from '../session/SessionService';
 import { ErrorService } from '../errors/ErrorService';
 import { APIError } from '../errors/CustomErrors';
 import { FetchListResponse } from 'types/ApiResponses';
+import Logger from '@src/utils/logger/Logger';
 
 /**
  * ApiService is responsible for making authenticated requests.
@@ -49,19 +50,19 @@ export class ApiService {
             signal: controller.signal,
         };
 
-        console.time(`[DEBUG] fetchWithAuth => ${endpoint}`);
+        Logger.time(`fetchWithAuth => ${endpoint}`);
         try {
             const response = await fetch(endpoint, authOptions);
             clearTimeout(id);
 
             if (response.ok) {
-                console.timeEnd(`[DEBUG] fetchWithAuth => ${endpoint}`);
+                Logger.timeEnd(`fetchWithAuth => ${endpoint}`);
                 return response.json();
             }
 
             // If still 401, fallback: maybe token was revoked or mismatch.
             if (response.status === 401) {
-                console.log(`[DEBUG] fetchWithAuth => 401 (post-refresh?). Session might be invalid.`);
+                Logger.debug(`fetchWithAuth => 401 (post-refresh?). Session might be invalid.`);
                 // We can auto-logout or throw. Let's just throw an auth error:
                 throw this.errorService.createAuthenticationError(ERRORS.SESSION_EXPIRED);
             }
@@ -75,16 +76,16 @@ export class ApiService {
             clearTimeout(id);
             // Check for CORS/timeouts, etc
             if (error.name === 'AbortError') {
-                console.error(`[DEBUG] fetchWithAuth => ${endpoint} timed out after ${timeout}ms`);
+                Logger.error(`fetchWithAuth => ${endpoint} timed out after ${timeout}ms`);
                 throw new Error(`Request to ${endpoint} timed out.`);
             } else if (
                 error instanceof TypeError &&
                 error.message.includes('NetworkError') // or "Failed to fetch"
             ) {
-                console.error(`[DEBUG] fetchWithAuth => CORS/Network error for ${endpoint}:`, error);
+                Logger.error(`fetchWithAuth => CORS/Network error for ${endpoint}:`, error);
                 throw new Error('Network or CORS error occurred.');
             }
-            console.timeEnd(`[DEBUG] fetchWithAuth => ${endpoint}`);
+            Logger.timeEnd(`fetchWithAuth => ${endpoint}`);
             throw error;
         }
     }
@@ -110,7 +111,7 @@ export class ApiService {
     }
 
     public async postCreateRecord(body: any): Promise<any> {
-        console.time(`[DEBUG] postCreateRecord`);
+        Logger.time(`postCreateRecord`);
         try {
             const result = await this.fetchWithAuth(API_ENDPOINTS.CREATE_RECORD, {
                 method: 'POST',
@@ -119,12 +120,12 @@ export class ApiService {
             });
             return result;
         } finally {
-            console.timeEnd(`[DEBUG] postCreateRecord`);
+            Logger.timeEnd(`postCreateRecord`);
         }
     }
 
     public async postDeleteRecord(body: any): Promise<any> {
-        console.time(`[DEBUG] postDeleteRecord`);
+        Logger.time(`postDeleteRecord`);
         try {
             const result = await this.fetchWithAuth(API_ENDPOINTS.DELETE_RECORD, {
                 method: 'POST',
@@ -133,7 +134,7 @@ export class ApiService {
             });
             return result;
         } finally {
-            console.timeEnd(`[DEBUG] postDeleteRecord`);
+            Logger.timeEnd(`postDeleteRecord`);
         }
     }
 
@@ -144,20 +145,20 @@ export class ApiService {
 
     public async resolveHandle(handle: string): Promise<string> {
         const url = `${API_ENDPOINTS.GET_PROFILE}?actor=${encodeURIComponent(handle)}`;
-        console.time(`[DEBUG] resolveHandle => ${url}`);
+        Logger.time(`resolveHandle => ${url}`);
         try {
             const response = await this.fetchWithAuth(url, {}, 5000); // 5-second timeout
             if (response && response.did) {
-                console.timeEnd(`[DEBUG] resolveHandle => ${url}`);
+                Logger.timeEnd(`resolveHandle => ${url}`);
                 return response.did;
             } else {
-                console.timeEnd(`[DEBUG] resolveHandle => ${url}`);
+                Logger.timeEnd(`resolveHandle => ${url}`);
                 throw new Error('DID not found in profile response.');
             }
         } catch (error) {
-            console.timeEnd(`[DEBUG] resolveHandle => ${url}`);
-            console.error(
-                `[DEBUG] resolveHandle => Error resolving DID for handle "${handle}":`,
+            Logger.timeEnd(`resolveHandle => ${url}`);
+            Logger.error(
+                `resolveHandle => Error resolving DID for handle "${handle}":`,
                 error
             );
             throw error;

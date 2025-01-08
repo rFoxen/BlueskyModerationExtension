@@ -1,6 +1,7 @@
 import { ERRORS } from '@src/constants/Constants';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
+import Logger from '@src/utils/logger/Logger';
 
 /**
  * SessionManager is responsible for handling session expiration logic
@@ -32,7 +33,7 @@ export class SessionManager {
     }
 
     private handleSessionExpired(): void {
-        console.warn('Session expired. Logging out.');
+        Logger.warn('Session expired. Logging out.');
         this.notificationManager.displayNotification(ERRORS.SESSION_EXPIRED, 'error');
         this.onLogout();
     }
@@ -43,7 +44,7 @@ export class SessionManager {
      */
     private handleSessionUpdated(session: any): void {
         if (!session || !session.accessJwt) {
-            console.warn('Session updated but no valid JWT, logging out.');
+            Logger.warn('Session updated but no valid JWT, logging out.');
             this.onLogout();
         }
     }

@@ -5,6 +5,7 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { UserReporter } from '@src/components/reporting/UserReporter';
 import { LABELS, ARIA_LABELS, MESSAGES, ERRORS } from '@src/constants/Constants';
 import { PostActionButtonsFactory } from './PostActionButtonsFactory';
+import Logger from '@src/utils/logger/Logger';
 
 export class ActionButtonManager {
     private notificationManager: NotificationManager;
@@ -65,7 +66,7 @@ export class ActionButtonManager {
         }
 
         // For debugging performance: track start time
-        console.time(`[DEBUG] handleBlockUser: ${userHandle}`);
+        Logger.time(`handleBlockUser: ${userHandle}`);
         
         const activeListUris = this.getActiveBlockLists();
         // Check whether user is currently blocked
@@ -81,7 +82,7 @@ export class ActionButtonManager {
 
             if (isBlocking) {
                 if (alreadyBlocked) {
-                    console.log(`[DEBUG] User ${userHandle} is already blocked. Skipping re-block.`);
+                    Logger.debug(`User ${userHandle} is already blocked. Skipping re-block.`);
                     return;
                 }
 
@@ -100,15 +101,15 @@ export class ActionButtonManager {
                 // If success, store the real URI
                 this.debugLog(`API returned success for blocking ${userHandle}. addBlockedUserFromResponse(...)`);
                 await this.blockedUsersService.addBlockedUserFromResponse(response, userHandle, selectedBlockList);
-                console.log('[DEBUG] intermediate timeEnd for handleBlockUser...');
-                console.timeEnd(`[DEBUG] handleBlockUser: ${userHandle}`);
+                Logger.debug('intermediate timeEnd for handleBlockUser...');
+                Logger.timeEnd(`handleBlockUser: ${userHandle}`);
                 
                 // Let other parts know
                 await this.onUserBlocked(userHandle);
 
-                console.time('[DEBUG] getBlockListName');
+                Logger.time('getBlockListName');
                 const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
-                console.timeEnd('[DEBUG] getBlockListName');
+                Logger.timeEnd('getBlockListName');
                 
                 this.notificationManager.displayNotification(
                     MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
@@ -121,7 +122,7 @@ export class ActionButtonManager {
             } else {
                 // If user is NOT blocked, skip unblocking
                 if (!alreadyBlocked) {
-                    console.log(`[DEBUG] User ${userHandle} is not blocked. Skipping unblock.`);
+                    Logger.debug(`User ${userHandle} is not blocked. Skipping unblock.`);
                     return;
                 }
 
@@ -141,7 +142,7 @@ export class ActionButtonManager {
                 this.setBlockButtonToUnblockedState(blockButton);
             }
         } catch (error) {
-            console.error(`[DEBUG] Error blocking/unblocking user "${userHandle}":`, error);
+            Logger.error(`Error blocking/unblocking user "${userHandle}":`, error);
 
             // If we were optimistically blocking, revert
             const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
@@ -151,7 +152,7 @@ export class ActionButtonManager {
 
             this.notificationManager.displayNotification(ERRORS.FAILED_TO_BLOCK_USER, 'error');
         } finally {
-            console.log('[DEBUG] About to end handleBlockUser, no more steps remain...');
+            Logger.debug('About to end handleBlockUser, no more steps remain...');
             // remove spinner
             blockButton.setDisabled(false);
             blockButton.removeClasses('loading');
@@ -189,7 +190,7 @@ export class ActionButtonManager {
      * or wrap in a condition check.
      */
     private debugLog(...args: any[]): void {
-        console.log('[DEBUG]', ...args);
+        Logger.debug('', ...args);
     }
 
     public setButtonsVisibility(visible: boolean): void {
