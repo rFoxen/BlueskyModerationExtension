@@ -114,36 +114,33 @@
                         </label>
                     </div>
                 </div>
-                
-                <!-- Prepend or Append Option -->
-                <div id="prepend-append-section" class="mt-3">
-                    <label class="form-label">{{labels.POST_INSERTION_METHOD}}</label>
-                    <div class="form-check">
+
+                <!-- Post Insertion Method Section -->
+                <div id="prepend-append-section" class="mt-4">
+                    <label class="form-label mb-2 d-block">{{labels.POST_INSERTION_METHOD}}:</label>
+                    <div class="pill-toggle">
                         <input
-                                class="form-check-input"
+                                class="form-check-input visually-hidden"
+                                type="radio"
+                                name="post-insertion-method"
+                                id="prepend-radio"
+                                value="prepend"
+                        />
+                        <label class="pill-toggle-label" for="prepend-radio">{{labels.PREPEND}}</label>
+
+                        <input
+                                class="form-check-input visually-hidden"
                                 type="radio"
                                 name="post-insertion-method"
                                 id="append-radio"
                                 value="append"
                                 checked
                         />
-                        <label class="form-check-label" for="append-radio">
-                            {{labels.APPEND}}
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input
-                                class="form-check-input"
-                                type="radio"
-                                name="post-insertion-method"
-                                id="prepend-radio"
-                                value="prepend"
-                        />
-                        <label class="form-check-label" for="prepend-radio">
-                            {{labels.PREPEND}}
-                        </label>
+                        <label class="pill-toggle-label" for="append-radio">{{labels.APPEND}}</label>
                     </div>
                 </div>
+
+
 
                 <!-- Blocked Post Appearance -->
                 <div id="block-post-style-section" class="mt-3">
@@ -163,6 +160,37 @@
                     role="tabpanel"
                     aria-labelledby="blocked-users-tab"
             >
+                <!-- Below your existing "block-lists-section" ... -->
+                <div id="additional-block-lists-section" class="mt-3 d-none">
+                    <h3>Additional Block Lists for Styling</h3>
+                    <p class="small text-muted">
+                        These lists won't be used for block/unblock, but any user found in them
+                        will be styled as "blocked" in your feed.
+                    </p>
+
+                    <label for="additional-block-lists-dropdown" class="form-label">
+                        Select Additional Block Lists
+                    </label>
+
+                    <select
+                            id="additional-block-lists-dropdown"
+                            class="form-select"
+                            multiple
+                            aria-label="Select Additional Block Lists"
+                    >
+                        <!-- Options populated dynamically by new code -->
+                    </select>
+                    <button
+                            id="refresh-additional-block-lists"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary mt-2"
+                            aria-label="Refresh Additional Block Lists"
+                    >
+                        ↻
+                    </button>
+                </div>
+
+
                 <!-- Dropdown for Block Lists -->
                 <div id="block-lists-section" class="mt-3 d-none">
                     <h3>Block List Selection</h3>

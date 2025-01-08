@@ -54,8 +54,8 @@ export const LABELS = {
     LOGIN_TAB: 'Login',
     BLOCKED_USERS_TAB: 'Blocked Users',
     POST_INSERTION_METHOD: 'Post Insertion Method',
-    PREPEND: 'Prepend',
-    APPEND: 'Append',
+    PREPEND: 'Above Post',
+    APPEND: 'Below Post',
 };
 
 export const ARIA_LABELS = {
