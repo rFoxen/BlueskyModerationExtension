@@ -85,9 +85,6 @@ export class PostProcessor {
         );
 
         blockedWrappers.forEach((wrapper) => {
-            if (isElementHiddenByCss(wrapper as HTMLElement)) {
-                return;
-            }
             wrapper.classList.remove(
                 'blocked-post',
                 'blocked-post--darkened',
