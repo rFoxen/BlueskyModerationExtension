@@ -9,13 +9,13 @@ import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
 import Logger from '@src/utils/logger/Logger';
 
 export class BlockedUsersUI {
-    private blockedUsersService: BlockedUsersService;
-    private blueskyService: BlueskyService;
-    private notificationManager: NotificationManager;
-    private blockListDropdown: BlockListDropdown;
-    private isLoggedIn: () => boolean;
-    private view: BlockedUsersView;
-    private itemFactory: BlockedUserItemFactory;
+    private blockedUsersService!: BlockedUsersService;
+    private blueskyService!: BlueskyService;
+    private notificationManager!: NotificationManager;
+    private blockListDropdown!: BlockListDropdown;
+    private isLoggedIn!: () => boolean;
+    private view!: BlockedUsersView;
+    private itemFactory!: BlockedUserItemFactory;
 
     private blockedUsersPage: number = 1;
     private readonly blockedUsersPageSize: number = 10;
@@ -25,7 +25,6 @@ export class BlockedUsersUI {
     private serviceEventHandlers: { [key: string]: (...args: any[]) => void } = {};
     private processedElements: WeakSet<HTMLElement> = new WeakSet();
 
-    // NEW: Caching the last rendered data and page to skip unnecessary re-renders
     private lastRenderedData: any[] = [];
     private lastRenderedPage: number = -1;
 
@@ -37,24 +36,53 @@ export class BlockedUsersUI {
         blockListDropdown: BlockListDropdown,
         isLoggedIn: () => boolean
     ) {
+        this.initializeServices(
+            blockedUsersService,
+            blueskyService,
+            notificationManager,
+            blockListDropdown,
+            isLoggedIn
+        );
+
+        this.initializeView(blockedUsersSectionId);
+        this.initializeItemFactory();
+
+        this.initializeEventListeners();
+        this.view.applySavedToggleState();
+        this.subscribeToServiceEvents();
+    }
+
+    private initializeServices(
+        blockedUsersService: BlockedUsersService,
+        blueskyService: BlueskyService,
+        notificationManager: NotificationManager,
+        blockListDropdown: BlockListDropdown,
+        isLoggedIn: () => boolean
+    ): void {
         this.blockedUsersService = blockedUsersService;
         this.blueskyService = blueskyService;
         this.notificationManager = notificationManager;
         this.blockListDropdown = blockListDropdown;
         this.isLoggedIn = isLoggedIn;
+    }
 
+    private initializeView(blockedUsersSectionId: string): void {
         this.view = new BlockedUsersView(blockedUsersSectionId);
+    }
+
+    private initializeItemFactory(): void {
         this.itemFactory = new BlockedUserItemFactory(
             this.blockedUsersService,
             this.notificationManager,
             this.handleUnblockUser.bind(this),
             this.handleReportUser.bind(this)
         );
-
-        this.addDomEventListeners();
-        this.view.applySavedToggleState();
-        this.subscribeToServiceEvents();
     }
+
+    private initializeEventListeners(): void {
+        this.addDomEventListeners();
+    }
+
 
     public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
         Logger.time(`loadBlockedUsersUI => ${selectedUri}`);
@@ -87,13 +115,22 @@ export class BlockedUsersUI {
     }
 
     private addDomEventListeners(): void {
+        this.setupToggleSectionListener();
+        this.setupPaginationListeners();
+        this.setupSearchListener();
+        this.setupRefreshListener();
+    }
+
+    private setupToggleSectionListener(): void {
         const toggleHandler = (event: Event) => {
             event.preventDefault();
             this.toggleBlockedUsersSection();
         };
         this.domEventHandlers['toggle'] = toggleHandler;
         this.view.onToggleClick(toggleHandler);
+    }
 
+    private setupPaginationListeners(): void {
         const prevPageHandler = (event: Event) => {
             event.preventDefault();
             this.changeBlockedUsersPage(-1);
@@ -107,7 +144,9 @@ export class BlockedUsersUI {
         };
         this.domEventHandlers['nextPage'] = nextPageHandler;
         this.view.onNextPageClick(nextPageHandler);
+    }
 
+    private setupSearchListener(): void {
         const searchHandler = debounce((event: Event) => {
             const input = event.target as HTMLInputElement;
             const value = input.value;
@@ -115,7 +154,9 @@ export class BlockedUsersUI {
         }, 300);
         this.domEventHandlers['search'] = searchHandler;
         this.view.onSearchInput(searchHandler);
+    }
 
+    private setupRefreshListener(): void {
         const refreshHandler = (event: Event) => {
             event.preventDefault();
             this.refreshBlockedUsers();
@@ -125,55 +166,72 @@ export class BlockedUsersUI {
     }
 
     private subscribeToServiceEvents(): void {
-        const handlers = {
-            blockedUsersLoaded: () => {
-                Logger.debug('event: blockedUsersLoaded -> reloadBlockedUsersUI');
-                this.reloadBlockedUsersUI();
-            },
-            blockedUsersRefreshed: () => {
-                Logger.debug('event: blockedUsersRefreshed -> reloadBlockedUsersUI');
-                this.reloadBlockedUsersUI(MESSAGES.BLOCKED_USERS_LIST_REFRESHED);
-            },
-            // Instead of reloading the entire list on each new block/unblock,
-            // we do partial updates:
-            blockedUserAdded: (newItem: any) => {
-                Logger.debug('event: blockedUserAdded -> addUserToUI');
-                this.addUserToUI(newItem);
-            },
-            blockedUserRemoved: (userHandle: string) => {
-                Logger.debug('event: blockedUserRemoved -> removeUserFromUI');
-                this.removeUserFromUI(userHandle);
-            },
-            blockedUsersProgress: (currentCount: number) => {
-                this.view.updateLoadingCount(currentCount);
-            },
-            error: (message: string) => {
-                Logger.debug('event: error ->', message);
-                this.notificationManager.displayNotification(message, 'error');
-                this.view.hideLoading();
-            },
-        };
-
-        for (const [event, handler] of Object.entries(handlers)) {
-            this.serviceEventHandlers[event] = handler;
-            this.blockedUsersService.on(event, handler);
-            this.blueskyService.on(event, handler);
-        }
+        this.registerServiceEvent('blockedUsersLoaded', this.handleBlockedUsersLoaded);
+        this.registerServiceEvent('blockedUsersRefreshed', this.handleBlockedUsersRefreshed);
+        this.registerServiceEvent('blockedUserAdded', this.handleBlockedUserAdded);
+        this.registerServiceEvent('blockedUserRemoved', this.handleBlockedUserRemoved);
+        this.registerServiceEvent('blockedUsersProgress', this.handleBlockedUsersProgress);
+        this.registerServiceEvent('error', this.handleServiceError);
     }
+
+    private registerServiceEvent(event: string, handler: (...args: any[]) => void): void {
+        this.serviceEventHandlers[event] = handler.bind(this);
+        this.blockedUsersService.on(event, this.serviceEventHandlers[event]);
+        this.blueskyService.on(event, this.serviceEventHandlers[event]);
+    }
+
+    private handleBlockedUsersLoaded = (): void => {
+        Logger.debug('event: blockedUsersLoaded -> reloadBlockedUsersUI');
+        this.reloadBlockedUsersUI();
+    };
+
+    private handleBlockedUsersRefreshed = (): void => {
+        Logger.debug('event: blockedUsersRefreshed -> reloadBlockedUsersUI');
+        this.reloadBlockedUsersUI(MESSAGES.BLOCKED_USERS_LIST_REFRESHED);
+    };
+
+    private handleBlockedUserAdded = (newItem: any): void => {
+        Logger.debug('event: blockedUserAdded -> addUserToUI');
+        this.addUserToUI(newItem);
+    };
+
+    private handleBlockedUserRemoved = (userHandle: string): void => {
+        Logger.debug('event: blockedUserRemoved -> removeUserFromUI');
+        this.removeUserFromUI(userHandle);
+    };
+
+    private handleBlockedUsersProgress = (currentCount: number): void => {
+        this.view.updateLoadingCount(currentCount);
+    };
+
+    private handleServiceError = (message: string): void => {
+        Logger.debug('event: error ->', message);
+        this.notificationManager.displayNotification(message, 'error');
+        this.view.hideLoading();
+    };
 
     private reloadBlockedUsersUI(successMessage?: string): void {
         Logger.time('reloadBlockedUsersUI');
+        this.resetPagination();
         this.syncBlockedUsersData();
-        this.blockedUsersPage = 1;
         this.populateBlockedUsersList();
         this.updateBlockedUsersCount();
+        this.displaySuccessMessage(successMessage);
         this.showBlockedUsersSection();
-        if (successMessage) {
-            this.notificationManager.displayNotification(successMessage, 'success');
-        }
         this.view.hideLoading();
         Logger.timeEnd('reloadBlockedUsersUI');
     }
+
+    private resetPagination(): void {
+        this.blockedUsersPage = 1;
+    }
+
+    private displaySuccessMessage(message?: string): void {
+        if (message) {
+            this.notificationManager.displayNotification(message, 'success');
+        }
+    }
+
 
     private async refreshBlockedUsers(): Promise<void> {
         const selectedUri = this.blockListDropdown.getSelectedValue();
@@ -204,26 +262,48 @@ export class BlockedUsersUI {
     }
 
     private async populateBlockedUsersList(): Promise<void> {
-        if (this.lastRenderedPage === this.blockedUsersPage && this.lastRenderedData === this.currentBlockedUsersData) {
+        if (this.shouldSkipRendering()) {
             return;
         }
 
+        const currentPageData = this.getCurrentPageData();
+        await this.renderCurrentPage(currentPageData);
+        this.updatePaginationControls(this.currentBlockedUsersData.length);
+        this.cacheRenderedState();
+    }
+
+    private shouldSkipRendering(): boolean {
+        return (
+            this.lastRenderedPage === this.blockedUsersPage &&
+            this.arraysEqual(this.lastRenderedData, this.currentBlockedUsersData)
+        );
+    }
+
+    private getCurrentPageData(): any[] {
         const startIndex = (this.blockedUsersPage - 1) * this.blockedUsersPageSize;
         const endIndex = startIndex + this.blockedUsersPageSize;
-        const currentPageData = this.currentBlockedUsersData.slice(startIndex, endIndex);
+        return this.currentBlockedUsersData.slice(startIndex, endIndex);
+    }
 
+    private async renderCurrentPage(currentPageData: any[]): Promise<void> {
         if (currentPageData.length === 0) {
             this.view.showEmptyState();
         } else {
-            const itemsPromises = currentPageData.map(item => this.itemFactory.create(item));
-            const items = await Promise.all(itemsPromises);
-            this.view.renderBlockedUsersList(items);
+            const items = await this.createListItems(currentPageData);
+            this.view.renderBlockedUsersList(items as HTMLDivElement[]);
         }
+    }
 
-        this.updatePaginationControls(this.currentBlockedUsersData.length);
+    private async createListItems(data: any[]): Promise<HTMLElement[]> {
+        const itemsPromises = data.map(item => this.itemFactory.create(item));
+        return await Promise.all(itemsPromises);
+    }
+
+    private cacheRenderedState(): void {
         this.lastRenderedData = [...this.currentBlockedUsersData];
         this.lastRenderedPage = this.blockedUsersPage;
     }
+
 
 
     private arraysEqual(arr1: any[], arr2: any[]): boolean {
@@ -283,19 +363,31 @@ export class BlockedUsersUI {
 
     private handleBlockedUsersSearch(query: string): void {
         Logger.debug('handleBlockedUsersSearch =>', query);
-        query = query.toLowerCase().trim();
+        const normalizedQuery = this.normalizeSearchQuery(query);
+        this.filterBlockedUsersData(normalizedQuery);
+        this.resetPagination();
+        this.populateBlockedUsersList();
+        this.updateBlockedUsersCount();
+    }
+
+    private normalizeSearchQuery(query: string): string {
+        return query.toLowerCase().trim();
+    }
+
+    private filterBlockedUsersData(query: string): void {
         const allData = this.blockedUsersService.getBlockedUsersData();
         if (query) {
-            this.currentBlockedUsersData = allData.filter((item) => {
-                const uHandle = (item.subject.handle || item.subject.did).toLowerCase();
-                return uHandle.includes(query);
-            });
+            this.currentBlockedUsersData = this.filterDataByQuery(allData, query);
         } else {
             this.currentBlockedUsersData = allData;
         }
-        this.blockedUsersPage = 1;
-        this.populateBlockedUsersList();
-        this.updateBlockedUsersCount();
+    }
+
+    private filterDataByQuery(data: any[], query: string): any[] {
+        return data.filter((item) => {
+            const uHandle = (item.subject.handle || item.subject.did).toLowerCase();
+            return uHandle.includes(query);
+        });
     }
 
     private updateBlockedUsersCount(): void {
@@ -304,46 +396,84 @@ export class BlockedUsersUI {
     }
 
     private async addUserToUI(newItem: any): Promise<void> {
-        Logger.time(`addUserToUI => ${newItem.subject.handle || newItem.subject.did}`);
-        const newHandle = newItem.subject.handle || newItem.subject.did;
-        // 1. Remove old record if it exists in local data (to prevent duplicates)
+        Logger.time(`addUserToUI => ${this.getUserHandle(newItem)}`);
+        this.removeDuplicateUser(newItem);
+        this.insertNewUserInMemory(newItem);
+        await this.insertNewUserInDOM(newItem);
+        this.updateBlockedUsersCount();
+        Logger.timeEnd(`addUserToUI => ${this.getUserHandle(newItem)}`);
+    }
+
+    private getUserHandle(item: any): string {
+        return item.subject.handle || item.subject.did;
+    }
+
+    private removeDuplicateUser(newItem: any): void {
+        const newHandle = this.getUserHandle(newItem);
         this.currentBlockedUsersData = this.currentBlockedUsersData.filter((existing) => {
-            const handle = existing.subject.handle || existing.subject.did;
+            const handle = this.getUserHandle(existing);
             return handle !== newHandle;
         });
-        // 2. Insert into our current array in memory
+    }
+
+    private insertNewUserInMemory(newItem: any): void {
         this.currentBlockedUsersData.unshift(newItem);
-        // 3. If on page 1, also add the new DOM element at the top
-        const listContainer = this.view.getListContainerElement();
-        if (listContainer && this.blockedUsersPage === 1) {
+    }
+
+    private async insertNewUserInDOM(newItem: any): Promise<void> {
+        if (this.shouldInsertUserInDOM()) {
             try {
-                const listItem = await this.itemFactory.create(newItem);
-                listItem.setAttribute('data-user-handle', newHandle);
-                // If an old item for that user is in the DOM, remove it first
-                const existingDom = listContainer.querySelector(
-                    `[data-user-handle="${newHandle}"]`
-                );
-                if (existingDom) {
-                    listContainer.removeChild(existingDom);
-                }
-                listContainer.insertAdjacentElement('afterbegin', listItem);
+                const listItem = await this.createListItem(newItem);
+                this.replaceExistingDOMItem(listItem);
+                this.prependItemToList(listItem);
             } catch (error) {
                 Logger.error('addUserToUI => error creating new blocked user item:', error);
             }
         }
-        // 4. Update the count
-        this.updateBlockedUsersCount();
-        Logger.timeEnd(`addUserToUI => ${newItem.subject.handle || newItem.subject.did}`);
     }
+
+    private shouldInsertUserInDOM(): boolean {
+        const listContainer = this.view.getListContainerElement();
+        return !!listContainer && this.blockedUsersPage === 1;
+    }
+
+    private async createListItem(newItem: any): Promise<HTMLElement> {
+        const listItem = await this.itemFactory.create(newItem);
+        listItem.setAttribute('data-user-handle', this.getUserHandle(newItem));
+        return listItem;
+    }
+
+    private replaceExistingDOMItem(listItem: HTMLElement): void {
+        const listContainer = this.view.getListContainerElement();
+        const newHandle = this.getUserHandle(listItem);
+        const existingDom = listContainer.querySelector(`[data-user-handle="${newHandle}"]`);
+        if (existingDom) {
+            listContainer.removeChild(existingDom);
+        }
+    }
+
+    private prependItemToList(listItem: HTMLElement): void {
+        const listContainer = this.view.getListContainerElement();
+        listContainer.insertAdjacentElement('afterbegin', listItem);
+    }
+
 
     private removeUserFromUI(userHandle: string): void {
         Logger.time(`removeUserFromUI => ${userHandle}`);
-        // 1. Remove from local array
+        this.removeUserFromData(userHandle);
+        this.removeUserFromDOM(userHandle);
+        this.updateUIAfterRemoval();
+        Logger.timeEnd(`removeUserFromUI => ${userHandle}`);
+    }
+
+    private removeUserFromData(userHandle: string): void {
         this.currentBlockedUsersData = this.currentBlockedUsersData.filter((item) => {
-            const handle = item.subject.handle || item.subject.did;
+            const handle = this.getUserHandle(item);
             return handle !== userHandle;
         });
-        // 2. Remove DOM element if present on the current page
+    }
+
+    private removeUserFromDOM(userHandle: string): void {
         const listContainer = this.view.getListContainerElement();
         if (listContainer) {
             const elementToRemove = listContainer.querySelector(
@@ -353,14 +483,20 @@ export class BlockedUsersUI {
                 listContainer.removeChild(elementToRemove);
             }
         }
-        // 3. Update count and possibly re-check if we need to show empty state
+    }
+
+    private updateUIAfterRemoval(): void {
         this.updateBlockedUsersCount();
+        if (this.isCurrentPageEmpty()) {
+            this.view.showEmptyState();
+        }
+    }
+
+    private isCurrentPageEmpty(): boolean {
         const startIndex = (this.blockedUsersPage - 1) * this.blockedUsersPageSize;
         const endIndex = startIndex + this.blockedUsersPageSize;
         const currentPageData = this.currentBlockedUsersData.slice(startIndex, endIndex);
-        if (currentPageData.length === 0) {
-            this.view.showEmptyState();
-        }
-        Logger.timeEnd(`removeUserFromUI => ${userHandle}`);
+        return currentPageData.length === 0;
     }
+
 }
