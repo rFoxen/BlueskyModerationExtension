@@ -121,63 +121,81 @@ export class PostProcessor {
      * Wrap the post with block/unblock buttons, but only if not processed before.
      */
     public async processElement(element: HTMLElement): Promise<void> {
-        if (this.processedPosts.has(element)) return;
-        if (isElementHiddenByCss(element)) {
-            this.processedPosts.add(element);
+        if (this.isElementProcessed(element)) return;
+
+        if (!this.isElementEligibleForProcessing(element)) {
+            this.markAsProcessed(element);
             return;
         }
 
         const postType = this.postTypeDeterminer.determinePostType(element);
         if (!postType) {
-            this.processedPosts.add(element);
+            this.markAsProcessed(element);
             return;
         }
 
-        // Identify the user handle
-        let profileHandle: string | null = null;
+        const profileHandle = this.extractProfileHandle(element, postType);
+        if (!profileHandle) {
+            this.markAsProcessed(element);
+            return;
+        }
+
+        if (this.hasAncestorWithProfileHandle(element, profileHandle)) {
+            Logger.debug(`Ancestor wrapper already exists for user: ${profileHandle}. Skipping wrapping for this element.`);
+            this.markAsProcessed(element);
+            return;
+        }
+
+        if (this.isElementAlreadyWrappedOrHasToggle(element)) {
+            Logger.debug(`Element is already wrapped or has a toggle-block-button. Marking as processed.`);
+            this.markAsProcessed(element);
+            return;
+        }
+
+        await this.wrapAndCleanElement(element, profileHandle, postType);
+    }
+
+    private isElementProcessed(element: HTMLElement): boolean {
+        return this.processedPosts.has(element);
+    }
+    private isElementEligibleForProcessing(element: HTMLElement): boolean {
+        return !isElementHiddenByCss(element);
+    }
+    private markAsProcessed(element: HTMLElement): void {
+        this.processedPosts.add(element);
+    }
+    private extractProfileHandle(element: HTMLElement, postType: string): string | null {
         if (['repost', 'quoted-repost'].includes(postType)) {
             const dataTestId = element.getAttribute('data-testid') || '';
             const match = dataTestId.match(/feedItem-by-([^\s]+)/);
-            profileHandle = match && match[1] ? match[1] : null;
+            return match && match[1] ? match[1] : null;
         } else {
             const profileLink = element.querySelector('a[href^="/profile/"]') as HTMLAnchorElement | null;
-            profileHandle = profileLink ? this.getProfileHandleFromLink(profileLink) : null;
+            return profileLink ? this.getProfileHandleFromLink(profileLink) : null;
         }
-
-        if (!profileHandle) {
-            this.processedPosts.add(element);
-            return;
-        }
-
-        // Check if any ancestor has the same profileHandle
+    }
+    private hasAncestorWithProfileHandle(element: HTMLElement, profileHandle: string): boolean {
         const ancestorWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
         if (ancestorWrapper) {
             const ancestorHandle = ancestorWrapper.getAttribute('data-profile-handle');
-            if (ancestorHandle === profileHandle) {
-                Logger.debug(`Ancestor wrapper already exists for user: ${profileHandle}. Skipping wrapping for this element.`);
-                this.processedPosts.add(element);
-                return;
-            }
+            return ancestorHandle === profileHandle;
         }
-
-        // If it's already wrapped or has a .toggle-block-button, skip re-wrapping
-        if (
-            element.querySelector('.toggle-block-button') ||
-            element.closest('.block-button-wrapper')
-        ) {
-            Logger.debug(`Element is already wrapped or has a toggle-block-button. Marking as processed.`);
-            this.processedPosts.add(element);
-            return;
-        }
-
-        // Actually wrap
+        return false;
+    }
+    private isElementAlreadyWrappedOrHasToggle(element: HTMLElement): boolean {
+        return (
+            element.querySelector('.toggle-block-button') !== null ||
+            element.closest('.block-button-wrapper') !== null
+        );
+    }
+    private async wrapAndCleanElement(element: HTMLElement, profileHandle: string, postType: string): Promise<void> {
         const wrapper = await this.ensureWrapper(element, profileHandle, postType);
         if (wrapper) {
-            this.processedPosts.add(element);
-            // After wrapping, remove any inner duplicate wrappers for the same profileHandle
+            this.markAsProcessed(element);
             this.removeInnerDuplicateWrappers(wrapper, profileHandle);
         }
     }
+
 
 
     private async ensureWrapper(
