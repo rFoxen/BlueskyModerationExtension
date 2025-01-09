@@ -2,7 +2,7 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
-import { MESSAGES } from '@src/constants/Constants';
+import { MESSAGES, LABELS } from '@src/constants/Constants';
 import { debounce } from '@src/utils/helpers/debounce';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
@@ -405,8 +405,13 @@ export class BlockedUsersUI {
     }
 
     private getUserHandle(item: any): string {
-        return item.subject.handle || item.subject.did;
+        if (!item || !item.subject) {
+            Logger.error(`Invalid item or missing 'subject' property. item=${JSON.stringify(item)}`);
+            return LABELS.UNKNOWN_USER; // Use a fallback label
+        }
+        return item.subject.handle || item.subject.did || LABELS.UNKNOWN_USER;
     }
+
 
     private removeDuplicateUser(newItem: any): void {
         const newHandle = this.getUserHandle(newItem);
@@ -424,7 +429,8 @@ export class BlockedUsersUI {
         if (this.shouldInsertUserInDOM()) {
             try {
                 const listItem = await this.createListItem(newItem);
-                this.replaceExistingDOMItem(listItem);
+                const userHandle = this.getUserHandle(newItem);
+                this.replaceExistingDOMItem(listItem, userHandle);
                 this.prependItemToList(listItem);
             } catch (error) {
                 Logger.error('addUserToUI => error creating new blocked user item:', error);
@@ -438,15 +444,22 @@ export class BlockedUsersUI {
     }
 
     private async createListItem(newItem: any): Promise<HTMLElement> {
+        // Guard check
+        if (!newItem || !newItem.subject) {
+            // either skip or log an error
+            Logger.error('createListItem => Skipping invalid item:', newItem);
+            // return a no-op element or throw, depending on your needs
+            throw new Error('Invalid blocked user item data');
+        }
+        
         const listItem = await this.itemFactory.create(newItem);
         listItem.setAttribute('data-user-handle', this.getUserHandle(newItem));
         return listItem;
     }
 
-    private replaceExistingDOMItem(listItem: HTMLElement): void {
+    private replaceExistingDOMItem(listItem: HTMLElement, userHandle: string): void {
         const listContainer = this.view.getListContainerElement();
-        const newHandle = this.getUserHandle(listItem);
-        const existingDom = listContainer.querySelector(`[data-user-handle="${newHandle}"]`);
+        const existingDom = listContainer.querySelector(`[data-user-handle="${userHandle}"]`);
         if (existingDom) {
             listContainer.removeChild(existingDom);
         }
