@@ -77,24 +77,31 @@ export class PostProcessor {
      * Re-apply block style to all wrappers that currently show a blocked style
      */
     private updateAllBlockedPosts(): void {
-        // find existing .block-button-wrapper elements that had a blocked style
-        const blockedWrappers = document.querySelectorAll(
-            '.block-button-wrapper.blocked-post, \
-             .block-button-wrapper.blocked-post--darkened, \
-             .block-button-wrapper.blocked-post--hidden, \
-             .block-button-wrapper.blocked-post--blurred'
-        );
+        const blockedWrappers = document.querySelectorAll<HTMLElement>(this.getBlockedWrapperSelector());
 
         blockedWrappers.forEach((wrapper) => {
-            wrapper.classList.remove(
-                'blocked-post',
-                'blocked-post--darkened',
-                'blocked-post--hidden',
-                'blocked-post--blurred'
-            );
-            this.applyBlockedStyle(wrapper as HTMLElement);
+            this.resetBlockedClasses(wrapper);
+            this.applyBlockedStyle(wrapper);
         });
     }
+    private getBlockedWrapperSelector(): string {
+        const blockedClasses = [
+            'blocked-post',
+            'blocked-post--darkened',
+            'blocked-post--hidden',
+            'blocked-post--blurred',
+        ];
+        return blockedClasses.map(cls => `.block-button-wrapper.${cls}`).join(', ');
+    }
+    private resetBlockedClasses(wrapper: HTMLElement): void {
+        wrapper.classList.remove(
+            'blocked-post',
+            'blocked-post--darkened',
+            'blocked-post--hidden',
+            'blocked-post--blurred'
+        );
+    }
+
 
     private applyBlockedStyle(wrapper: HTMLElement): void {
         switch (this.blockedPostStyle) {
@@ -196,72 +203,26 @@ export class PostProcessor {
         }
     }
 
-
-
     private async ensureWrapper(
         element: HTMLElement,
         profileHandle: string,
         postType: string
     ): Promise<HTMLElement | null> {
         const parent = element.parentNode;
-        if (!parent) return null;
+        if (!parent) {
+            Logger.warn('Element has no parent. Cannot wrap.');
+            return null;
+        }
 
         try {
-            // Create a new wrapper
-            const wrapper = document.createElement('div');
-            wrapper.classList.add('block-button-wrapper');
-            wrapper.setAttribute('data-profile-handle', profileHandle);
-            wrapper.setAttribute('data-post-type', postType);
+            const wrapper = this.createWrapper(profileHandle, postType);
+            await this.applyBlockedStyleIfNecessary(wrapper, profileHandle);
 
-            // If user is already blocked, apply style
-            const activeListUris = this.getActiveBlockLists();
-            const isUserGlobalBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, activeListUris);
-            if (isUserGlobalBlocked) {
-                this.applyBlockedStyle(wrapper);
-            }
+            this.insertWrapperIntoDOM(parent, wrapper, element);
 
-            // Insert the wrapper before `element`
-            parent.insertBefore(wrapper, element);
+            this.moveChildrenToWrapper(element, wrapper);
 
-            // Move children from `element` to new wrapper
-            while (element.firstChild) {
-                wrapper.appendChild(element.firstChild);
-            }
-            element.remove();
-
-            // Buttons + freshness container
-            const buttonsAndFreshnessContainer = document.createElement('div');
-            buttonsAndFreshnessContainer.classList.add('buttons-freshness-container');
-
-            // Add account freshness
-            const freshnessElement = document.createElement('div');
-            freshnessElement.className = 'account-freshness';
-            freshnessElement.textContent = 'Loading...';
-            buttonsAndFreshnessContainer.appendChild(freshnessElement);
-
-            // Add block/unblock & report buttons
-            const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, [activeListUris[0]]);
-            const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
-            buttonsAndFreshnessContainer.appendChild(buttonContainer);
-
-            // Determine where to place the buttons and freshness based on saved preference
-            const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
-            if (savedOption === 'prepend') {
-                wrapper.prepend(buttonsAndFreshnessContainer);
-            } else if (savedOption === 'append') {
-                wrapper.append(buttonsAndFreshnessContainer);
-            }
-
-            // Asynchronously fetch and display account freshness data
-            this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
-
-            // If block buttons are hidden, hide them
-            if (!this.blockButtonsVisible) {
-                const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
-                if (blockButton) {
-                    blockButton.style.display = 'none';
-                }
-            }
+            await this.addButtonsAndFreshness(wrapper, profileHandle);
 
             Logger.debug(`Wrapped element for user: ${profileHandle}`);
             return wrapper;
@@ -270,6 +231,78 @@ export class PostProcessor {
             return null;
         }
     }
+    private createWrapper(profileHandle: string, postType: string): HTMLElement {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('block-button-wrapper');
+        wrapper.setAttribute('data-profile-handle', profileHandle);
+        wrapper.setAttribute('data-post-type', postType);
+        return wrapper;
+    }
+    private async applyBlockedStyleIfNecessary(wrapper: HTMLElement, profileHandle: string): Promise<void> {
+        const activeListUris = this.getActiveBlockLists();
+        const isUserGlobalBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, activeListUris);
+        if (isUserGlobalBlocked) {
+            this.applyBlockedStyle(wrapper);
+        }
+    }
+    private insertWrapperIntoDOM(parent: Node, wrapper: HTMLElement, element: HTMLElement): void {
+        parent.insertBefore(wrapper, element);
+    }
+    private moveChildrenToWrapper(element: HTMLElement, wrapper: HTMLElement): void {
+        while (element.firstChild) {
+            wrapper.appendChild(element.firstChild);
+        }
+        element.remove();
+    }
+    private async addButtonsAndFreshness(wrapper: HTMLElement, profileHandle: string): Promise<void> {
+        const buttonsAndFreshnessContainer = document.createElement('div');
+        buttonsAndFreshnessContainer.classList.add('buttons-freshness-container');
+
+        // Add account freshness
+        const freshnessElement = this.createFreshnessElement();
+        buttonsAndFreshnessContainer.appendChild(freshnessElement);
+
+        // Add block/unblock & report buttons
+        const isUserBlocked = await this.isUserBlocked(profileHandle);
+        const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
+        buttonsAndFreshnessContainer.appendChild(buttonContainer);
+
+        // Determine placement based on user preference
+        this.placeButtonsAndFreshness(wrapper, buttonsAndFreshnessContainer);
+
+        // Fetch and display account freshness
+        this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
+
+        // Handle visibility of block buttons
+        this.handleBlockButtonsVisibility(wrapper);
+    }
+    private createFreshnessElement(): HTMLElement {
+        const freshnessElement = document.createElement('div');
+        freshnessElement.className = 'account-freshness';
+        freshnessElement.textContent = 'Loading...';
+        return freshnessElement;
+    }
+    private async isUserBlocked(profileHandle: string): Promise<boolean> {
+        const activeListUris = this.getActiveBlockLists();
+        return await this.blockedUsersService.isUserBlocked(profileHandle, activeListUris);
+    }
+    private placeButtonsAndFreshness(wrapper: HTMLElement, container: HTMLElement): void {
+        const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
+        if (savedOption === 'prepend') {
+            wrapper.prepend(container);
+        } else if (savedOption === 'append') {
+            wrapper.append(container);
+        }
+    }
+    private handleBlockButtonsVisibility(wrapper: HTMLElement): void {
+        if (!this.blockButtonsVisible) {
+            const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
+            if (blockButton) {
+                blockButton.style.display = 'none';
+            }
+        }
+    }
+
 
     private removeInnerDuplicateWrappers(wrapper: HTMLElement, profileHandle: string): void {
         const nestedWrappers = wrapper.querySelectorAll('.block-button-wrapper');
@@ -277,21 +310,25 @@ export class PostProcessor {
             const nestedHandle = nestedWrapper.getAttribute('data-profile-handle');
             if (nestedHandle === profileHandle) {
                 Logger.debug(`Removing inner duplicate wrapper for user: ${profileHandle}`);
-                const parentOfNested = nestedWrapper.parentNode;
-                if (parentOfNested) {
-                    // Insert each child before the nestedWrapper to maintain order
-                    while (nestedWrapper.firstChild) {
-                        parentOfNested.insertBefore(nestedWrapper.firstChild, nestedWrapper);
-                    }
-                    // Remove the now-empty nested wrapper
-                    nestedWrapper.remove();
-                    Logger.debug(`Inner duplicate wrapper removed and content repositioned for user: ${profileHandle}`);
-                } else {
-                    Logger.warn(`Parent of nested wrapper not found for user: ${profileHandle}. Unable to reposition content.`);
-                }
+                this.removeDuplicateWrapper(nestedWrapper as HTMLElement, profileHandle);
             }
         });
     }
+    private removeDuplicateWrapper(nestedWrapper: HTMLElement, profileHandle: string): void {
+        const parentOfNested = nestedWrapper.parentNode;
+        if (parentOfNested) {
+            // Insert each child before the nestedWrapper to maintain order
+            while (nestedWrapper.firstChild) {
+                parentOfNested.insertBefore(nestedWrapper.firstChild, nestedWrapper);
+            }
+            // Remove the now-empty nested wrapper
+            nestedWrapper.remove();
+            Logger.debug(`Inner duplicate wrapper removed and content repositioned for user: ${profileHandle}`);
+        } else {
+            Logger.warn(`Parent of nested wrapper not found for user: ${profileHandle}. Unable to reposition content.`);
+        }
+    }
+
 
 
     private async addActionButtons(wrapper: HTMLElement, profileHandle: string): Promise<void> {
