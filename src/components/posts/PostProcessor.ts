@@ -123,6 +123,7 @@ export class PostProcessor {
     public async processElement(element: HTMLElement): Promise<void> {
         if (this.processedPosts.has(element)) return;
         if (isElementHiddenByCss(element)) {
+            this.processedPosts.add(element);
             return;
         }
 
@@ -148,11 +149,24 @@ export class PostProcessor {
             return;
         }
 
+        // Check if any ancestor has the same profileHandle
+        const ancestorWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
+        if (ancestorWrapper) {
+            const ancestorHandle = ancestorWrapper.getAttribute('data-profile-handle');
+            if (ancestorHandle === profileHandle) {
+                Logger.debug(`Ancestor wrapper already exists for user: ${profileHandle}. Skipping wrapping for this element.`);
+                this.processedPosts.add(element);
+                return;
+            }
+        }
+
         // If it's already wrapped or has a .toggle-block-button, skip re-wrapping
         if (
             element.querySelector('.toggle-block-button') ||
             element.closest('.block-button-wrapper')
         ) {
+            Logger.debug(`Element is already wrapped or has a toggle-block-button. Marking as processed.`);
+            this.processedPosts.add(element);
             return;
         }
 
@@ -160,26 +174,17 @@ export class PostProcessor {
         const wrapper = await this.ensureWrapper(element, profileHandle, postType);
         if (wrapper) {
             this.processedPosts.add(element);
+            // After wrapping, remove any inner duplicate wrappers for the same profileHandle
+            this.removeInnerDuplicateWrappers(wrapper, profileHandle);
         }
     }
+
 
     private async ensureWrapper(
         element: HTMLElement,
         profileHandle: string,
         postType: string
     ): Promise<HTMLElement | null> {
-        const existingWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
-        if (existingWrapper) {
-            // Already wrapped once; just ensure button/freshness exist
-            if (!existingWrapper.querySelector('.toggle-block-button')) {
-                this.addActionButtons(existingWrapper, profileHandle);
-            }
-            if (!existingWrapper.querySelector('.account-freshness')) {
-                this.addAccountFreshness(existingWrapper, profileHandle);
-            }
-            return existingWrapper;
-        }
-
         const parent = element.parentNode;
         if (!parent) return null;
 
@@ -192,15 +197,15 @@ export class PostProcessor {
 
             // If user is already blocked, apply style
             const activeListUris = this.getActiveBlockLists();
-            const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, [activeListUris[0]]);
-            if (isUserBlocked) {
+            const isUserGlobalBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, activeListUris);
+            if (isUserGlobalBlocked) {
                 this.applyBlockedStyle(wrapper);
             }
 
             // Insert the wrapper before `element`
             parent.insertBefore(wrapper, element);
 
-            // Move children from `element` -> new wrapper
+            // Move children from `element` to new wrapper
             while (element.firstChild) {
                 wrapper.appendChild(element.firstChild);
             }
@@ -216,10 +221,12 @@ export class PostProcessor {
             freshnessElement.textContent = 'Loading...';
             buttonsAndFreshnessContainer.appendChild(freshnessElement);
 
-            // Add block/unblock & report
+            // Add block/unblock & report buttons
+            const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, [activeListUris[0]]);
             const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
             buttonsAndFreshnessContainer.appendChild(buttonContainer);
 
+            // Determine where to place the buttons and freshness based on saved preference
             const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
             if (savedOption === 'prepend') {
                 wrapper.prepend(buttonsAndFreshnessContainer);
@@ -227,7 +234,7 @@ export class PostProcessor {
                 wrapper.append(buttonsAndFreshnessContainer);
             }
 
-            // asynchronously fetch freshness data
+            // Asynchronously fetch and display account freshness data
             this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
 
             // If block buttons are hidden, hide them
@@ -237,12 +244,37 @@ export class PostProcessor {
                     blockButton.style.display = 'none';
                 }
             }
+
+            Logger.debug(`Wrapped element for user: ${profileHandle}`);
             return wrapper;
         } catch (e) {
             Logger.error('Error wrapping element:', e);
             return null;
         }
     }
+
+    private removeInnerDuplicateWrappers(wrapper: HTMLElement, profileHandle: string): void {
+        const nestedWrappers = wrapper.querySelectorAll('.block-button-wrapper');
+        nestedWrappers.forEach((nestedWrapper) => {
+            const nestedHandle = nestedWrapper.getAttribute('data-profile-handle');
+            if (nestedHandle === profileHandle) {
+                Logger.debug(`Removing inner duplicate wrapper for user: ${profileHandle}`);
+                const parentOfNested = nestedWrapper.parentNode;
+                if (parentOfNested) {
+                    // Insert each child before the nestedWrapper to maintain order
+                    while (nestedWrapper.firstChild) {
+                        parentOfNested.insertBefore(nestedWrapper.firstChild, nestedWrapper);
+                    }
+                    // Remove the now-empty nested wrapper
+                    nestedWrapper.remove();
+                    Logger.debug(`Inner duplicate wrapper removed and content repositioned for user: ${profileHandle}`);
+                } else {
+                    Logger.warn(`Parent of nested wrapper not found for user: ${profileHandle}. Unable to reposition content.`);
+                }
+            }
+        });
+    }
+
 
     private async addActionButtons(wrapper: HTMLElement, profileHandle: string): Promise<void> {
         const activeListUris = this.getActiveBlockLists();
