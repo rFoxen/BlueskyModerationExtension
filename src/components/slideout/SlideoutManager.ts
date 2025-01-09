@@ -11,48 +11,67 @@ import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 import Logger from '@src/utils/logger/Logger';
 
 /**
+ * Interface representing an event listener entry.
+ */
+interface EventListenerEntry {
+    element: HTMLElement | Document | Window;
+    event: string;
+    handler: EventListener;
+}
+
+/**
  * Manages the slideout UI, login form, block list toggles, etc.
  */
 export class SlideoutManager extends EventEmitter {
-    private view: SlideoutView;
-    private focusManager: FocusManager;
-    private swipeHandler: SwipeGestureHandler | null = null;
-    private stateManager: StateManager;
-    private loginHandler: LoginHandler;
-    private userInfoManager: UserInfoManager;
+    private view!: SlideoutView;
+    private focusManager!: FocusManager;
+    private swipeHandler!: SwipeGestureHandler;
+    private stateManager!: StateManager;
+    private loginHandler!: LoginHandler;
+    private userInfoManager!: UserInfoManager;
 
-    // Store references to event handlers for cleanup
-    private eventHandlers: { [key: string]: EventListener } = {};
+    // Centralized registry for event listeners
+    private eventListeners: EventListenerEntry[] = [];
 
-    // NEW: reference to the block post style <select>
+    // Reference to the block post style <select>
     private blockPostStyleSelect: HTMLSelectElement | null = null;
 
     constructor() {
         super();
+        this.initializeComponents();
+        this.addEventListeners();
+        this.applySavedState();
+        this.initializeTabListeners();
+        this.subscribeToGlobalEvents();
+    }
+
+    private initializeComponents(): void {
         this.view = new SlideoutView();
         this.focusManager = new FocusManager(this.view.slideoutElement);
         this.stateManager = new StateManager();
+        this.initializeLoginHandler();
+        this.initializeUserInfoManager();
+    }
 
-        // Initialize LoginHandler
+    private initializeLoginHandler(): void {
         this.loginHandler = new LoginHandler({
             formElement: this.view.loginForm,
             onLogin: this.handleLogin.bind(this),
             displayFeedback: this.displayFormFeedback.bind(this),
         });
+    }
 
-        // Initialize UserInfoManager
+    private initializeUserInfoManager(): void {
         this.userInfoManager = new UserInfoManager({
             loggedInUsernameElement: this.view.loggedInUsername,
             userInfoSectionElement: this.view.userInfoSection,
             loginFormElement: this.view.loginForm,
         });
+    }
 
-        this.addEventListeners();
-        this.applySavedState();
-        this.initializeTabListeners();
-
-
-        document.addEventListener('blockListChanged', this.handleBlockListChanged.bind(this));
+    private subscribeToGlobalEvents(): void {
+        const blockListChangedHandler = this.handleBlockListChanged.bind(this);
+        this.addEventListenerToElement(document, 'blockListChanged', blockListChangedHandler);
     }
 
     /**
@@ -60,7 +79,6 @@ export class SlideoutManager extends EventEmitter {
      * @param event - The event object, expected to be a CustomEvent with a 'detail' property.
      */
     private handleBlockListChanged(event: Event): void {
-        // Cast the generic Event to CustomEvent to access 'detail'
         const customEvent = event as CustomEvent<{ listName: string }>;
         const listName = customEvent.detail.listName;
         this.updateToggleButtonText(listName);
@@ -71,111 +89,98 @@ export class SlideoutManager extends EventEmitter {
      * @param listName - The name of the currently selected block list.
      */
     public updateToggleButtonText(listName: string): void {
-        // Update the toggle button's text to include the selected block list name
         this.view.toggleButton.textContent = `☰ ${listName}`;
     }
 
+    /**
+     * Adds all necessary event listeners by delegating to specific setup methods.
+     */
     private addEventListeners(): void {
-        // Define handlers
-        const closeSlideoutHandler = () => this.hideSlideout();
-        const logoutHandler = () => this.emit('logout');
-        const toggleSlideoutHandler = () => this.showSlideout();
-        const overlayClickHandler = () => this.hideSlideout();
-        const themeToggleHandler = () => this.emit('themeToggle');
-        const blockButtonsToggleHandler = () => {
+        this.setupSlideoutUIEventListeners();
+        this.setupThemeToggleListener();
+        this.setupBlockButtonsToggleListener();
+        this.setupScrollPreventionListeners();
+        this.setupKeyDownListener();
+        this.setupBlockPostStyleSelector();
+        this.setupPrependAppendRadioListeners();
+    }
+
+    private setupSlideoutUIEventListeners(): void {
+        this.addEventListenerToElement(this.view.closeSlideoutButton, 'click', () => this.hideSlideout());
+        this.addEventListenerToElement(this.view.logoutButton, 'click', () => this.emit('logout'));
+        this.addEventListenerToElement(this.view.toggleButton, 'click', () => this.showSlideout());
+        this.addEventListenerToElement(this.view.overlayElement, 'click', () => this.hideSlideout());
+    }
+
+    private setupThemeToggleListener(): void {
+        this.addEventListenerToElement(this.view.themeToggleButton, 'click', () => this.emit('themeToggle'));
+    }
+
+    private setupBlockButtonsToggleListener(): void {
+        const handler = () => {
             const isChecked = this.view.blockButtonsToggle.checked;
             this.stateManager.setBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, isChecked);
             this.emit('blockButtonsToggle', isChecked);
         };
+        this.addEventListenerToElement(this.view.blockButtonsToggle, 'change', handler);
+    }
+
+    private setupScrollPreventionListeners(): void {
         const preventScrollWheel = (e: Event) => {
-            const wheelEvent = e as WheelEvent;
-            wheelEvent.stopPropagation();
+            e.stopPropagation();
         };
         const preventScrollTouchMove = (e: Event) => {
-            const touchEvent = e as TouchEvent;
-            touchEvent.stopPropagation();
+            e.stopPropagation();
         };
-        const keyDownHandler = (e: Event) => this.handleKeyDown(e as KeyboardEvent);
+        this.addEventListenerToElement(this.view.slideoutElement, 'wheel', preventScrollWheel);
+        this.addEventListenerToElement(this.view.slideoutElement, 'touchmove', preventScrollTouchMove);
+    }
 
-        // Assign to eventHandlers for later removal
-        this.eventHandlers['closeSlideout'] = closeSlideoutHandler;
-        this.eventHandlers['logout'] = logoutHandler;
-        this.eventHandlers['toggleSlideout'] = toggleSlideoutHandler;
-        this.eventHandlers['overlayClick'] = overlayClickHandler;
-        this.eventHandlers['themeToggle'] = themeToggleHandler;
-        this.eventHandlers['blockButtonsToggle'] = blockButtonsToggleHandler;
-        this.eventHandlers['preventScrollWheel'] = preventScrollWheel;
-        this.eventHandlers['preventScrollTouchMove'] = preventScrollTouchMove;
-        this.eventHandlers['keyDown'] = keyDownHandler;
+    private setupKeyDownListener(): void {
+        const keyDownHandler = (e: KeyboardEvent) => this.handleKeyDown(e);
+        this.addEventListenerToElement(document, 'keydown', keyDownHandler as EventListener);
+    }
 
-        // Add event listeners
-        EventListenerHelper.addEventListener(this.view.closeSlideoutButton, 'click', closeSlideoutHandler);
-        EventListenerHelper.addEventListener(this.view.logoutButton, 'click', logoutHandler);
-        EventListenerHelper.addEventListener(this.view.toggleButton, 'click', toggleSlideoutHandler);
-        EventListenerHelper.addEventListener(this.view.overlayElement, 'click', overlayClickHandler);
-        EventListenerHelper.addEventListener(this.view.themeToggleButton, 'click', themeToggleHandler);
-        EventListenerHelper.addEventListener(
-            this.view.blockButtonsToggle,
-            'change',
-            blockButtonsToggleHandler
-        );
-
-        // Prevent scroll propagation
-        EventListenerHelper.addEventListener(this.view.slideoutElement, 'wheel', preventScrollWheel);
-        EventListenerHelper.addEventListener(this.view.slideoutElement, 'touchmove', preventScrollTouchMove);
-
-        // Add keydown listener for ESC key
-        EventListenerHelper.addEventListener(document, 'keydown', keyDownHandler);
-
-        // Initialize SwipeGestureHandler
-        this.initializeSwipeGesture();
-
-        // NEW: set up the block post style select
+    private setupBlockPostStyleSelector(): void {
         this.blockPostStyleSelect = document.getElementById('block-post-style-select') as HTMLSelectElement;
         if (this.blockPostStyleSelect) {
-            const blockPostStyleChangeHandler = () => {
-                const styleValue = this.blockPostStyleSelect?.value || 'darkened';
-                // Emit event so other parts can handle
+            const handler = () => {
+                const styleValue = this.blockPostStyleSelect!.value || 'darkened';
                 this.emit('blockPostStyleChange', styleValue);
-
-                // Persist to localStorage
                 localStorage.setItem(STORAGE_KEYS.BLOCKED_POST_STYLE, styleValue);
             };
-
-            this.blockPostStyleSelect.addEventListener('change', blockPostStyleChangeHandler);
-            this.eventHandlers['blockPostStyleChange'] = blockPostStyleChangeHandler;
+            this.addEventListenerToElement(this.blockPostStyleSelect, 'change', handler);
         }
+    }
 
-        // Add event listeners for radio buttons
+    private setupPrependAppendRadioListeners(): void {
         const prependChangeHandler = () => this.handlePrependAppendChange('prepend');
         const appendChangeHandler = () => this.handlePrependAppendChange('append');
 
-        this.eventHandlers['prependChange'] = prependChangeHandler;
-        this.eventHandlers['appendChange'] = appendChangeHandler;
-
-        EventListenerHelper.addEventListener(this.view.prependRadio, 'change', prependChangeHandler);
-        EventListenerHelper.addEventListener(this.view.appendRadio, 'change', appendChangeHandler);
+        this.addEventListenerToElement(this.view.prependRadio, 'change', prependChangeHandler);
+        this.addEventListenerToElement(this.view.appendRadio, 'change', appendChangeHandler);
     }
-    
+
+    /**
+     * Handles changes between prepend and append options.
+     * @param option - The selected option, either 'prepend' or 'append'.
+     */
     private handlePrependAppendChange(option: 'prepend' | 'append'): void {
-        // Persist the selection
         StorageHelper.setString(STORAGE_KEYS.PREPEND_APPEND_OPTION, option);
-
-        // Emit an event for other components if they need to react
         this.emit('prependAppendChanged', option);
-
         Logger.debug(`Prepend/Append option changed to: ${option}`);
     }
-    
+
+    /**
+     * Initializes the swipe gesture handler.
+     */
     private initializeSwipeGesture(): void {
         if (this.swipeHandler) {
             this.swipeHandler.destroy();
         }
         this.swipeHandler = new SwipeGestureHandler(
             this.view.slideoutElement,
-            () => {
-                this.hideSlideout();
-            },
+            () => this.hideSlideout(),
             100,
             100
         );
@@ -272,14 +277,14 @@ export class SlideoutManager extends EventEmitter {
         this.view.blockButtonsToggle.checked = blockButtonsVisible;
         this.emit('blockButtonsToggle', blockButtonsVisible);
 
-        // NEW: load saved blocked post style
+        // Load saved blocked post style
         const savedStyle = localStorage.getItem(STORAGE_KEYS.BLOCKED_POST_STYLE) || 'darkened';
         if (this.blockPostStyleSelect) {
             this.blockPostStyleSelect.value = savedStyle;
         }
         // Emit event to initialize style
         this.emit('blockPostStyleChange', savedStyle);
-        
+
         // Apply Prepend/Append option
         const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
         if (savedOption === 'prepend') {
@@ -312,13 +317,15 @@ export class SlideoutManager extends EventEmitter {
         this.stateManager.setBoolean(STORAGE_KEYS.SLIDEOUT_STATE, false);
     }
 
-    // Initialize Tab Event Listeners
+    /**
+     * Initializes Tab Event Listeners.
+     */
     private initializeTabListeners(): void {
         const tabButtons = this.view.tabList.querySelectorAll('.nav-link');
         tabButtons.forEach((tabButton) => {
-            EventListenerHelper.addEventListener(tabButton as HTMLElement, 'click', this.handleTabClick.bind(this));
+            const handler = this.handleTabClick.bind(this);
+            this.addEventListenerToElement(tabButton as HTMLElement, 'click', handler);
         });
-        this.eventHandlers['tabClick'] = this.handleTabClick.bind(this);
     }
 
     private handleTabClick(event: Event): void {
@@ -326,25 +333,34 @@ export class SlideoutManager extends EventEmitter {
         const targetPaneId = clickedTab.getAttribute('data-bs-target');
         if (!targetPaneId) return;
 
-        // Deactivate all tabs
+        this.deactivateAllTabs();
+        this.activateTab(clickedTab);
+        this.hideAllTabPanes();
+        this.showTargetTabPane(targetPaneId);
+    }
+
+    private deactivateAllTabs(): void {
         const allTabs = this.view.tabList.querySelectorAll('.nav-link');
         allTabs.forEach((tab) => {
             tab.classList.remove('active');
             tab.setAttribute('aria-selected', 'false');
         });
+    }
 
-        // Activate clicked tab
-        clickedTab.classList.add('active');
-        clickedTab.setAttribute('aria-selected', 'true');
+    private activateTab(tab: HTMLElement): void {
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+    }
 
-        // Hide all tab panes
+    private hideAllTabPanes(): void {
         const allPanes = this.view.tabContent.querySelectorAll('.tab-pane');
         allPanes.forEach((pane) => {
             pane.classList.remove('show', 'active');
             pane.setAttribute('aria-hidden', 'true');
         });
+    }
 
-        // Show the targeted tab pane
+    private showTargetTabPane(targetPaneId: string): void {
         const targetPane = this.view.tabContent.querySelector(targetPaneId) as HTMLElement;
         if (targetPane) {
             targetPane.classList.add('show', 'active');
@@ -352,88 +368,50 @@ export class SlideoutManager extends EventEmitter {
         }
     }
 
-    private destroyTabListeners(): void {
-        const tabButtons = this.view.tabList.querySelectorAll('.nav-link');
-        tabButtons.forEach((tabButton) => {
-            EventListenerHelper.removeEventListener(tabButton as HTMLElement, 'click', this.eventHandlers['tabClick']);
-        });
+    /**
+     * Adds an event listener to a specified element and records it in the registry.
+     * @param element - The target element to attach the event listener to.
+     * @param event - The event type (e.g., 'click', 'change').
+     * @param handler - The event handler function.
+     */
+    private addEventListenerToElement(
+        element: HTMLElement | Document | Window,
+        event: string,
+        handler: EventListener
+    ): void {
+        element.addEventListener(event, handler);
+        this.eventListeners.push({ element, event, handler });
     }
 
-    public destroy(): void {
-        // Remove all event listeners
-        Object.entries(this.eventHandlers).forEach(([event, handler]) => {
-            switch (event) {
-                case 'closeSlideout':
-                    EventListenerHelper.removeEventListener(this.view.closeSlideoutButton, 'click', handler);
-                    break;
-                case 'logout':
-                    EventListenerHelper.removeEventListener(this.view.logoutButton, 'click', handler);
-                    break;
-                case 'toggleSlideout':
-                    EventListenerHelper.removeEventListener(this.view.toggleButton, 'click', handler);
-                    break;
-                case 'overlayClick':
-                    EventListenerHelper.removeEventListener(this.view.overlayElement, 'click', handler);
-                    break;
-                case 'themeToggle':
-                    EventListenerHelper.removeEventListener(this.view.themeToggleButton, 'click', handler);
-                    break;
-                case 'blockButtonsToggle':
-                    EventListenerHelper.removeEventListener(this.view.blockButtonsToggle, 'change', handler);
-                    break;
-                case 'preventScrollWheel':
-                    EventListenerHelper.removeEventListener(this.view.slideoutElement, 'wheel', handler);
-                    break;
-                case 'preventScrollTouchMove':
-                    EventListenerHelper.removeEventListener(this.view.slideoutElement, 'touchmove', handler);
-                    break;
-                case 'keyDown':
-                    EventListenerHelper.removeEventListener(document, 'keydown', handler);
-                    break;
-                case 'tabClick':
-                    this.destroyTabListeners();
-                    break;
-                case 'blockPostStyleChange':
-                    if (this.blockPostStyleSelect) {
-                        this.blockPostStyleSelect.removeEventListener('change', handler);
-                    }
-                    break;
-                default:
-                    // ...
-                    break;
-            }
+    /**
+     * Removes all event listeners by iterating over the registry.
+     */
+    private removeAllEventListeners(): void {
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
         });
+        this.eventListeners = []; // Clear the registry after removal
+    }
 
-        // Clear eventHandlers
-        this.eventHandlers = {};
-
+    private cleanupResources(): void {
         // Release focus
         this.focusManager.destroy();
 
         // Destroy swipe handler
         if (this.swipeHandler) {
             this.swipeHandler.destroy();
-            this.swipeHandler = null;
         }
 
         // Destroy the view
         this.view.destroy();
+
         // Destroy LoginHandler and UserInfoManager
         this.loginHandler.destroy();
         this.userInfoManager.destroy();
+    }
 
-
-        // Remove radio button event listeners
-        const prependChangeHandler = this.eventHandlers['prependChange'];
-        const appendChangeHandler = this.eventHandlers['appendChange'];
-
-        if (prependChangeHandler) {
-            EventListenerHelper.removeEventListener(this.view.prependRadio, 'change', prependChangeHandler);
-            delete this.eventHandlers['prependChange'];
-        }
-        if (appendChangeHandler) {
-            EventListenerHelper.removeEventListener(this.view.appendRadio, 'change', appendChangeHandler);
-            delete this.eventHandlers['appendChange'];
-        }
+    public destroy(): void {
+        this.removeAllEventListeners();
+        this.cleanupResources();
     }
 }
