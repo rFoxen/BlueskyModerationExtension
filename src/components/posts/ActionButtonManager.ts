@@ -43,6 +43,9 @@ export class ActionButtonManager {
         );
     }
 
+    /**
+     * Creates a container of buttons for a given profile handle.
+     */
     public createButtons(profileHandle: string, isUserBlocked: boolean): HTMLElement {
         const buttonContainer = this.buttonsFactory.createButtons({
             profileHandle,
@@ -53,116 +56,54 @@ export class ActionButtonManager {
         return buttonContainer;
     }
 
-    private async handleBlockUser(userHandle: string, blockButton: Button): Promise<void> {
-        if (!this.isLoggedIn()) {
-            this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_BLOCK_USERS, 'error');
-            return;
-        }
+    /**
+     * Main entry point for toggling block/unblock when user clicks the Block/Unblock button.
+     */
+    public async handleBlockUser(userHandle: string, blockButton: Button): Promise<void> {
+        // 1) Check essential preconditions
+        if (!this.checkLoginStatus()) return;
+        const selectedBlockList = this.getSelectedBlockList();
+        if (!selectedBlockList) return;
 
-        const selectedBlockList = this.getActiveBlockLists()[0];
-        if (!selectedBlockList) {
-            this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
-            return;
-        }
-
-        // For debugging performance: track start time
+        // 2) Start performance tracking & UI adjustments
         Logger.time(`handleBlockUser: ${userHandle}`);
-        
-        const activeListUris = this.getActiveBlockLists();
-        // Check whether user is currently blocked
-        const alreadyBlocked = await this.blockedUsersService.isUserBlocked(userHandle, [activeListUris[0]]);
-
-        // Show "spinner" or disable
         blockButton.setDisabled(true);
         blockButton.addClasses('loading');
 
+        const activeListUris = this.getActiveBlockLists();
+        const isCurrentlyBlocked = await this.isAlreadyBlocked(userHandle, activeListUris);
+
+        // 3) Decide if we need to block or unblock
+        const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
+
         try {
-            // Determine if we are blocking or unblocking
-            const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
-
             if (isBlocking) {
-                if (alreadyBlocked) {
-                    Logger.debug(`User ${userHandle} is already blocked. Skipping re-block.`);
-                    return;
-                }
-
-                // --- BLOCK FLOW (Optimistic) ---
-                this.debugLog(`Optimistic block -> ${userHandle}`);
-                const tempItem = { subject: { handle: userHandle, did: '' }, uri: 'pending' };
-                this.blockedUsersService.emit('blockedUserAdded', tempItem);
-
-                // API call
-                this.debugLog(`Calling blueskyService.blockUser(...) for ${userHandle}`);
-                const response = await this.blueskyService.blockUser(userHandle, selectedBlockList);
-                if (!response) {
-                    throw new Error(ERRORS.UNKNOWN_ERROR);
-                }
-
-                // If success, store the real URI
-                this.debugLog(`API returned success for blocking ${userHandle}. addBlockedUserFromResponse(...)`);
-                await this.blockedUsersService.addBlockedUserFromResponse(response, userHandle, selectedBlockList);
-                Logger.debug('intermediate timeEnd for handleBlockUser...');
-                Logger.timeEnd(`handleBlockUser: ${userHandle}`);
-                
-                // Let other parts know
-                await this.onUserBlocked(userHandle);
-
-                Logger.time('getBlockListName');
-                const selectedBlockListName = await this.blueskyService.getBlockListName(selectedBlockList);
-                Logger.timeEnd('getBlockListName');
-                
-                this.notificationManager.displayNotification(
-                    MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
-                    'success'
-                );
-
-                // Update button to show "Unblock"
-                this.setBlockButtonToBlockedState(blockButton);
-
+                await this.blockUserFlow(userHandle, selectedBlockList, isCurrentlyBlocked);
             } else {
-                // If user is NOT blocked, skip unblocking
-                if (!alreadyBlocked) {
-                    Logger.debug(`User ${userHandle} is not blocked. Skipping unblock.`);
-                    return;
-                }
-
-                // --- UNBLOCK FLOW ---
-                this.debugLog(`Calling removeBlockedUser(...) for ${userHandle}`);
-                await this.blockedUsersService.removeBlockedUser(userHandle, selectedBlockList);
-
-                this.notificationManager.displayNotification(
-                    MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
-                    'success'
-                );
-
-                // Let others know
-                await this.onUserUnblocked(userHandle);
-
-                // Switch the button to "Block"
-                this.setBlockButtonToUnblockedState(blockButton);
+                await this.unblockUserFlow(userHandle, selectedBlockList, isCurrentlyBlocked);
             }
         } catch (error) {
-            Logger.error(`Error blocking/unblocking user "${userHandle}":`, error);
-
-            // If we were optimistically blocking, revert
-            const isBlocking = blockButton.getText()?.includes(LABELS.BLOCK) ?? false;
-            if (isBlocking && !alreadyBlocked) {
+            // Revert optimistic changes if it was a block attempt
+            if (isBlocking && !isCurrentlyBlocked) {
                 this.blockedUsersService.emit('blockedUserRemoved', userHandle);
             }
-
             this.notificationManager.displayNotification(ERRORS.FAILED_TO_BLOCK_USER, 'error');
+            Logger.error(`Error blocking/unblocking user "${userHandle}":`, error);
         } finally {
-            Logger.debug('About to end handleBlockUser, no more steps remain...');
-            // remove spinner
-            blockButton.setDisabled(false);
-            blockButton.removeClasses('loading');
+            this.finalizeBlockAction(blockButton, userHandle);
         }
     }
 
+    /**
+     * Report user flow.
+     */
     private async handleReportUser(userHandle: string): Promise<void> {
         await this.userReporter.reportUser(userHandle);
     }
 
+    /**
+     * Updates the state of a block button in an already created wrapper.
+     */
     public updateButtonState(wrapper: HTMLElement, isBlocked: boolean): void {
         const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLButtonElement | null;
         if (blockButton) {
@@ -172,12 +113,18 @@ export class ActionButtonManager {
         }
     }
 
+    /**
+     * Set button appearance for "blocked" state.
+     */
     private setBlockButtonToBlockedState(blockButton: Button): void {
         blockButton.setText(LABELS.UNBLOCK);
         blockButton.removeClasses('btn-outline-secondary');
         blockButton.addClasses('btn-danger');
     }
 
+    /**
+     * Set button appearance for "unblocked" state.
+     */
     private setBlockButtonToUnblockedState(blockButton: Button): void {
         blockButton.setText(LABELS.BLOCK);
         blockButton.removeClasses('btn-danger');
@@ -185,14 +132,15 @@ export class ActionButtonManager {
     }
 
     /**
-     * Simple helper to unify debug logging.
-     * If you want to disable debugging, comment out this method’s content
-     * or wrap in a condition check.
+     * Small helper for debug logging.
      */
     private debugLog(...args: any[]): void {
         Logger.debug('', ...args);
     }
 
+    /**
+     * Control visibility of all toggle-block-buttons across the UI.
+     */
     public setButtonsVisibility(visible: boolean): void {
         const buttons = document.querySelectorAll('.toggle-block-button');
         buttons.forEach((button) => {
@@ -200,8 +148,118 @@ export class ActionButtonManager {
         });
     }
 
+    /**
+     * Cleanup resources on destruction.
+     */
     public destroy(): void {
         this.buttonsFactory.destroy();
         // Additional cleanup if needed
+    }
+
+    // ------------------------------------------------------------
+    //                      REFACTORED METHODS
+    // ------------------------------------------------------------
+
+    /**
+     * Ensures the user is logged in before performing a block/unblock.
+     */
+    private checkLoginStatus(): boolean {
+        if (!this.isLoggedIn()) {
+            this.notificationManager.displayNotification(MESSAGES.LOGIN_REQUIRED_TO_BLOCK_USERS, 'error');
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Retrieves and validates the selected block list. Returns null if invalid.
+     */
+    private getSelectedBlockList(): string | null {
+        const selectedBlockList = this.getActiveBlockLists()[0];
+        if (!selectedBlockList) {
+            this.notificationManager.displayNotification(MESSAGES.PLEASE_SELECT_BLOCK_LIST, 'error');
+            return null;
+        }
+        return selectedBlockList;
+    }
+
+    /**
+     * Checks if the user is already blocked in any of the provided list URIs.
+     */
+    private async isAlreadyBlocked(
+        userHandle: string,
+        activeListUris: string[]
+    ): Promise<boolean> {
+        return await this.blockedUsersService.isUserBlocked(userHandle, [activeListUris[0]]);
+    }
+
+    /**
+     * Orchestrates the block flow (optimistic UI, API call, notifications).
+     */
+    private async blockUserFlow(
+        userHandle: string,
+        listUri: string,
+        alreadyBlocked: boolean
+    ): Promise<void> {
+        if (alreadyBlocked) {
+            Logger.debug(`User ${userHandle} is already blocked. Skipping re-block.`);
+            return;
+        }
+
+        // 1) Optimistic UI
+        this.debugLog(`Optimistic block -> ${userHandle}`);
+        const tempItem = { subject: { handle: userHandle, did: '' }, uri: 'pending' };
+        this.blockedUsersService.emit('blockedUserAdded', tempItem);
+
+        // 2) API call
+        this.debugLog(`Calling blueskyService.blockUser(...) for ${userHandle}`);
+        const response = await this.blueskyService.blockUser(userHandle, listUri);
+        if (!response) throw new Error(ERRORS.UNKNOWN_ERROR);
+
+        // 3) Update in memory + notify
+        this.debugLog(`API returned success for blocking ${userHandle}. Updating...`);
+        await this.blockedUsersService.addBlockedUserFromResponse(response, userHandle, listUri);
+        await this.onUserBlocked(userHandle);
+
+        // 4) Notification
+        Logger.time('getBlockListName');
+        const selectedBlockListName = await this.blueskyService.getBlockListName(listUri);
+        Logger.timeEnd('getBlockListName');
+        this.notificationManager.displayNotification(
+            MESSAGES.USER_BLOCKED_SUCCESS(userHandle, selectedBlockListName),
+            'success'
+        );
+    }
+
+    /**
+     * Orchestrates the unblock flow (API call, remove from data, notifications).
+     */
+    private async unblockUserFlow(
+        userHandle: string,
+        listUri: string,
+        alreadyBlocked: boolean
+    ): Promise<void> {
+        if (!alreadyBlocked) {
+            Logger.debug(`User ${userHandle} is not blocked. Skipping unblock.`);
+            return;
+        }
+
+        this.debugLog(`Calling removeBlockedUser(...) for ${userHandle}`);
+        await this.blockedUsersService.removeBlockedUser(userHandle, listUri);
+
+        this.notificationManager.displayNotification(
+            MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
+            'success'
+        );
+        await this.onUserUnblocked(userHandle);
+    }
+
+    /**
+     * Final cleanup to re-enable UI and stop performance tracking.
+     */
+    private finalizeBlockAction(blockButton: Button, userHandle: string): void {
+        Logger.timeEnd(`handleBlockUser: ${userHandle}`);
+        blockButton.setDisabled(false);
+        blockButton.removeClasses('loading');
     }
 }
