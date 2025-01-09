@@ -83,33 +83,50 @@ export class BlockedUsersIndexedDbRepository {
      * @param listUris An array of list URIs to restrict the check.
      * @returns Promise resolving to true if blocked in any of the specified lists, else false.
      */
-    public async isUserHandleBlocked(userHandle: string, listUris: string[]): Promise<boolean> {
-
+    public isUserHandleBlocked(userHandle: string, listUris: string[]): Promise<boolean> {
         return new Promise((resolve, reject) => {
-            if (!this.dbInstance || listUris.length === 0) return resolve(false);
-            
+            if (!this.dbInstance) {
+                // If DB isn't ready, assume not blocked
+                return resolve(false);
+            }
+
+            if (listUris.length === 0) {
+                // No lists specified, treat as not blocked
+                return resolve(false);
+            }
+
             const transaction = this.dbInstance.transaction(this.storeName, 'readonly');
             const store = transaction.objectStore(this.storeName);
             const index = store.index('userHandleListUriIndex');
 
-            const range = IDBKeyRange.bound([userHandle, listUris[0]], [userHandle, listUris[listUris.length - 1]]);
-            const request = index.openCursor(range);
-            request.onsuccess = (event) => {
-                const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-                while (cursor) {
-                    const [handle, uri] = cursor.key as [string, string];
-                    if (handle === userHandle && listUris.includes(uri)) {
-                        resolve(true);
-                        return;
-                    }
-                    cursor.continue();
-                }
-                resolve(false);
-            };
-            request.onerror = () => {
-                Logger.error('Failed to query userHandleListUriIndex:', request.error);
-                reject(request.error);
-            };
+            // Create a range that includes all combinations of userHandle with the specified listUris
+            const queryPromises = listUris.map(listUri => {
+                return new Promise<boolean>((res, rej) => {
+                    const range = IDBKeyRange.only([userHandle, listUri]);
+                    const request = index.openCursor(range);
+                    request.onsuccess = () => {
+                        const cursor = request.result;
+                        if (cursor) {
+                            res(true); // Found a matching record
+                        } else {
+                            res(false); // No matching record in this list
+                        }
+                    };
+                    request.onerror = () => {
+                        Logger.error('Failed to query userHandleListUriIndex:', request.error);
+                        rej(request.error);
+                    };
+                });
+            });
+
+            Promise.all(queryPromises)
+                .then(results => {
+                    // If any of the results is true, the user is blocked in at least one list
+                    resolve(results.includes(true));
+                })
+                .catch(error => {
+                    reject(error);
+                });
         });
     }
 
