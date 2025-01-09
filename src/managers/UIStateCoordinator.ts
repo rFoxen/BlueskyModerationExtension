@@ -6,7 +6,7 @@ import {PostScanner} from '@src/components/posts/PostScanner';
 import {SlideoutManager} from '@src/components/slideout/SlideoutManager';
 import {BlueskyService} from '@src/services/BlueskyService';
 import {BlockedUsersService} from '@src/services/BlockedUsersService';
-import {MESSAGES, STORAGE_KEYS} from '@src/constants/Constants';
+import {MESSAGES, ERRORS, STORAGE_KEYS} from '@src/constants/Constants';
 import Logger from '@src/utils/logger/Logger';
 
 /**
@@ -57,11 +57,11 @@ export class UIStateCoordinator {
 
         // Listen for loginFailed and logoutFailed from BlueskyService
         this.blueskyService.on('loginFailed', () => {
-            this.notificationManager.displayNotification(MESSAGES.LOGIN_FAILED, 'error');
+            this.notificationManager.displayNotification(ERRORS.LOGIN_FAILED, 'error');
             this.updateUI();
         });
         this.blueskyService.on('logoutFailed', () => {
-            this.notificationManager.displayNotification(MESSAGES.LOGOUT_FAILED, 'error');
+            this.notificationManager.displayNotification(ERRORS.LOGOUT_FAILED, 'error');
             this.updateUI();
         });
         this.blueskyService.on('sessionUpdated', (session) => {
@@ -182,7 +182,7 @@ export class UIStateCoordinator {
             this.notificationManager.displayNotification(MESSAGES.LOGIN_SUCCESS, 'success');
         } else {
             Logger.debug('UIStateCoordinator: Login failed');
-            this.slideoutManager.displayFormFeedback(MESSAGES.LOGIN_FAILED, 'danger');
+            this.slideoutManager.displayFormFeedback(ERRORS.LOGIN_FAILED, 'danger');
         }
     }
 
@@ -199,7 +199,7 @@ export class UIStateCoordinator {
             this.blockedUsersUI = null;
         } else {
             Logger.debug('UIStateCoordinator: Logout failed');
-            this.notificationManager.displayNotification(MESSAGES.LOGOUT_FAILED, 'error');
+            this.notificationManager.displayNotification(ERRORS.LOGOUT_FAILED, 'error');
         }
     }
 
