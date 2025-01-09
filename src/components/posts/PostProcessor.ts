@@ -332,16 +332,14 @@ export class PostProcessor {
 
 
     private async addActionButtons(wrapper: HTMLElement, profileHandle: string): Promise<void> {
-        const activeListUris = this.getActiveBlockLists();
-        const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, [activeListUris[0]]);
+        const isUserBlocked = await this.isUserBlocked(profileHandle);
         const buttonContainer = this.actionButtonManager.createButtons(profileHandle, isUserBlocked);
         wrapper.appendChild(buttonContainer);
     }
 
+
     private async addAccountFreshness(wrapper: HTMLElement, profileHandle: string): Promise<void> {
-        const freshnessElement = document.createElement('div');
-        freshnessElement.className = 'account-freshness';
-        freshnessElement.textContent = 'Loading...';
+        const freshnessElement = this.createFreshnessElement();
         wrapper.appendChild(freshnessElement);
         await this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
     }
@@ -357,40 +355,48 @@ export class PostProcessor {
      * Called when the user is blocked or unblocked, to update style & button text
      */
     public updatePostsByUser(profileHandle: string, isBlocked: boolean): void {
-        const wrappers = document.querySelectorAll<HTMLElement>(
-            `.block-button-wrapper[data-profile-handle="${profileHandle}"]`
-        );
+        const wrappers = this.getWrappersByProfileHandle(profileHandle);
 
         wrappers.forEach((wrapper) => {
             if (isBlocked) {
                 this.applyBlockedStyle(wrapper);
+                wrapper.classList.remove('unblocked-post');
             } else {
-                // Remove all possible styles
-                wrapper.classList.remove(
-                    'blocked-post',
-                    'blocked-post--darkened',
-                    'blocked-post--hidden',
-                    'blocked-post--blurred'
-                );
+                this.removeBlockedStyles(wrapper);
+                wrapper.classList.add('unblocked-post');
             }
-            // Possibly highlight unblocked
-            wrapper.classList.toggle('unblocked-post', !isBlocked);
 
-            // Update block/unblock button text & style
-            const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement | null;
-            if (blockButton) {
-                if (isBlocked) {
-                    blockButton.textContent = 'Unblock';
-                    blockButton.classList.remove('btn-outline-secondary');
-                    blockButton.classList.add('btn-danger');
-                } else {
-                    blockButton.textContent = 'Block';
-                    blockButton.classList.remove('btn-danger');
-                    blockButton.classList.add('btn-outline-secondary');
-                }
-            }
+            this.updateBlockButton(wrapper, isBlocked);
         });
     }
+    private getWrappersByProfileHandle(profileHandle: string): NodeListOf<HTMLElement> {
+        return document.querySelectorAll<HTMLElement>(
+            `.block-button-wrapper[data-profile-handle="${profileHandle}"]`
+        );
+    }
+    private removeBlockedStyles(wrapper: HTMLElement): void {
+        wrapper.classList.remove(
+            'blocked-post',
+            'blocked-post--darkened',
+            'blocked-post--hidden',
+            'blocked-post--blurred'
+        );
+    }
+    private updateBlockButton(wrapper: HTMLElement, isBlocked: boolean): void {
+        const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement | null;
+        if (blockButton) {
+            if (isBlocked) {
+                blockButton.textContent = 'Unblock';
+                blockButton.classList.remove('btn-outline-secondary');
+                blockButton.classList.add('btn-danger');
+            } else {
+                blockButton.textContent = 'Block';
+                blockButton.classList.remove('btn-danger');
+                blockButton.classList.add('btn-outline-secondary');
+            }
+        }
+    }
+
 
     /**
      * Whether to show/hide the block/unblock buttons
@@ -406,49 +412,39 @@ export class PostProcessor {
      */
     public async refreshAllProcessedPosts(): Promise<void> {
         for (const post of this.processedPosts) {
-            // Each "post" is the original element. The actual wrapper is:
-            const wrapper = post.closest('.block-button-wrapper') as HTMLElement | null;
+            const wrapper = this.getWrapperForPost(post);
             if (!wrapper) continue;
 
             const profileHandle = wrapper.getAttribute('data-profile-handle');
             if (!profileHandle) continue;
 
-            const activeListUris = this.getActiveBlockLists();
-            const isUserBlocked = await this.blockedUsersService.isUserBlocked(profileHandle, activeListUris);
-
-            // Re-apply or remove blocked style
-            if (isUserBlocked) {
-                this.applyBlockedStyle(wrapper);
-                wrapper.classList.remove('unblocked-post');
-            } else {
-                wrapper.classList.remove(
-                    'blocked-post',
-                    'blocked-post--darkened',
-                    'blocked-post--hidden',
-                    'blocked-post--blurred'
-                );
-                wrapper.classList.add('unblocked-post');
-            }
-
-            // Also update block/unblock button text
-            const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement | null;
-            if (blockButton) {
-                if (isUserBlocked) {
-                    blockButton.textContent = 'Unblock';
-                    blockButton.classList.remove('btn-outline-secondary');
-                    blockButton.classList.add('btn-danger');
-                } else {
-                    blockButton.textContent = 'Block';
-                    blockButton.classList.remove('btn-danger');
-                    blockButton.classList.add('btn-outline-secondary');
-                }
-            }
+            const isUserBlocked = await this.isUserBlocked(profileHandle);
+            this.updateWrapperStyleAndButton(wrapper, isUserBlocked);
         }
     }
+    private getWrapperForPost(post: HTMLElement): HTMLElement | null {
+        return post.closest('.block-button-wrapper') as HTMLElement | null;
+    }
+    private updateWrapperStyleAndButton(wrapper: HTMLElement, isBlocked: boolean): void {
+        if (isBlocked) {
+            this.applyBlockedStyle(wrapper);
+            wrapper.classList.remove('unblocked-post');
+        } else {
+            this.removeBlockedStyles(wrapper);
+            wrapper.classList.add('unblocked-post');
+        }
+
+        this.updateBlockButton(wrapper, isBlocked);
+    }
+
 
     public destroy(): void {
         this.actionButtonManager.destroy();
         this.accountFreshnessManager.destroy();
+        this.clearProcessedPosts();
+    }
+
+    private clearProcessedPosts(): void {
         this.processedPosts.clear();
     }
 }
