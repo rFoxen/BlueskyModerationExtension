@@ -1,7 +1,9 @@
+import Logger from '@src/utils/logger/Logger';
 import { BskyAgent } from '@atproto/api';
 import { STORAGE_KEYS, ERRORS } from '@src/constants/Constants';
 import { AuthenticationError } from '../errors/CustomErrors';
 import { ErrorService } from '../errors/ErrorService';
+import {EventEmitter} from "../../utils/events/EventEmitter";
 
 interface BskySessionData {
     accessJwt: string;
@@ -15,46 +17,80 @@ interface BskySessionData {
 /**
  * Manages session, handling login, logout, and session refresh logic.
  */
-export class SessionService {
+export class SessionService extends EventEmitter {
     private agent: BskyAgent;
     private errorService: ErrorService;
 
     constructor(agent: BskyAgent, errorService: ErrorService) {
+        super();
         this.agent = agent;
         this.errorService = errorService;
     }
 
     public resumeSessionFromStorage(): void {
-        const sessionData = localStorage.getItem(STORAGE_KEYS.BLUESKY_SESSION);
+        const sessionData = this.getSessionDataFromStorage();
         if (sessionData) {
-            try {
-                const parsed = JSON.parse(sessionData);
-                this.agent.resumeSession(parsed);
-            } catch {
-                // If invalid, clear localStorage data
-                localStorage.removeItem(STORAGE_KEYS.BLUESKY_SESSION);
-            }
+            this.tryResumeSession(sessionData);
         }
     }
+
+    private getSessionDataFromStorage(): string | null {
+        return localStorage.getItem(STORAGE_KEYS.BLUESKY_SESSION);
+    }
+
+    private tryResumeSession(sessionData: string): void {
+        try {
+            const parsed = JSON.parse(sessionData);
+            this.agent.resumeSession(parsed);
+        } catch (error) {
+            Logger.warn('Invalid session data. Clearing stored session.', error);
+            this.clearSessionFromStorage();
+        }
+    }
+
+    private clearSessionFromStorage(): void {
+        localStorage.removeItem(STORAGE_KEYS.BLUESKY_SESSION);
+    }
+
 
     public async login(username: string, password: string): Promise<boolean> {
         try {
-            await this.agent.login({ identifier: username, password });
+            await this.performLogin(username, password);
             return true;
         } catch (error) {
+            this.handleLoginError(error);
             return false;
         }
     }
 
+    private async performLogin(username: string, password: string): Promise<void> {
+        await this.agent.login({ identifier: username, password });
+    }
+
+    private handleLoginError(error: any): void {
+        Logger.error('Login failed:', error);
+        this.emit('loginFailed', error);
+    }
+
+
     public async logout(): Promise<boolean> {
         try {
-            await this.agent.logout();
-            // Clear local storage on logout
-            localStorage.removeItem(STORAGE_KEYS.BLUESKY_SESSION);
+            await this.performLogout();
+            this.clearSessionFromStorage();
             return true;
         } catch (error) {
+            this.handleLogoutError(error);
             return false;
         }
+    }
+
+    private async performLogout(): Promise<void> {
+        await this.agent.logout();
+    }
+
+    private handleLogoutError(error: any): void {
+        Logger.error('Logout failed:', error);
+        this.emit('logoutFailed', error);
     }
 
     public isLoggedIn(): boolean {
@@ -70,33 +106,62 @@ export class SessionService {
      */
     public persistSession(evt: string, session?: any): void {
         if (session) {
-            localStorage.setItem(STORAGE_KEYS.BLUESKY_SESSION, JSON.stringify(session));
+            this.saveSessionToStorage(session);
         } else {
-            localStorage.removeItem(STORAGE_KEYS.BLUESKY_SESSION);
+            this.clearSessionFromStorage();
         }
     }
 
+    private saveSessionToStorage(session: any): void {
+        try {
+            const serializedSession = JSON.stringify(session);
+            localStorage.setItem(STORAGE_KEYS.BLUESKY_SESSION, serializedSession);
+        } catch (error) {
+            Logger.error('Failed to serialize session data:', error);
+            this.emit('error', ERRORS.FAILED_TO_SAVE_SESSION);
+        }
+    }
+    
     /**
      * Attempt to refresh the session if refreshJwt is present.
      * Returns true if refresh succeeded, false otherwise.
      */
     public async tryRefreshSession(): Promise<boolean> {
-        if (!this.agent.session?.refreshJwt) return false;
+        if (!this.hasRefreshToken()) return false;
         try {
-            // BskyAgent doesn't provide an official "refreshSession" method publicly,
-            // but we can call .sessionManager.refreshSession().
-            await (this.agent as any).sessionManager.refreshSession();
-            // If we got here, refresh was successful. Persist new session data.
-            if (this.agent.session) {
-                localStorage.setItem(
-                    STORAGE_KEYS.BLUESKY_SESSION,
-                    JSON.stringify(this.agent.session)
-                );
-            }
+            await this.refreshAgentSession();
+            this.persistCurrentSession();
             return true;
-        } catch {
+        } catch (error) {
+            this.handleRefreshSessionError(error);
             return false;
         }
+    }
+
+    private hasRefreshToken(): boolean {
+        return !!this.agent.session?.refreshJwt;
+    }
+
+    private async refreshAgentSession(): Promise<void> {
+        // Casting to any due to lack of public refreshSession method
+        await (this.agent as any).sessionManager.refreshSession();
+    }
+
+    private persistCurrentSession(): void {
+        if (this.agent.session) {
+            try {
+                const serializedSession = JSON.stringify(this.agent.session);
+                localStorage.setItem(STORAGE_KEYS.BLUESKY_SESSION, serializedSession);
+            } catch (error) {
+                Logger.error('Failed to persist refreshed session:', error);
+                this.emit('error', ERRORS.FAILED_TO_SAVE_SESSION);
+            }
+        }
+    }
+
+    private handleRefreshSessionError(error: any): void {
+        Logger.error('Session refresh failed:', error);
+        this.emit('error', ERRORS.SESSION_EXPIRED);
     }
 
     /**
@@ -104,9 +169,16 @@ export class SessionService {
      */
     public ensureAuthenticated(): void {
         if (!this.isLoggedIn()) {
-            throw this.errorService.createAuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
+            this.handleUnauthenticatedAccess();
         }
     }
+
+    private handleUnauthenticatedAccess(): never {
+        const error = this.errorService.createAuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
+        Logger.warn('Unauthenticated access attempted.');
+        throw error;
+    }
+
 
     /**
      * Checks if token is near or past expiry; if so, tries to refresh first.
@@ -114,35 +186,38 @@ export class SessionService {
      */
     public async ensureAccessTokenFresh(): Promise<void> {
         this.ensureAuthenticated();
+        const session = this.getSessionData();
+        const decodedToken = this.decodeAccessToken(session.accessJwt);
+        if (decodedToken && this.shouldRefreshToken(decodedToken.exp)) {
+            const refreshed = await this.tryRefreshSession();
+            if (!refreshed) {
+                this.handleSessionExpiry();
+            }
+        }
+    }
 
-        // Example of reading typical "exp" property if stored. Adjust to your session structure:
+    private getSessionData(): BskySessionData {
         const session = this.agent.session as BskySessionData | undefined;
         if (!session || !session.accessJwt) {
             throw this.errorService.createAuthenticationError(ERRORS.USER_NOT_AUTHENTICATED);
         }
+        return session;
+    }
 
-        // If you are storing "exp" or "expiresAt" in the session, let's parse it:
-        // For demonstration, let's assume we store 'exp' in the session in seconds (JWT style).
-        // If not, you might not be able to do a local check. 
-        const decoded = parseJwt(session.accessJwt); // see parseJwt helper below
-        if (!decoded || !decoded.exp) {
-            // If we can't parse or no exp in the token, we skip the local check
-            // and rely on server 401 handling. Or attempt refresh anyway.
-            return;
-        }
+    private decodeAccessToken(token: string): any | null {
+        return parseJwt(token);
+    }
 
-        // exp is in seconds, let's compare to current time in seconds
+    private shouldRefreshToken(expiration: number): boolean {
         const now = Math.floor(Date.now() / 1000);
-        const delta = decoded.exp - now;
+        const bufferTime = 60; // seconds
+        return (expiration - now) < bufferTime;
+    }
 
-        // For example, refresh if token expires in the next 60 seconds
-        if (delta < 60) {
-            // Attempt a refresh
-            const refreshed = await this.tryRefreshSession();
-            if (!refreshed) {
-                throw this.errorService.createAuthenticationError(ERRORS.SESSION_EXPIRED);
-            }
-        }
+    private handleSessionExpiry(): never {
+        const error = this.errorService.createAuthenticationError(ERRORS.SESSION_EXPIRED);
+        Logger.warn('Session expired after failed refresh attempt.');
+        throw error;
     }
 
     public getAgent(): BskyAgent {
