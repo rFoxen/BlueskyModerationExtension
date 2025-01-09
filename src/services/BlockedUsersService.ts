@@ -112,7 +112,7 @@ export class BlockedUsersService extends EventEmitter {
     }
 
     private async clearAndPersistBlockedUsers(listUri: string, blockedUsers: BlockedUser[]): Promise<void> {
-        await this.blockedUsersRepo.clearAll(listUri);
+        await this.blockedUsersRepo.clearStoreByListUri(listUri);
         const bulkItems = this.transformBlockedUsersForBulk(listUri, blockedUsers);
         await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
     }
