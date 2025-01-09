@@ -38,17 +38,17 @@ export class AccountFreshnessManager {
                 }
 
                 const postCountText =
-                    postsCount !== null ? `${postsCount} post${postsCount !== 1 ? 's' : ''}` : 'Unknown posts count';
+                    postsCount !== null ? `${postsCount} post${postsCount !== 1 ? 's' : ''}` : ERRORS.POST_COUNT_ERROR;
 
-                element.textContent = `Account age: ${accountAgeText}, ${postCountText}`;
+                element.textContent = LABELS.ACCOUNT_FRESHNESS(accountAgeText, postCountText);
                 element.style.color = this.getFreshnessColor(diffInDays);
             } else {
-                element.textContent = 'Account age: Unknown, posts count: Unknown';
+                element.textContent = LABELS.ACCOUNT_FRESHNESS_UNKNOWN;
                 element.style.color = 'gray';
             }
         } catch (error) {
-            Logger.error(`Error fetching account freshness for ${profileHandle}:`, error);
-            element.textContent = 'Account age: Error, posts count: Error';
+            Logger.error(ERRORS.FAILED_TO_LOAD_FRESHNESS_DATA(profileHandle), error);
+            element.textContent = ERRORS.ACCOUNT_FRESHNESS_ERROR;
             element.style.color = 'gray';
         }
     }
