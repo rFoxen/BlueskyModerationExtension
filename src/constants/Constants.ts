@@ -28,6 +28,7 @@ export const LABELS = {
     LOGIN: 'Login',
     LOGOUT: 'Logout',
     REFRESH: '↻',
+    OPTIONS: '⚙',
     SWITCH_THEME: 'Switch Theme',
     BLOCK_LIST_SELECTION: 'Block List Selection")',
     BLOCK_LIST_SELECTION_INFO: 'Select Block List (Used when you click "Block")',
