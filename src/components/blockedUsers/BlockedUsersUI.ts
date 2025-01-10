@@ -1,3 +1,6 @@
+// File: BlockedUsersUI.ts
+// Path: C:/Users/benne/RiderProjects/BlueskyModerationExtension/src/components/blockedUsers/BlockedUsersUI.ts
+
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
@@ -19,11 +22,11 @@ export class BlockedUsersUI {
 
     private blockedUsersPage: number = 1;
     private readonly blockedUsersPageSize: number = 10;
+
     private currentBlockedUsersData: any[] = [];
 
     private domEventHandlers: { [key: string]: EventListener } = {};
     private serviceEventHandlers: { [key: string]: (...args: any[]) => void } = {};
-    private processedElements: WeakSet<HTMLElement> = new WeakSet();
 
     private lastRenderedData: any[] = [];
     private lastRenderedPage: number = -1;
@@ -43,10 +46,8 @@ export class BlockedUsersUI {
             blockListDropdown,
             isLoggedIn
         );
-
         this.initializeView(blockedUsersSectionId);
         this.initializeItemFactory();
-
         this.initializeEventListeners();
         this.view.applySavedToggleState();
         this.subscribeToServiceEvents();
@@ -83,11 +84,12 @@ export class BlockedUsersUI {
         this.addDomEventListeners();
     }
 
-
     public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
         Logger.time(`loadBlockedUsersUI => ${selectedUri}`);
         this.view.showLoading();
         await this.blockedUsersService.loadBlockedUsers(selectedUri);
+        // Clear the search input after loading the new block list
+        this.view.clearSearchInput();
         Logger.timeEnd(`loadBlockedUsersUI => ${selectedUri}`);
     }
 
@@ -104,13 +106,10 @@ export class BlockedUsersUI {
             this.blockedUsersService.off(event, handler);
         }
         this.serviceEventHandlers = {};
-
         for (const [eventKey, handler] of Object.entries(this.domEventHandlers)) {
             this.view.removeEventListener(eventKey, handler);
         }
         this.domEventHandlers = {};
-
-        this.processedElements = new WeakSet();
         this.view.destroy();
     }
 
@@ -232,7 +231,6 @@ export class BlockedUsersUI {
         }
     }
 
-
     private async refreshBlockedUsers(): Promise<void> {
         const selectedUri = this.blockListDropdown.getSelectedValue();
         if (!selectedUri) {
@@ -265,7 +263,6 @@ export class BlockedUsersUI {
         if (this.shouldSkipRendering()) {
             return;
         }
-
         const currentPageData = this.getCurrentPageData();
         await this.renderCurrentPage(currentPageData);
         this.updatePaginationControls(this.currentBlockedUsersData.length);
@@ -303,8 +300,6 @@ export class BlockedUsersUI {
         this.lastRenderedData = [...this.currentBlockedUsersData];
         this.lastRenderedPage = this.blockedUsersPage;
     }
-
-
 
     private arraysEqual(arr1: any[], arr2: any[]): boolean {
         if (arr1.length !== arr2.length) return false;
@@ -412,7 +407,6 @@ export class BlockedUsersUI {
         return item.subject.handle || item.subject.did || LABELS.UNKNOWN_USER;
     }
 
-
     private removeDuplicateUser(newItem: any): void {
         const newHandle = this.getUserHandle(newItem);
         this.currentBlockedUsersData = this.currentBlockedUsersData.filter((existing) => {
@@ -451,7 +445,6 @@ export class BlockedUsersUI {
             // return a no-op element or throw, depending on your needs
             throw new Error('Invalid blocked user item data');
         }
-        
         const listItem = await this.itemFactory.create(newItem);
         listItem.setAttribute('data-user-handle', this.getUserHandle(newItem));
         return listItem;
@@ -469,7 +462,6 @@ export class BlockedUsersUI {
         const listContainer = this.view.getListContainerElement();
         listContainer.insertAdjacentElement('afterbegin', listItem);
     }
-
 
     private removeUserFromUI(userHandle: string): void {
         Logger.time(`removeUserFromUI => ${userHandle}`);
@@ -511,5 +503,4 @@ export class BlockedUsersUI {
         const currentPageData = this.currentBlockedUsersData.slice(startIndex, endIndex);
         return currentPageData.length === 0;
     }
-
 }

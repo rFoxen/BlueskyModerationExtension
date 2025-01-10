@@ -1,0 +1,14 @@
+/* Highlight class for search input */
+.highlight {
+    animation: highlightBackground 0.5s ease-in-out;
+}
+
+/* Keyframes for background color transition */
+@keyframes highlightBackground {
+    0% {
+        background-color: #fff3cd; /* Light yellow */
+    }
+    100% {
+        background-color: white; /* Original background */
+    }
+}

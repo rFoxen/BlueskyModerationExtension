@@ -107,7 +107,32 @@ export class BlockedUsersView {
             this.collapseSection();
         }
     }
+    /**
+     * Clears the search input field and triggers the search handler.
+     */
+    public clearSearchInput(): void {
+        const hasQuery = this.searchInput.value.trim() !== '';
 
+        if (hasQuery) {
+            this.searchInput.value = '';
+            const event = new Event('input');
+            this.searchInput.dispatchEvent(event);
+
+            // Highlight the search input to indicate it has been cleared
+            this.highlightSearchInput();
+        }
+    }
+
+    /**
+     * Briefly highlights the search input field.
+     */
+    private highlightSearchInput(): void {
+        this.searchInput.classList.add('highlight');
+        setTimeout(() => {
+            this.searchInput.classList.remove('highlight');
+        }, 500); // Highlight for 500ms
+    }
+    
     public showEmptyState(): void {
         this.blockedUsersList.innerHTML = '';
         const noUsersItem = document.createElement('div');

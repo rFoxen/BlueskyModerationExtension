@@ -30,7 +30,7 @@ export const LABELS = {
     REFRESH: '↻',
     OPTIONS: '⚙',
     SWITCH_THEME: 'Switch Theme',
-    BLOCK_LIST_SELECTION: 'Block List Selection")',
+    BLOCK_LIST_SELECTION: 'Block List Selection',
     BLOCK_LIST_SELECTION_INFO: 'Select Block List (Used when you click "Block")',
     ADDITIONAL_BLOCK_LISTS: 'Additional Block Lists for Styling',
     ADDITIONAL_BLOCK_LISTS_INFO: 'These lists won\'t be used for block/unblock, but any user found in them will be styled as "blocked" in your feed.',
