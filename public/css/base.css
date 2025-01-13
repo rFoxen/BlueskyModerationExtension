@@ -105,9 +105,8 @@ a:hover {
 
 /* NEW: Additional classes for blocked post appearance */
 .blocked-post--none {
-    opacity: 0.2;
-    transition: opacity 0.3s ease;
 }
+
 /* Darkened style: darken the content */
 .blocked-post--darkened {
     opacity: 0.2;

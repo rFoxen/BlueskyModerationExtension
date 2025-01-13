@@ -219,7 +219,21 @@
                     role="tabpanel"
                     aria-labelledby="blocked-users-tab"
             >
-
+                <!-- Freshness Toggle -->
+                <div id="freshness-toggle-section" class="mt-3">
+                    <div class="form-check form-switch">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="freshness-toggle"
+                                checked
+                                aria-label="{{ariaLabels.TOGGLE_FRESHNESS}}"
+                        />
+                        <label class="form-check-label" for="freshness-toggle">
+                            {{labels.SHOW_FRESHNESS}}
+                        </label>
+                    </div>
+                </div>
                 <!-- Block Buttons Toggle -->
                 <div id="block-buttons-toggle-section" class="mt-3">
                     <div class="form-check form-switch">
@@ -232,6 +246,21 @@
                         />
                         <label class="form-check-label" for="block-buttons-toggle">
                             {{labels.SHOW_BLOCK_BUTTONS}}
+                        </label>
+                    </div>
+                </div>
+                <!-- Report Buttons Toggle -->
+                <div id="report-buttons-toggle-section" class="mt-3">
+                    <div class="form-check form-switch">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="report-buttons-toggle"
+                                checked
+                                aria-label="{{ariaLabels.TOGGLE_REPORT_BUTTONS}}"
+                        />
+                        <label class="form-check-label" for="report-buttons-toggle">
+                            {{labels.SHOW_REPORT_BUTTONS}}
                         </label>
                     </div>
                 </div>
@@ -265,8 +294,8 @@
                 <div id="block-post-style-section" class="mt-3">
                     <label for="block-post-style-select" class="form-label">Blocked Post Appearance</label>
                     <select id="block-post-style-select" class="form-select">
-                        <option value="darkened" selected>Darkened (default)</option>
                         <option value="none">None</option>
+                        <option value="darkened" selected>Darkened (default)</option>
                         <option value="hidden">Hidden</option>
                         <option value="blurred">Blurred</option>
                     </select>

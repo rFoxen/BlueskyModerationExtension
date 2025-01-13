@@ -24,6 +24,8 @@ export class PostProcessor {
     private accountFreshnessManager: AccountFreshnessManager;
 
     private blockButtonsVisible: boolean = true;
+    private reportButtonsVisible: boolean = true;
+    private freshnessVisible: boolean = true;
     private blockedPostStyle: string = 'darkened'; // default
 
     constructor(
@@ -305,7 +307,7 @@ export class PostProcessor {
         this.accountFreshnessManager.displayAccountFreshness(freshnessElement, profileHandle);
 
         // Handle visibility of block buttons
-        this.handleBlockButtonsVisibility(wrapper);
+        this.handleElementVisibility(wrapper);
     }
 
     private createFreshnessElement(): HTMLElement {
@@ -332,11 +334,23 @@ export class PostProcessor {
         }
     }
 
-    private handleBlockButtonsVisibility(wrapper: HTMLElement): void {
+    private handleElementVisibility(wrapper: HTMLElement): void {
         if (!this.blockButtonsVisible) {
             const blockButton = wrapper.querySelector('.toggle-block-button') as HTMLElement;
             if (blockButton) {
                 blockButton.style.display = 'none';
+            }
+        }
+        if (!this.reportButtonsVisible) {
+            const reportButton = wrapper.querySelector('.report-user-button') as HTMLElement;
+            if (reportButton) {
+                reportButton.style.display = 'none';
+            }
+        }
+        if (!this.freshnessVisible) {
+            const accountFreshness = wrapper.querySelector('.account-freshness') as HTMLElement;
+            if (accountFreshness) {
+                accountFreshness.style.display = 'none';
             }
         }
     }
@@ -427,7 +441,17 @@ export class PostProcessor {
 
     public setBlockButtonsVisibility(visible: boolean): void {
         this.blockButtonsVisible = visible;
-        this.actionButtonManager.setButtonsVisibility(visible);
+        this.actionButtonManager.setBlockButtonsVisibility(visible);
+    }
+
+    public setReportButtonsVisibility(visible: boolean): void {
+        this.reportButtonsVisible = visible;
+        this.actionButtonManager.setReportButtonsVisibility(visible);
+    }
+
+    public setFreshnessVisibility(visible: boolean): void {
+        this.freshnessVisible = visible;
+        this.actionButtonManager.setFreshnessVisibility(visible);
     }
 
     public async refreshAllProcessedPosts(): Promise<void> {

@@ -14,6 +14,8 @@ export class SlideoutView {
     public blockListsSection: HTMLElement;
     public closeSlideoutButton: HTMLElement;
     public blockButtonsToggle: HTMLInputElement;
+    public reportButtonsToggle: HTMLInputElement;
+    public freshnessToggle: HTMLInputElement;
     public additionalSection: HTMLElement;
 
     public prependRadio: HTMLInputElement;
@@ -40,6 +42,8 @@ export class SlideoutView {
 
         this.closeSlideoutButton = document.getElementById('close-slideout')!;
         this.blockButtonsToggle = document.getElementById('block-buttons-toggle') as HTMLInputElement;
+        this.reportButtonsToggle = document.getElementById('report-buttons-toggle') as HTMLInputElement;
+        this.freshnessToggle = document.getElementById('freshness-toggle') as HTMLInputElement;
         
         // Initialize new tab references
         this.tabList = this.slideoutElement.querySelector('#slideoutTabs')!;

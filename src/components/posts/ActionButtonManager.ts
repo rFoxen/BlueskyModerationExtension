@@ -141,8 +141,20 @@ export class ActionButtonManager {
     /**
      * Control visibility of all toggle-block-buttons across the UI.
      */
-    public setButtonsVisibility(visible: boolean): void {
+    public setBlockButtonsVisibility(visible: boolean): void {
         const buttons = document.querySelectorAll('.toggle-block-button');
+        buttons.forEach((button) => {
+            (button as HTMLElement).style.display = visible ? '' : 'none';
+        });
+    }
+    public setReportButtonsVisibility(visible: boolean): void {
+        const buttons = document.querySelectorAll('.report-user-button');
+        buttons.forEach((button) => {
+            (button as HTMLElement).style.display = visible ? '' : 'none';
+        });
+    }
+    public setFreshnessVisibility(visible: boolean): void {
+        const buttons = document.querySelectorAll('.account-freshness');
         buttons.forEach((button) => {
             (button as HTMLElement).style.display = visible ? '' : 'none';
         });

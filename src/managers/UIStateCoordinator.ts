@@ -54,6 +54,12 @@ export class UIStateCoordinator {
         this.slideoutManager.on('blockButtonsToggle', (visible: boolean) => {
             this.postScanner?.setBlockButtonsVisibility(visible);
         });
+        this.slideoutManager.on('reportButtonsToggle', (visible: boolean) => {
+            this.postScanner?.setReportButtonsVisibility(visible);
+        });
+        this.slideoutManager.on('freshnessToggle', (visible: boolean) => {
+            this.postScanner?.setFreshnessVisibility(visible);
+        });
 
         this.slideoutManager.on('blockListSelectionChange', this.handleBlockListSelectionChange.bind(this));
         this.slideoutManager.on('refreshBlockLists', () => this.blockListDropdown?.refreshBlockLists());

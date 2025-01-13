@@ -98,7 +98,7 @@ export class SlideoutManager extends EventEmitter {
     private addEventListeners(): void {
         this.setupSlideoutUIEventListeners();
         this.setupThemeToggleListener();
-        this.setupBlockButtonsToggleListener();
+        this.setupToggleListener();
         this.setupScrollPreventionListeners();
         this.setupKeyDownListener();
         this.setupBlockPostStyleSelector();
@@ -116,13 +116,27 @@ export class SlideoutManager extends EventEmitter {
         this.addEventListenerToElement(this.view.themeToggleButton, 'click', () => this.emit('themeToggle'));
     }
 
-    private setupBlockButtonsToggleListener(): void {
-        const handler = () => {
+    private setupToggleListener(): void {
+        const blockHandler = () => {
             const isChecked = this.view.blockButtonsToggle.checked;
             this.stateManager.setBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, isChecked);
             this.emit('blockButtonsToggle', isChecked);
         };
-        this.addEventListenerToElement(this.view.blockButtonsToggle, 'change', handler);
+        this.addEventListenerToElement(this.view.blockButtonsToggle, 'change', blockHandler);
+
+        const reportHandler = () => {
+            const isChecked = this.view.reportButtonsToggle.checked;
+            this.stateManager.setBoolean(STORAGE_KEYS.REPORT_BUTTONS_TOGGLE_STATE, isChecked);
+            this.emit('reportButtonsToggle', isChecked);
+        };
+        this.addEventListenerToElement(this.view.reportButtonsToggle, 'change', reportHandler);
+        
+        const freshnessHandler = () => {
+            const isChecked = this.view.freshnessToggle.checked;
+            this.stateManager.setBoolean(STORAGE_KEYS.FRESHNESS_TOGGLE_STATE, isChecked);
+            this.emit('freshnessToggle', isChecked);
+        };
+        this.addEventListenerToElement(this.view.freshnessToggle, 'change', freshnessHandler);
     }
 
     private setupScrollPreventionListeners(): void {
@@ -276,6 +290,16 @@ export class SlideoutManager extends EventEmitter {
         const blockButtonsVisible = this.stateManager.getBoolean(STORAGE_KEYS.BLOCK_BUTTONS_TOGGLE_STATE, true);
         this.view.blockButtonsToggle.checked = blockButtonsVisible;
         this.emit('blockButtonsToggle', blockButtonsVisible);
+        
+        // Block Buttons Visibility
+        const reportButtonsVisible = this.stateManager.getBoolean(STORAGE_KEYS.REPORT_BUTTONS_TOGGLE_STATE, true);
+        this.view.reportButtonsToggle.checked = reportButtonsVisible;
+        this.emit('reportButtonsToggle', reportButtonsVisible);
+        
+        // Block Buttons Visibility
+        const freshnessVisible = this.stateManager.getBoolean(STORAGE_KEYS.FRESHNESS_TOGGLE_STATE, true);
+        this.view.freshnessToggle.checked = freshnessVisible;
+        this.emit('freshnessToggle', freshnessVisible);
 
         // Load saved blocked post style
         const savedStyle = localStorage.getItem(STORAGE_KEYS.BLOCKED_POST_STYLE) || 'darkened';

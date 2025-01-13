@@ -22,6 +22,8 @@ export class PostScanner {
     private postTypeDeterminer: PostTypeDeterminer;
     private userReporter: UserReporter;
     private blockButtonsVisible: boolean = true;
+    private reportButtonsVisible: boolean = true;
+    private freshnessVisible: boolean = true;
 
     constructor(
         notificationManager: NotificationManager,
@@ -98,6 +100,16 @@ export class PostScanner {
     public setBlockButtonsVisibility(visible: boolean): void {
         this.blockButtonsVisible = visible;
         this.postProcessor.setBlockButtonsVisibility(visible);
+    }
+
+    public setReportButtonsVisibility(visible: boolean): void {
+        this.reportButtonsVisible = visible;
+        this.postProcessor.setReportButtonsVisibility(visible);
+    }
+
+    public setFreshnessVisibility(visible: boolean): void {
+        this.freshnessVisible = visible;
+        this.postProcessor.setFreshnessVisibility(visible);
     }
 
     public destroy(): void {
