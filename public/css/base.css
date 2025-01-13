@@ -94,7 +94,20 @@ a:hover {
     flex-shrink: 0;
 }
 
+/* CSS Effect for Blocked Post */
+.blocked-post {
+}
+
+.unblocked-post {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
 /* NEW: Additional classes for blocked post appearance */
+.blocked-post--none {
+    opacity: 0.2;
+    transition: opacity 0.3s ease;
+}
 /* Darkened style: darken the content */
 .blocked-post--darkened {
     opacity: 0.2;

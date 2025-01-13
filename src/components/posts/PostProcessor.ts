@@ -80,6 +80,7 @@ export class PostProcessor {
     private getBlockedWrapperSelector(): string {
         const blockedClasses = [
             'blocked-post',
+            'blocked-post--none',
             'blocked-post--darkened',
             'blocked-post--hidden',
             'blocked-post--blurred',
@@ -92,6 +93,7 @@ export class PostProcessor {
     private resetBlockedClasses(wrapper: HTMLElement): void {
         wrapper.classList.remove(
             'blocked-post',
+            'blocked-post--none',
             'blocked-post--darkened',
             'blocked-post--hidden',
             'blocked-post--blurred'
@@ -100,6 +102,9 @@ export class PostProcessor {
 
     private applyBlockedStyle(wrapper: HTMLElement): void {
         switch (this.blockedPostStyle) {
+            case 'none':
+                wrapper.classList.add('blocked-post--none');
+                break;
             case 'hidden':
                 wrapper.classList.add('blocked-post--hidden');
                 break;
@@ -398,6 +403,7 @@ export class PostProcessor {
     private removeBlockedStyles(wrapper: HTMLElement): void {
         wrapper.classList.remove(
             'blocked-post',
+            'blocked-post--none',
             'blocked-post--darkened',
             'blocked-post--hidden',
             'blocked-post--blurred'
