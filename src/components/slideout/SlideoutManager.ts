@@ -40,9 +40,12 @@ export class SlideoutManager extends EventEmitter {
         super();
         this.initializeComponents();
         this.addEventListeners();
-        this.applySavedState();
         this.initializeTabListeners();
         this.subscribeToGlobalEvents();
+    }
+    
+    public initialize(): void {
+        this.applySavedState();
     }
 
     private initializeComponents(): void {

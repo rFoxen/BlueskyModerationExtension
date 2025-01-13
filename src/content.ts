@@ -9,6 +9,7 @@ import { UIStateCoordinator } from '@src/managers/UIStateCoordinator';
 import { SessionManager } from '@src/managers/SessionManager';
 import {AdditionalBlockListsDropdown} from "./components/blockedUsers/AdditionalBlockListsDropdown";
 import Logger from '@src/utils/logger/Logger';
+import {asDid} from "@atproto/api";
 
 /**
  * Main entry point for initializing our content script logic.
@@ -27,12 +28,16 @@ class ContentScript {
     constructor(
         notificationManager: NotificationManager,
         slideoutManager: SlideoutManager,
+        additionalBlockListsDropdown: AdditionalBlockListsDropdown,
+        uiStateCoordinator: UIStateCoordinator,
         themeManager: ThemeManager,
         blueskyService: BlueskyService,
         blockedUsersService: BlockedUsersService
     ) {
         this.notificationManager = notificationManager;
         this.slideoutManager = slideoutManager;
+        this.additionalBlockListsDropdown = additionalBlockListsDropdown;
+        this.uiStateCoordinator = uiStateCoordinator;
         this.themeManager = themeManager;
         this.blueskyService = blueskyService;
         this.blockedUsersService = blockedUsersService;
@@ -42,22 +47,6 @@ class ContentScript {
             this.blueskyService,
             this.notificationManager,
             this.performLogout.bind(this)
-        );
-        
-        this.additionalBlockListsDropdown = new AdditionalBlockListsDropdown(
-            'additional-block-lists-dropdown',
-            this.blueskyService
-        )
-
-        // Initialize UIStateCoordinator for orchestrating UI changes
-        this.uiStateCoordinator = new UIStateCoordinator(
-            this.slideoutManager,
-            this.additionalBlockListsDropdown,
-            this.notificationManager,
-            this.blueskyService,
-            this.blockedUsersService,
-            
-            () => this.blueskyService.isLoggedIn() // pass a function returning bool
         );
 
         this.initialize();
@@ -75,6 +64,8 @@ class ContentScript {
 
         // 2. Let the UIStateCoordinator handle website-specific UI
         this.uiStateCoordinator.initializeUIForSite(window.location.hostname);
+
+        this.slideoutManager.initialize();
 
         // 3. Sync UI with session state
         this.syncUIState();
@@ -124,9 +115,27 @@ const themeManager = new ThemeManager(themeToggleButton);
 const blueskyService = new BlueskyService();
 const blockedUsersService = new BlockedUsersService(blueskyService);
 
+const additionalBlockListsDropdown = new AdditionalBlockListsDropdown(
+    'additional-block-lists-dropdown',
+    blueskyService
+)
+
+// Initialize UIStateCoordinator for orchestrating UI changes
+const uiStateCoordinator = new UIStateCoordinator(
+    slideoutManager,
+    additionalBlockListsDropdown,
+    notificationManager,
+    blueskyService,
+    blockedUsersService,
+
+    () => blueskyService.isLoggedIn() // pass a function returning bool
+);
+
 new ContentScript(
     notificationManager,
     slideoutManager,
+    additionalBlockListsDropdown,
+    uiStateCoordinator,
     themeManager,
     blueskyService,
     blockedUsersService
