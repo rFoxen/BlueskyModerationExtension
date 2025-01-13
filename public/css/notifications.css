@@ -28,6 +28,10 @@
 .notification.error {
     background-color: var(--notification-error-bg);
 }
+.notification.warn {
+    color: #000;
+    background-color: var(--notification-warn-bg);
+}
 .notification.info {
     background-color: var(--notification-info-bg);
 }

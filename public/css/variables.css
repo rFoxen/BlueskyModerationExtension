@@ -68,6 +68,7 @@ body.dark-mode {
     /* Adjusted Notification Backgrounds for Dark Mode */
     --notification-success-bg: #4caf50;
     --notification-error-bg: #f44336;
+    --notification-warn-bg: #fff3cd;
     --notification-info-bg: #03a9f4;
     --notification-bg: #424242;
 

@@ -4,12 +4,8 @@ import { NotFoundError } from '@src/services/errors/CustomErrors';
 import { ERRORS, LABELS } from '@src/constants/Constants';
 import { BlockedUsersIndexedDbRepository } from '@src/services/db/BlockedUsersIndexedDbRepository';
 import Logger from '@src/utils/logger/Logger';
+import { BlockedUser } from 'types/ApiResponses';
 import { IndexedDbBlockedUser } from'types/IndexedDbBlockedUser';
-
-interface BlockedUser {
-    subject: { handle?: string; did: string };
-    uri: string; // "record URI" or rkey
-}
 
 /**
  * The BlockedUsersService now uses an in-memory array (`blockedUsersData`) as a

@@ -43,6 +43,11 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
         // 4) Create ApiService that uses SessionService + ErrorService
         this.apiService = new ApiService(this.sessionService, this.errorService);
 
+        // Listen to ApiService's rateLimitExceeded event and re-emit it
+        this.apiService.on('rateLimitExceeded', (data: { waitTime: number }) => {
+            this.emit('rateLimitExceeded', data);
+        });
+        
         // 5) Create CacheService for DID <-> Handle caching
         this.cacheService = new CacheService();
     }
@@ -149,6 +154,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 while (attempt < maxRetries && !success) {
                     try {
                         response = await this.apiService.fetchList(listUri, cursor, MAX_LIMIT);
+                        Logger.debug(response);
                         success = true;
                     } catch (error) {
                         attempt++;
@@ -158,7 +164,6 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
                             break; // Exit retry loop
                         }
-                        // Exponential backoff can be added here if desired
                     }
                 }
 

@@ -42,6 +42,9 @@ export class UIStateCoordinator {
 
         this.setupSlideoutEvents();
         this.subscribeToAdditionalListsEvents();
+
+        // Listen for rate limit exceeded events
+        this.blueskyService.on('rateLimitExceeded', this.handleRateLimitExceeded.bind(this));
     }
 
     private setupSlideoutEvents(): void {
@@ -225,7 +228,16 @@ export class UIStateCoordinator {
             this.postScanner.setBlockedPostStyle(newStyle);
         }
     }
-
+    
+    private handleRateLimitExceeded(data: { waitTime: number }): void {
+        const { waitTime } = data;
+        // Display a notification to the user
+        this.notificationManager.displayNotification(
+            MESSAGES.RATE_LIMIT_EXCEEDED(waitTime),
+            'warn'
+        );
+    }
+    
     public destroy(): void {
         this.blockedUsersUI?.destroy();
         this.postScanner?.destroy();

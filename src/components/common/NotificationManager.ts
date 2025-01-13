@@ -16,7 +16,7 @@ export class NotificationManager {
         document.body.appendChild(this.notificationContainer);
     }
 
-    public displayNotification(message: string, type: 'success' | 'error' | 'info'): void {
+    public displayNotification(message: string, type: 'success' | 'error' | 'info' | 'warn'): void {
         // If at max capacity, remove the oldest
         if (this.notifications.length >= this.MAX_NOTIFICATIONS) {
             const oldest = this.notifications.shift();
@@ -35,7 +35,7 @@ export class NotificationManager {
         }, this.DISPLAY_TIME);
     }
 
-    private createNotificationElement(message: string, type: 'success' | 'error' | 'info'): HTMLElement {
+    private createNotificationElement(message: string, type: 'success' | 'error' | 'info' | 'warn'): HTMLElement {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
 

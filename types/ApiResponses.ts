@@ -5,8 +5,15 @@ export interface FetchListResponse {
 
 export interface BlockedUser {
     subject: {
-        handle?: string;
+        createdAt?: string;
         did: string;
+        displayName?: string;
+        handle?: string;
+        viewer?:{
+            blockedBy: boolean;
+            blocking: string;
+            muted: boolean;
+        }
     };
     uri: string;
 }

@@ -10,7 +10,7 @@ export class RateLimitService {
     }
 
     public canMakeRequest(): boolean {
-        if (this.remaining === null) return true; // Assume allowed
+        if (this.remaining === null) return false; // Assume disallowed
         return this.remaining > 0;
     }
 

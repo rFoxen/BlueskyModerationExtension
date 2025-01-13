@@ -18,6 +18,7 @@ export const MESSAGES = {
     INVALID_REPORT_SELECTION: 'Invalid selection. Report cancelled.',
     ERROR_LOADING_BLOCKED_USERS: 'Error loading blocked users.',
     ERROR_REFRESHING_BLOCKED_USERS: 'Error refreshing blocked users.',
+    RATE_LIMIT_EXCEEDED: (waitTimeSeconds: number) => `Rate limit exceeded. Please wait ${waitTimeSeconds} seconds before retrying.`,
 };
 
 export const LABELS = {

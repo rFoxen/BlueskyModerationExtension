@@ -1,5 +1,6 @@
 import { BskyAgent } from '@atproto/api';
 import { API_ENDPOINTS, ERRORS } from '@src/constants/Constants';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { SessionService } from '../session/SessionService';
 import { RateLimitService } from '@src/services/RateLimitService';
 import { ErrorService } from '../errors/ErrorService';
@@ -11,7 +12,7 @@ import Logger from '@src/utils/logger/Logger';
  * ApiService is responsible for making authenticated requests.
  * We do a pre-check for token expiry by calling sessionService.ensureAccessTokenFresh().
  */
-export class ApiService {
+export class ApiService extends EventEmitter {
     private sessionService: SessionService;
     private errorService: ErrorService;
     private rateLimitService: RateLimitService;
@@ -22,6 +23,7 @@ export class ApiService {
         errorService: ErrorService,
         baseUrl: string = API_ENDPOINTS.SERVICE
     ) {
+        super();
         this.sessionService = sessionService;
         this.errorService = errorService;
         this.baseUrl = baseUrl;
@@ -41,7 +43,7 @@ export class ApiService {
             Logger.warn(`Rate limit exceeded. Waiting for ${waitTime}ms before retrying.`);
             await this.delay(waitTime);
         }
-        
+
         // Pre-check token expiry
         await this.sessionService.ensureAccessTokenFresh();
 
@@ -87,10 +89,10 @@ export class ApiService {
             const rateLimit = {
                 limit: response.headers.get('ratelimit-limit'),
                 remaining: response.headers.get('ratelimit-remaining'),
-                reset: response.headers.get('ratelimit-reset'),
+                reset: new Date(parseInt(response.headers.get('ratelimit-reset') || '-1')*1000).toLocaleTimeString(),
             };
             Logger.debug(`Rate Limit for ${endpoint}:`, rateLimit);
-            
+
             if (response.ok) {
                 Logger.timeEnd(`fetchWithAuth => ${endpoint}`);
                 return response.json();
@@ -100,16 +102,32 @@ export class ApiService {
             if (response.status === 429) {
                 Logger.warn(`Rate limit exceeded for ${endpoint}. Received 429 response.`);
 
-                // Attempt to parse 'Retry-After' header if available
-                const retryAfter = response.headers.get('retry-after');
-                let waitTime = 1000 * 2 ** retryCount; // Exponential backoff: 1s, 2s, 4s, ..., max 30s
-                if (retryAfter) {
-                    const retryAfterSeconds = parseInt(retryAfter, 10);
+                // Attempt to parse 'Retry-After' or 'ratelimit-reset' headers
+                const retryAfterHeader = response.headers.get('retry-after');
+                const rateLimitResetHeader = response.headers.get('ratelimit-reset');
+
+                let waitTime = 60000; // Default to 60 seconds
+
+                if (retryAfterHeader) {
+                    const retryAfterSeconds = parseInt(retryAfterHeader, 10);
                     if (!isNaN(retryAfterSeconds)) {
-                        waitTime = retryAfterSeconds * 1000;
+                        waitTime = retryAfterSeconds * 1000; // Convert to milliseconds
+                    }
+                } else if (rateLimitResetHeader) {
+                    const resetTimestamp = parseInt(rateLimitResetHeader, 10) * 1000; // Convert to milliseconds
+                    const currentTime = Date.now();
+                    const calculatedWait = resetTimestamp - currentTime;
+                    if (!isNaN(calculatedWait) && calculatedWait > 0) {
+                        waitTime = calculatedWait;
                     }
                 }
-                waitTime = Math.min(waitTime, 30000); // Cap at 30 seconds
+
+                // Ensure waitTime is within reasonable bounds (e.g., max 5 minutes)
+                waitTime = Math.min(waitTime, 300000); // 5 minutes
+
+                // Emit rateLimitExceeded event with wait time in seconds
+                const waitTimeSeconds = Math.ceil(waitTime / 1000);
+                this.emit('rateLimitExceeded', { waitTime: waitTimeSeconds });
 
                 Logger.warn(`Retrying after ${waitTime}ms (Attempt ${retryCount + 1}/${maxRetries})`);
 
