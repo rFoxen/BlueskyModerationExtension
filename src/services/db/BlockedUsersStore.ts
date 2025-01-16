@@ -39,8 +39,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     @MonitorPerformance
     public async getAll(): Promise<IndexedDbBlockedUser[]> {
         Logger.debug('[DEBUG-IDB] getAll => fetching all records');
-        const blockedUsers = await this.getAll();
-        return this.sortBlockedUsersDescending(blockedUsers);
+        const blockedUsers = await super.getAll(); // Correctly calling the parent method
+        const sortedUsers = this.sortBlockedUsersDescending(blockedUsers);
+        Logger.debug(`[DEBUG-IDB] getAll => Finished`);
+        return sortedUsers;
     }
 
     /**
