@@ -1,5 +1,6 @@
 /** File: BaseStore.ts */
 import Logger from '@src/utils/logger/Logger';
+import { MonitorPerformance } from '@src/utils/performance/MonitorPerformance';
 
 /**
  * A generic base class for IndexedDB stores.
@@ -15,6 +16,7 @@ export class BaseStore<T> {
      * Retrieves a record by its primary key.
      * @param key The primary key of the record.
      */
+    @MonitorPerformance
     public get(key: IDBValidKey): Promise<T | undefined> {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readonly');
@@ -35,6 +37,7 @@ export class BaseStore<T> {
     /**
      * Retrieves all records from the store.
      */
+    @MonitorPerformance
     public getAll(): Promise<T[]> {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readonly');
@@ -56,6 +59,7 @@ export class BaseStore<T> {
      * Adds or updates a record in the store.
      * @param record The record to add or update.
      */
+    @MonitorPerformance
     public put(record: T): Promise<void> {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
@@ -77,6 +81,7 @@ export class BaseStore<T> {
      * Deletes a record by its primary key.
      * @param key The primary key of the record to delete.
      */
+    @MonitorPerformance
     public delete(key: IDBValidKey): Promise<void> {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
@@ -97,6 +102,7 @@ export class BaseStore<T> {
     /**
      * Clears all records from the store.
      */
+    @MonitorPerformance
     public clear(): Promise<void> {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
@@ -120,6 +126,7 @@ export class BaseStore<T> {
      * @param range The IDBKeyRange to apply.
      * @param direction The direction of the cursor ('next', 'prev', etc.).
      */
+    @MonitorPerformance
     public openCursor(
         indexName: string,
         range: IDBKeyRange,
@@ -141,4 +148,4 @@ export class BaseStore<T> {
             };
         });
     }
-}
+} 

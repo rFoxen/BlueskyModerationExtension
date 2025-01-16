@@ -3,6 +3,7 @@ import Logger from '@src/utils/logger/Logger';
 import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import { IListMetadata, MetadataStore } from './MetadataStore';
 import { BaseStore } from './BaseStore';
+import { MonitorPerformance } from '@src/utils/performance/MonitorPerformance';
 
 /**
  * Manages read/write operations on the "blockedUsers" store.
@@ -24,6 +25,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * Retrieves all blocked users for a specific list URI, sorted in descending order.
      * @param listUri The URI of the block list.
      */
+    @MonitorPerformance
     public async getAllByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         Logger.debug(`[DEBUG-IDB] getAllByListUri => listUri="${listUri}"`);
         const blockedUsers = await this.queryByListUri(listUri);
@@ -34,9 +36,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     /**
      * Retrieves all blocked users across all lists, sorted in descending order.
      */
+    @MonitorPerformance
     public async getAll(): Promise<IndexedDbBlockedUser[]> {
         Logger.debug('[DEBUG-IDB] getAll => fetching all records');
-        const blockedUsers = await this.queryAll();
+        const blockedUsers = await this.getAll();
         return this.sortBlockedUsersDescending(blockedUsers);
     }
 
@@ -45,6 +48,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param listUri The URI of the block list.
      * @param userHandle The handle of the user.
      */
+    @MonitorPerformance
     public async getByUserHandle(
         listUri: string,
         userHandle: string
@@ -65,6 +69,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param page The page number for pagination.
      * @param pageSize The number of results per page.
      */
+    @MonitorPerformance
     public async searchByHandle(
         listUri: string,
         partialHandle: string,
@@ -88,6 +93,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param userHandle The handle of the user.
      * @param listUris An array of list URIs to check against.
      */
+    @MonitorPerformance
     public async isUserHandleBlocked(
         userHandle: string,
         listUris: string[]
@@ -112,6 +118,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param recordUri The record URI from the Bluesky API.
      * @param order The order position of the user.
      */
+    @MonitorPerformance
     public async addOrUpdate(
         listUri: string,
         userHandle: string,
@@ -137,6 +144,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param listUri The URI of the block list.
      * @param items An array of blocked user items.
      */
+    @MonitorPerformance
     public async addOrUpdateBulk(
         listUri: string,
         items: {
@@ -179,6 +187,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param listUri The URI of the block list.
      * @param userHandle The handle of the user to remove.
      */
+    @MonitorPerformance
     public async remove(listUri: string, userHandle: string): Promise<void> {
         Logger.debug(`[DEBUG-IDB] remove => userHandle="${userHandle}", listUri="${listUri}"`);
         const existing = await this.getByUserHandle(listUri, userHandle);
@@ -194,6 +203,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     /**
      * Clears all blocked users from the store and metadata.
      */
+    @MonitorPerformance
     public async clearAll(): Promise<void> {
         Logger.warn('[DEBUG-IDB] clearAll => clearing entire "blockedUsers" store...');
         await this.clear();
@@ -204,6 +214,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * Clears all blocked users from a specific list URI and resets its metadata.
      * @param listUri The URI of the block list to clear.
      */
+    @MonitorPerformance
     public async clearStoreByListUri(listUri: string): Promise<void> {
         Logger.debug(`[DEBUG-IDB] clearStoreByListUri => listUri="${listUri}"`);
         await this.deleteByListUriRange(listUri);
@@ -221,6 +232,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param page The page number.
      * @param pageSize The number of users per page.
      */
+    @MonitorPerformance
     public async getPageByListUri(
         listUri: string,
         page: number,
@@ -236,6 +248,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * Retrieves the count of blocked users in a specific list URI.
      * @param listUri The URI of the block list.
      */
+    @MonitorPerformance
     public async getCountByListUri(listUri: string): Promise<number> {
         Logger.debug(`[DEBUG-IDB] getCountByListUri => listUri="${listUri}"`);
         const meta = await this.metadataStore.getListMetadata(listUri);
@@ -246,6 +259,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * Retrieves the maximum order value in a specific list URI.
      * @param listUri The URI of the block list.
      */
+    @MonitorPerformance
     public async getMaxOrder(listUri: string): Promise<number> {
         Logger.debug(`[DEBUG-IDB] getMaxOrder => listUri="${listUri}"`);
         const meta = await this.metadataStore.getListMetadata(listUri);
@@ -260,6 +274,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * Queries blocked users by list URI using the 'listUriIndex'.
      * @param listUri The URI of the block list.
      */
+    @MonitorPerformance
     private async queryByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         return new Promise((resolve, reject) => {
             const index = 'listUriIndex';
@@ -281,19 +296,12 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         });
     }
 
-
-    /**
-     * Queries all blocked users using the inherited getAll method.
-     */
-    private async queryAll(): Promise<IndexedDbBlockedUser[]> {
-        return this.getAll();
-    }
-
     /**
      * Counts the number of blocked users matching the partial handle within a specific list URI.
      * @param listUri The URI of the block list.
      * @param normalizedPartialHandle The normalized (lowercase) partial handle.
      */
+    @MonitorPerformance
     private async getSearchCount(
         listUri: string,
         normalizedPartialHandle: string
@@ -324,6 +332,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param page The page number.
      * @param pageSize The number of users per page.
      */
+    @MonitorPerformance
     private async getSearchResults(
         listUri: string,
         normalizedPartialHandle: string,
@@ -374,6 +383,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param listUri The URI of the block list.
      * @param handle The partial handle.
      */
+    @MonitorPerformance
     private buildPartialHandleRange(listUri: string, handle: string): IDBKeyRange {
         const lowerBound = [listUri, handle];
         const upperBound = [listUri, handle + '\uffff'];
@@ -385,6 +395,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param userHandle The handle of the user.
      * @param listUris An array of list URIs to check against.
      */
+    @MonitorPerformance
     private async checkUserHandleInLists(
         userHandle: string,
         listUris: string[]
@@ -413,17 +424,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     // ---- Insertion/Updates ----
 
     /**
-     * Adds or updates a single blocked user record.
-     * @param data The blocked user data.
-     */
-    private async putRecord(data: IndexedDbBlockedUser): Promise<void> {
-        await this.put(data);
-    }
-
-    /**
      * Adds or updates multiple blocked user records in bulk.
      * @param dataItems An array of blocked user data items.
      */
+    @MonitorPerformance
     private async bulkPutRecords(dataItems: IndexedDbBlockedUser[]): Promise<void> {
         await new Promise<void>((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
@@ -442,17 +446,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     }
 
     /**
-     * Deletes a blocked user record by its ID.
-     * @param id The primary key ID of the record.
-     */
-    private async deleteRecord(id: string): Promise<void> {
-        await this.delete(id);
-    }
-
-    /**
      * Deletes all blocked user records within a specific list URI range.
      * @param listUri The URI of the block list.
      */
+    @MonitorPerformance
     private async deleteByListUriRange(listUri: string): Promise<void> {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
@@ -478,6 +475,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param page The page number.
      * @param pageSize The number of users per page.
      */
+    @MonitorPerformance
     private async paginateByListUri(
         listUri: string,
         page: number,
@@ -535,6 +533,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param existing The existing blocked user record, if any.
      * @param order The order value of the new or updated record.
      */
+    @MonitorPerformance
     private async updateMetadataAfterAddOrUpdate(
         listUri: string,
         existing: IndexedDbBlockedUser | null,
@@ -557,6 +556,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param newInserts The number of new inserts.
      * @param dataItems The array of blocked user data items.
      */
+    @MonitorPerformance
     private async updateMetadataAfterBulk(
         listUri: string,
         newInserts: number,
@@ -577,6 +577,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param listUri The URI of the block list.
      * @param removedUser The blocked user that was removed.
      */
+    @MonitorPerformance
     private async updateMetadataAfterRemove(
         listUri: string,
         removedUser: IndexedDbBlockedUser
@@ -607,6 +608,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param recordUri The record URI from the Bluesky API.
      * @param order The order position.
      */
+    @MonitorPerformance
     private constructBlockedUser(
         listUri: string,
         userHandle: string,
@@ -633,6 +635,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param listUri The URI of the block list.
      * @param dataItems The array of blocked user data items.
      */
+    @MonitorPerformance
     private async filterNewInserts(
         listUri: string,
         dataItems: IndexedDbBlockedUser[]
@@ -648,6 +651,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * Sorts blocked users in descending order based on their 'order' value.
      * @param blockedUsers The array of blocked users to sort.
      */
+    @MonitorPerformance
     private sortBlockedUsersDescending(
         blockedUsers: IndexedDbBlockedUser[]
     ): IndexedDbBlockedUser[] {

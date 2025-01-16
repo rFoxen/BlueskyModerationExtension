@@ -1,5 +1,6 @@
 /** File: MetadataStore.ts */
 import Logger from '@src/utils/logger/Logger';
+import { MonitorPerformance } from '@src/utils/performance/MonitorPerformance';
 
 export interface IListMetadata {
     listUri: string;
@@ -14,11 +15,12 @@ export class MetadataStore {
     constructor(
         private readonly db: IDBDatabase,
         private readonly metadataStoreName: string
-    ) {}
+    ) {} 
 
     /**
      * Retrieves the metadata record for a given listUri; returns defaults if none exist.
      */
+    @MonitorPerformance
     public getListMetadata(listUri: string): Promise<IListMetadata> {
         Logger.debug(
             `[DEBUG-IDB] getListMetadata => listUri="${listUri}" => O(1) read from metadata store`
@@ -42,6 +44,7 @@ export class MetadataStore {
     /**
      * Saves a metadata record for a given listUri, overwriting any existing one.
      */
+    @MonitorPerformance
     public setListMetadata(listUri: string, meta: IListMetadata): Promise<void> {
         Logger.debug(
             `[DEBUG-IDB] setListMetadata => listUri="${listUri}", count=${meta.count}, maxOrder=${meta.maxOrder}`
@@ -59,6 +62,7 @@ export class MetadataStore {
     /**
      * Clears all metadata records for all listUris.
      */
+    @MonitorPerformance
     public clearAllMetadata(): Promise<void> {
         Logger.debug('[DEBUG-IDB] clearAllMetadata => removing all data from "listMetadata"');
         return new Promise((resolve, reject) => {
