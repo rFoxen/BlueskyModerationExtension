@@ -1,79 +1,99 @@
 import Logger from '@src/utils/logger/Logger';
 
+interface TransactionOptions<R> {
+    storeNames: string[];
+    mode: IDBTransactionMode;
+    operations: (stores: { [key: string]: IDBObjectStore }) => Promise<R>;
+    retries?: number;
+    retryDelay?: number; // in milliseconds
+}
+
 export class TransactionManager {
-    constructor(private readonly db: IDBDatabase) {}
+    private maxRetries: number;
+    private retryDelay: number;
+
+    constructor(private readonly db: IDBDatabase, maxRetries = 3, retryDelay = 1000) {
+        this.maxRetries = maxRetries;
+        this.retryDelay = retryDelay;
+    }
 
     /**
      * Executes a series of operations within a single transaction.
      * Supports multiple object stores within the same transaction.
      *
-     * @param storeNames - Array of object store names involved in the transaction.
-     * @param mode - The mode of the transaction ('readonly' or 'readwrite').
-     * @param operations - A callback function that receives the object stores and performs operations.
+     * @param options - Configuration for the transaction execution.
      * @returns A promise that resolves with the result of the operations or rejects with an error.
      */
     public executeTransaction<R>(
-        storeNames: string[],
-        mode: IDBTransactionMode,
-        operations: (stores: { [key: string]: IDBObjectStore }) => Promise<R>
+        options: TransactionOptions<R>
     ): Promise<R> {
-        return new Promise<R>((resolve, reject) => {
-            const transaction = this.db.transaction(storeNames, mode);
-            const stores: { [key: string]: IDBObjectStore } = {};
+        const { storeNames, mode, operations, retries = this.maxRetries, retryDelay = this.retryDelay } = options;
 
-            storeNames.forEach((storeName) => {
-                stores[storeName] = transaction.objectStore(storeName);
-            });
+        const attempt = (attemptNumber: number): Promise<R> => {
+            return new Promise<R>((resolve, reject) => {
+                const transaction = this.db.transaction(storeNames, mode);
+                const stores: { [key: string]: IDBObjectStore } = {};
 
-            transaction.oncomplete = () => {
-                Logger.debug(
-                    `[DEBUG-IDB] Transaction completed successfully for stores: ${storeNames.join(
-                        ', '
-                    )}.`
-                );
-            };
-
-            transaction.onerror = () => {
-                Logger.error(
-                    `[DEBUG-IDB] Transaction error for stores: ${storeNames.join(
-                        ', '
-                    )} -`,
-                    transaction.error
-                );
-                reject(transaction.error);
-            };
-
-            transaction.onabort = () => {
-                Logger.warn(
-                    `[DEBUG-IDB] Transaction aborted for stores: ${storeNames.join(', ')}.`
-                );
-                reject(new Error('Transaction aborted'));
-            };
-
-            operations(stores)
-                .then((result) => {
-                    // Note: Do not resolve here; wait for transaction to complete to ensure all operations succeeded.
-                    // The result will be resolved in transaction.oncomplete if no errors occur.
-                    // However, to propagate the result, we can store it temporarily.
-                    (transaction as any)._result = result;
-                })
-                .catch((error) => {
-                    Logger.error(
-                        `[DEBUG-IDB] Operations within transaction failed -`,
-                        error
-                    );
-                    transaction.abort();
-                    reject(error);
+                storeNames.forEach((storeName) => {
+                    stores[storeName] = transaction.objectStore(storeName);
                 });
 
-            transaction.oncomplete = () => {
-                if ((transaction as any)._result !== undefined) {
-                    resolve((transaction as any)._result);
+                let operationResult: R | undefined;
+                let operationError: any = null;
+
+                transaction.oncomplete = () => {
+                    if (operationError) {
+                        reject(operationError);
+                    } else {
+                        resolve(operationResult as R);
+                    }
+                };
+
+                transaction.onerror = () => {
+                    Logger.error(
+                        `[DEBUG-IDB] Transaction error for stores: ${storeNames.join(', ')} -`,
+                        transaction.error
+                    );
+                    reject(transaction.error);
+                };
+
+                transaction.onabort = () => {
+                    Logger.warn(
+                        `[DEBUG-IDB] Transaction aborted for stores: ${storeNames.join(', ')}.`
+                    );
+                    reject(new Error('Transaction aborted'));
+                };
+
+                operations(stores)
+                    .then((result) => {
+                        operationResult = result;
+                    })
+                    .catch((error) => {
+                        operationError = error;
+                        Logger.error(
+                            `[DEBUG-IDB] Operations within transaction failed -`,
+                            error
+                        );
+                        transaction.abort();
+                    });
+            }).catch((error) => {
+                if (attemptNumber < retries) {
+                    Logger.warn(
+                        `[DEBUG-IDB] Transaction attempt ${attemptNumber} failed. Retrying in ${retryDelay}ms...`,
+                        error
+                    );
+                    return this.delay(retryDelay).then(() => attempt(attemptNumber + 1));
                 } else {
-                    resolve(undefined as unknown as R);
+                    Logger.error(
+                        `[DEBUG-IDB] Transaction failed after ${retries} attempts.`,
+                        error
+                    );
+                    throw error;
                 }
-            };
-        });
+            });
+        };
+
+        return attempt(1);
     }
 
     /**
@@ -127,5 +147,15 @@ export class TransactionManager {
                 reject(request.error);
             };
         });
+    }
+
+    /**
+     * Utility function to introduce a delay.
+     *
+     * @param ms - Milliseconds to delay.
+     * @returns A promise that resolves after the specified delay.
+     */
+    private delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 }

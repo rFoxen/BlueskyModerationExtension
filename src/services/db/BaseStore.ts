@@ -16,19 +16,28 @@ export class BaseStore<T> {
         this.transactionManager = new TransactionManager(db);
     }
 
+    /**
+     * Executes a single operation within a transaction.
+     *
+     * @param mode - The mode of the transaction ('readonly' or 'readwrite').
+     * @param operation - A callback function that performs the operation on the object store.
+     * @returns A promise that resolves with the operation result.
+     */
     protected async performRequest<R>(
         mode: IDBTransactionMode,
         operation: (store: IDBObjectStore) => Promise<R>
     ): Promise<R> {
         try {
-            return await this.transactionManager.executeTransaction<R>(
-                [this.storeName],
+            return await this.transactionManager.executeTransaction<R>({
+                storeNames: [this.storeName],
                 mode,
-                async (stores) => {
+                operations: async (stores) => {
                     const store = stores[this.storeName];
                     return await operation(store);
-                }
-            );
+                },
+                retries: 3, // Optional: Override default retries
+                retryDelay: 1000, // Optional: Override default retry delay (ms)
+            });
         } catch (error) {
             Logger.error(
                 `[DEBUG-IDB] performRequest => Error during operation on store="${this.storeName}":`,

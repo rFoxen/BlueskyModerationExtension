@@ -282,13 +282,15 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      */
     @MonitorPerformance
     private async queryByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
-        const index = 'listUriIndex';
-        const range = IDBKeyRange.only(listUri);
-        return this.performRequest('readonly', (store) => {
-                const request = store.index(index).getAll(range)
-                return this.transactionManager.wrapRequest(request);
-            }
-        );
+        return this.performRequest('readonly', async (store) => {
+            const index = 'listUriOrderIndex';
+            const range = IDBKeyRange.bound(
+                [listUri, Number.MIN_SAFE_INTEGER],
+                [listUri, Number.MAX_SAFE_INTEGER]
+            );
+            const request = store.index(index).getAll(range);
+            return this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
