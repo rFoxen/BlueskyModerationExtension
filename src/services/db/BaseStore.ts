@@ -7,7 +7,7 @@ import { TransactionManager } from './TransactionManager';
  * @template T The type of the records stored.
  */
 export class BaseStore<T> {
-    private transactionManager: TransactionManager;
+    protected transactionManager: TransactionManager;
     
     constructor(
         protected readonly db: IDBDatabase,
@@ -15,19 +15,20 @@ export class BaseStore<T> {
     ) {
         this.transactionManager = new TransactionManager(db);
     }
-    
+
     protected async performRequest<R>(
         mode: IDBTransactionMode,
-        operation: (store: IDBObjectStore) => IDBRequest<R>
+        operation: (store: IDBObjectStore) => Promise<R>
     ): Promise<R> {
         try {
-            const store = this.transactionManager.getObjectStore(
-                this.storeName,
-                mode
+            return await this.transactionManager.executeTransaction<R>(
+                [this.storeName],
+                mode,
+                async (stores) => {
+                    const store = stores[this.storeName];
+                    return await operation(store);
+                }
             );
-            const request = operation(store);
-            const result = await this.transactionManager.wrapRequest(request);
-            return result;
         } catch (error) {
             Logger.error(
                 `[DEBUG-IDB] performRequest => Error during operation on store="${this.storeName}":`,
@@ -43,7 +44,10 @@ export class BaseStore<T> {
      */
     @MonitorPerformance
     public async get(key: IDBValidKey): Promise<T | undefined> {
-        return this.performRequest('readonly', (store) => store.get(key));
+        return this.performRequest('readonly', async (store) => {
+            const request = store.get(key);
+            return this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
@@ -51,7 +55,10 @@ export class BaseStore<T> {
      */
     @MonitorPerformance
     public async getAll(): Promise<T[]> {
-        return this.performRequest('readonly', (store) => store.getAll());
+        return this.performRequest('readonly', async (store) => {
+            const request = store.getAll();
+            return this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
@@ -60,7 +67,10 @@ export class BaseStore<T> {
      */
     @MonitorPerformance
     public async put(record: T): Promise<void> {
-        await this.performRequest('readwrite', (store) => store.put(record));
+        await this.performRequest('readwrite', async (store) => {
+            const request = store.put(record);
+            await this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
@@ -69,7 +79,10 @@ export class BaseStore<T> {
      */
     @MonitorPerformance
     public async delete(key: IDBValidKey): Promise<void> {
-        await this.performRequest('readwrite', (store) => store.delete(key));
+        await this.performRequest('readwrite', async (store) => {
+            const request = store.delete(key);
+            await this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
@@ -77,7 +90,10 @@ export class BaseStore<T> {
      */
     @MonitorPerformance
     public async clear(): Promise<void> {
-        await this.performRequest('readwrite', (store) => store.clear());
+        await this.performRequest('readwrite', async (store) => {
+            const request = store.clear();
+            await this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
@@ -92,8 +108,9 @@ export class BaseStore<T> {
         range: IDBKeyRange,
         direction: IDBCursorDirection = 'next'
     ): Promise<IDBCursorWithValue | null> {
-        return this.performRequest('readonly', (store) =>
-            store.index(indexName).openCursor(range, direction)
-        );
+        return this.performRequest('readonly', async (store) => {
+            const request = store.index(indexName).openCursor(range, direction);
+            return this.transactionManager.wrapRequest(request);
+        });
     }
 } 

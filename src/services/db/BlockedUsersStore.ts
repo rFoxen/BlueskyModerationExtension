@@ -284,8 +284,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     private async queryByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         const index = 'listUriIndex';
         const range = IDBKeyRange.only(listUri);
-        return this.performRequest('readonly', (store) =>
-            store.index(index).getAll(range)
+        return this.performRequest('readonly', (store) => {
+                const request = store.index(index).getAll(range)
+                return this.transactionManager.wrapRequest(request);
+            }
         );
     }
 
@@ -301,9 +303,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     ): Promise<number> {
         const index = 'listUriHandleIndex';
         const range = this.buildPartialHandleRange(listUri, normalizedPartialHandle);
-        return this.performRequest('readonly', (store) =>
-            store.index(index).count(range)
-        );
+        return this.performRequest('readonly', (store) => {
+            const request = store.index(index).count(range)
+            return this.transactionManager.wrapRequest(request);
+        });
     }
 
     /**
@@ -326,7 +329,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
 
         const allResults: IndexedDbBlockedUser[] = await this.performRequest(
             'readonly',
-            (store) => store.index(index).getAll(range)
+            (store) => {
+                const request = store.index(index).getAll(range)
+                return this.transactionManager.wrapRequest(request);
+            }
         );
 
         return allResults.slice(offset, offset + pageSize);
@@ -408,7 +414,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         const lowerBound = `${listUri}`;
         const upperBound = `${listUri}\uffff`;
         const range = IDBKeyRange.bound(lowerBound, upperBound);
-        await this.performRequest('readwrite', (store) => store.delete(range));
+        await this.performRequest('readwrite', (store) => {
+            const request = store.delete(range)
+            return this.transactionManager.wrapRequest(request);
+        });
     }
 
 
