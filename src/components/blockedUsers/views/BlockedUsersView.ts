@@ -82,6 +82,27 @@ export class BlockedUsersView {
         // Update the text content with the current count
         loadingText.textContent = `Loaded ${count} blocked user${count !== 1 ? 's' : ''}...`;
     }
+
+    public updateDbLoadingContext(message: string): void {
+        // Reuse the same "loadingIndicator" element
+        this.loadingIndicator.classList.remove('d-none'); // ensure it’s visible if not already
+        let loadingText = this.loadingIndicator.querySelector('.initializing-db-text') as HTMLElement | null;
+
+        if (!loadingText) {
+            // If for some reason it's missing, create it
+            loadingText = document.createElement('span');
+            loadingText.classList.add('loading-text');
+            this.loadingIndicator.appendChild(loadingText);
+        }
+
+        // Option 1: Show the latest message
+        // loadingText.textContent = message;
+
+        // Option 2: Append lines if you want a "log" style
+        const newLine = document.createElement('div');
+        newLine.textContent = message;
+        loadingText.appendChild(newLine);
+    }
     
     public isSectionExpanded(): boolean {
         return this.toggleButton.getAttribute('aria-expanded') === 'true';

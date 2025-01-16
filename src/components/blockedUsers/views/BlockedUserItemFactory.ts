@@ -2,6 +2,8 @@ import blockedUserItemTemplate from '@public/templates/blockedUserItem.hbs';
 import { LABELS, ARIA_LABELS, ERRORS } from '@src/constants/Constants';
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
+import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
+import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import { Button } from '@src/components/common/Button';
 
 interface ButtonCreationOptions {
@@ -19,8 +21,8 @@ export class BlockedUserItemFactory {
     ) {}
 
     public async create(item: any): Promise<HTMLDivElement> {
-        const userDid = item.subject.did;
-        let userHandle = item.subject.handle;
+        const userDid = item.did;
+        let userHandle = item.userHandle;
         if (!userHandle) {
             try {
                 userHandle = await this.blockedUsersService.resolveHandleFromDid(userDid);

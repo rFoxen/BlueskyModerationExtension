@@ -12,6 +12,7 @@ import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { AuthenticationError, NotFoundError } from '@src/services/errors/CustomErrors';
 import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
 import Logger from '@src/utils/logger/Logger';
+import {IndexedDbBlockedUser} from "../../types/IndexedDbBlockedUser";
 
 /**
  * BlueskyService is now a facade that implements IBlueskyService,
@@ -253,28 +254,15 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
         }
     }
 
-    public async unblockUser(userHandle: string, listUri: string): Promise<any> {
-        Logger.time(`unblockUser => ${userHandle}`);
+    public async unblockUser(blockedUser: IndexedDbBlockedUser): Promise<any> {
         this.sessionService.ensureAuthenticated();
         try {
-            Logger.debug(`unblockUser: Resolving DID for handle="${userHandle}"...`);
-            const userDid = await this.resolveDidFromHandle(userHandle);
-
-            Logger.debug(`unblockUser: Searching in listUri=${listUri} for userDid=${userDid}`);
-            const listResponse = await this.apiService.fetchWithAuth(
-                `${API_ENDPOINTS.GET_LIST}?list=${encodeURIComponent(listUri)}`
-            );
-
-            const itemToDelete = listResponse.items.find((item: any) => item.subject.did === userDid);
-            if (!itemToDelete) {
-                throw new NotFoundError('User is not in the block list.');
-            }
-            const rkey = this.extractRKey(itemToDelete.uri);
+            const rkey = this.extractRKey(blockedUser.recordUri);
             if (!rkey) throw new Error('Invalid record key.');
 
             // Time the actual “unblockUserWithRKey” call
             Logger.time(`unblockUser -> unblockUserWithRKey`);
-            const result = await this.unblockUserWithRKey(rkey, listUri);
+            const result = await this.unblockUserWithRKey(rkey, blockedUser.listUri);
             Logger.timeEnd(`unblockUser -> unblockUserWithRKey`);
             return result;
         } catch (error) {
@@ -283,7 +271,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             throw error;
         } finally {
-            Logger.timeEnd(`unblockUser => ${userHandle}`);
+            Logger.timeEnd(`unblockUser => ${blockedUser.userHandle}`);
         }
     }
 

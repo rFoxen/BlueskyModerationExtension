@@ -1,4 +1,5 @@
 import { AppBskyGraphDefs } from '@atproto/api';
+import {IndexedDbBlockedUser} from "../../../types/IndexedDbBlockedUser";
 
 /**
  * Interface defining the contract for BlueskyService.
@@ -14,7 +15,7 @@ export interface IBlueskyService {
     resolveHandleFromDid(did: string): Promise<string>;
     resolveDidFromHandle(handle: string): Promise<string>;
     blockUser(userHandle: string, listUri: string): Promise<any>;
-    unblockUser(userHandle: string, listUri: string): Promise<any>;
+    unblockUser(blockedUser: IndexedDbBlockedUser): Promise<any>;
     reportAccount(userDid: string, reasonType: string, reason?: string): Promise<void>;
     getAccountProfile(
         userDidOrHandle: string

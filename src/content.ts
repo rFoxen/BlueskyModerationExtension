@@ -97,7 +97,6 @@ class ContentScript {
     private cleanup(): void {
         this.slideoutManager.destroy();
         this.uiStateCoordinator.destroy();
-        this.blockedUsersService.destroy();
         this.notificationManager.destroy();
         this.sessionManager.destroy();
         this.blueskyService.destroy();
