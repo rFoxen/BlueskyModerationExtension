@@ -1,4 +1,3 @@
-/** File: BlockedUsersIndexedDbRepository.ts */
 import Logger from '@src/utils/logger/Logger';
 import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import { DbInitializer } from './DbInitializer';
@@ -8,7 +7,6 @@ import { BlockedUsersStore } from './BlockedUsersStore';
 export class BlockedUsersIndexedDbRepository {
     private dbInstance!: IDBDatabase;
     private readyPromise: Promise<void>;
-
     private metadataStore!: MetadataStore;
     private blockedUsersStore!: BlockedUsersStore;
 
@@ -18,7 +16,6 @@ export class BlockedUsersIndexedDbRepository {
         private readonly metadataStoreName: string = 'listMetadata',
         private readonly dbVersion: number = 30
     ) {
-        // Initialize DB
         const initializer = new DbInitializer(
             this.dbName,
             this.dbVersion,
@@ -30,8 +27,10 @@ export class BlockedUsersIndexedDbRepository {
             .initDB()
             .then((db) => {
                 this.dbInstance = db;
-                // Instantiate MetadataStore and BlockedUsersStore
-                this.metadataStore = new MetadataStore(this.dbInstance, this.metadataStoreName);
+                this.metadataStore = new MetadataStore(
+                    this.dbInstance,
+                    this.metadataStoreName
+                );
                 this.blockedUsersStore = new BlockedUsersStore(
                     this.dbInstance,
                     this.storeName,
@@ -44,9 +43,9 @@ export class BlockedUsersIndexedDbRepository {
             });
     }
 
-    // -------------------------
+    // ------------------------- //
     // Utility / Lifecycle
-    // -------------------------
+    // ------------------------- //
 
     private async ensureDbReady(): Promise<void> {
         return this.readyPromise;
@@ -60,9 +59,9 @@ export class BlockedUsersIndexedDbRepository {
         return true;
     }
 
-    // -------------------------
+    // ------------------------- //
     // Public API
-    // -------------------------
+    // ------------------------- //
 
     public async getAllByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         await this.ensureDbReady();
@@ -93,7 +92,12 @@ export class BlockedUsersIndexedDbRepository {
     ): Promise<{ users: IndexedDbBlockedUser[]; total: number }> {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return { users: [], total: 0 };
-        return this.blockedUsersStore.searchByHandle(listUri, partialHandle, page, pageSize);
+        return this.blockedUsersStore.searchByHandle(
+            listUri,
+            partialHandle,
+            page,
+            pageSize
+        );
     }
 
     public async getPageByListUri(
@@ -124,7 +128,13 @@ export class BlockedUsersIndexedDbRepository {
     ): Promise<void> {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return;
-        return this.blockedUsersStore.addOrUpdate(listUri, userHandle, did, recordUri, order);
+        return this.blockedUsersStore.addOrUpdate(
+            listUri,
+            userHandle,
+            did,
+            recordUri,
+            order
+        );
     }
 
     public async addOrUpdateBulk(
@@ -141,7 +151,10 @@ export class BlockedUsersIndexedDbRepository {
         return this.blockedUsersStore.addOrUpdateBulk(listUri, items);
     }
 
-    public async remove(listUri: string, userHandle: string): Promise<void> {
+    public async remove(
+        listUri: string,
+        userHandle: string
+    ): Promise<void> {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return;
         return this.blockedUsersStore.remove(listUri, userHandle);
@@ -150,12 +163,8 @@ export class BlockedUsersIndexedDbRepository {
     public async clearAll(): Promise<void> {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return;
-
         Logger.warn('[DEBUG-IDB] clearAll => clearing entire DB data...');
-        // Clear "blockedUsers" store
         await this.blockedUsersStore.clearAll();
-        await this.metadataStore.clearAllMetadata();
-        // Metadata is cleared within BlockedUsersStore.clearAll()
     }
 
     public async clearStoreByListUri(listUri: string): Promise<void> {
@@ -164,9 +173,9 @@ export class BlockedUsersIndexedDbRepository {
         return this.blockedUsersStore.clearStoreByListUri(listUri);
     }
 
-    // --------------------------------
+    // -------------------------------- //
     // Metadata (delegated)
-    // --------------------------------
+    // -------------------------------- //
 
     public async getCountByListUri(listUri: string): Promise<number> {
         await this.ensureDbReady();

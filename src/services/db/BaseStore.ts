@@ -1,58 +1,57 @@
-/** File: BaseStore.ts */
 import Logger from '@src/utils/logger/Logger';
 import { MonitorPerformance } from '@src/utils/performance/MonitorPerformance';
+import { TransactionManager } from './TransactionManager';
 
 /**
  * A generic base class for IndexedDB stores.
  * @template T The type of the records stored.
  */
 export class BaseStore<T> {
+    private transactionManager: TransactionManager;
+    
     constructor(
         protected readonly db: IDBDatabase,
         protected readonly storeName: string
-    ) {}
-
+    ) {
+        this.transactionManager = new TransactionManager(db);
+    }
+    
+    protected async performRequest<R>(
+        mode: IDBTransactionMode,
+        operation: (store: IDBObjectStore) => IDBRequest<R>
+    ): Promise<R> {
+        try {
+            const store = this.transactionManager.getObjectStore(
+                this.storeName,
+                mode
+            );
+            const request = operation(store);
+            const result = await this.transactionManager.wrapRequest(request);
+            return result;
+        } catch (error) {
+            Logger.error(
+                `[DEBUG-IDB] performRequest => Error during operation on store="${this.storeName}":`,
+                error
+            );
+            throw error;
+        }
+    }
+    
     /**
      * Retrieves a record by its primary key.
      * @param key The primary key of the record.
      */
     @MonitorPerformance
-    public get(key: IDBValidKey): Promise<T | undefined> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const request = store.get(key);
-
-            request.onsuccess = () => {
-                resolve(request.result as T | undefined);
-            };
-
-            request.onerror = () => {
-                Logger.error(`[DEBUG-IDB] get => Error fetching key=${key}:`, request.error);
-                reject(request.error);
-            };
-        });
+    public async get(key: IDBValidKey): Promise<T | undefined> {
+        return this.performRequest('readonly', (store) => store.get(key));
     }
 
     /**
      * Retrieves all records from the store.
      */
     @MonitorPerformance
-    public getAll(): Promise<T[]> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const request = store.getAll();
-
-            request.onsuccess = () => {
-                resolve(request.result as T[]);
-            };
-
-            request.onerror = () => {
-                Logger.error(`[DEBUG-IDB] getAll => Error fetching all records:`, request.error);
-                reject(request.error);
-            };
-        });
+    public async getAll(): Promise<T[]> {
+        return this.performRequest('readonly', (store) => store.getAll());
     }
 
     /**
@@ -60,21 +59,8 @@ export class BaseStore<T> {
      * @param record The record to add or update.
      */
     @MonitorPerformance
-    public put(record: T): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const request = store.put(record);
-
-            request.onsuccess = () => {
-                resolve();
-            };
-
-            request.onerror = () => {
-                Logger.error(`[DEBUG-IDB] put => Error putting record:`, request.error);
-                reject(request.error);
-            };
-        });
+    public async put(record: T): Promise<void> {
+        await this.performRequest('readwrite', (store) => store.put(record));
     }
 
     /**
@@ -82,42 +68,16 @@ export class BaseStore<T> {
      * @param key The primary key of the record to delete.
      */
     @MonitorPerformance
-    public delete(key: IDBValidKey): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const request = store.delete(key);
-
-            request.onsuccess = () => {
-                resolve();
-            };
-
-            request.onerror = () => {
-                Logger.error(`[DEBUG-IDB] delete => Error deleting key=${key}:`, request.error);
-                reject(request.error);
-            };
-        });
+    public async delete(key: IDBValidKey): Promise<void> {
+        await this.performRequest('readwrite', (store) => store.delete(key));
     }
 
     /**
      * Clears all records from the store.
      */
     @MonitorPerformance
-    public clear(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const request = store.clear();
-
-            request.onsuccess = () => {
-                resolve();
-            };
-
-            request.onerror = () => {
-                Logger.error(`[DEBUG-IDB] clear => Error clearing store:`, request.error);
-                reject(request.error);
-            };
-        });
+    public async clear(): Promise<void> {
+        await this.performRequest('readwrite', (store) => store.clear());
     }
 
     /**
@@ -127,25 +87,13 @@ export class BaseStore<T> {
      * @param direction The direction of the cursor ('next', 'prev', etc.).
      */
     @MonitorPerformance
-    public openCursor(
+    public async openCursor(
         indexName: string,
         range: IDBKeyRange,
         direction: IDBCursorDirection = 'next'
     ): Promise<IDBCursorWithValue | null> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const index = store.index(indexName);
-            const request = index.openCursor(range, direction);
-
-            request.onsuccess = () => {
-                resolve(request.result);
-            };
-
-            request.onerror = () => {
-                Logger.error(`[DEBUG-IDB] openCursor => Error opening cursor on index=${indexName}:`, request.error);
-                reject(request.error);
-            };
-        });
+        return this.performRequest('readonly', (store) =>
+            store.index(indexName).openCursor(range, direction)
+        );
     }
 } 

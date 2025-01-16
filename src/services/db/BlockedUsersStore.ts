@@ -1,4 +1,3 @@
-/** File: BlockedUsersStore.ts */
 import Logger from '@src/utils/logger/Logger';
 import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import { IListMetadata, MetadataStore } from './MetadataStore';
@@ -29,8 +28,9 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     public async getAllByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         Logger.debug(`[DEBUG-IDB] getAllByListUri => listUri="${listUri}"`);
         const blockedUsers = await this.queryByListUri(listUri);
-        return this.sortBlockedUsersDescending(blockedUsers);
-        Logger.debug(`[DEBUG-IDB] getAllByListUri => Finished"`);
+        const sortedUsers = this.sortBlockedUsersDescending(blockedUsers);
+        Logger.debug(`[DEBUG-IDB] getAllByListUri => Finished`);
+        return sortedUsers;
     }
 
     /**
@@ -60,8 +60,8 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         );
         const normalizedHandle = userHandle.toLowerCase();
         const id = this.constructId(listUri, normalizedHandle);
-        // @ts-ignore
-        return this.get(id) || null;
+        const result = await this.get(id);
+        return result || null;
     }
 
     /**
@@ -86,7 +86,12 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         if (total === 0) {
             return { users: [], total: 0 };
         }
-        const users = await this.getSearchResults(listUri, normalizedHandle, page, pageSize);
+        const users = await this.getSearchResults(
+            listUri,
+            normalizedHandle,
+            page,
+            pageSize
+        );
         return { users, total };
     }
 
@@ -176,7 +181,6 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
                 )
             );
             const newInserts = await this.filterNewInserts(listUri, dataItems);
-
             await this.bulkPutRecords(dataItems);
             await this.updateMetadataAfterBulk(listUri, newInserts, dataItems);
         } finally {
@@ -278,24 +282,11 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      */
     @MonitorPerformance
     private async queryByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
-        return new Promise((resolve, reject) => {
-            const index = 'listUriIndex';
-            const range = IDBKeyRange.only(listUri);
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const idx = store.index(index);
-            const request = idx.getAll(range);
-
-            request.onsuccess = () => {
-                const results = request.result as IndexedDbBlockedUser[];
-                resolve(results);
-            };
-
-            request.onerror = () => {
-                Logger.error('[DEBUG-IDB] queryByListUri =>', request.error);
-                reject(request.error);
-            };
-        });
+        const index = 'listUriIndex';
+        const range = IDBKeyRange.only(listUri);
+        return this.performRequest('readonly', (store) =>
+            store.index(index).getAll(range)
+        );
     }
 
     /**
@@ -310,21 +301,9 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     ): Promise<number> {
         const index = 'listUriHandleIndex';
         const range = this.buildPartialHandleRange(listUri, normalizedPartialHandle);
-
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const idx = store.index(index);
-            const countRequest = idx.count(range);
-
-            countRequest.onsuccess = () => {
-                resolve(countRequest.result);
-            };
-            countRequest.onerror = () => {
-                Logger.error('[DEBUG-IDB] getSearchCount =>', countRequest.error);
-                reject(countRequest.error);
-            };
-        });
+        return this.performRequest('readonly', (store) =>
+            store.index(index).count(range)
+        );
     }
 
     /**
@@ -345,39 +324,12 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         const range = this.buildPartialHandleRange(listUri, normalizedPartialHandle);
         const offset = (page - 1) * pageSize;
 
-        return new Promise((resolve, reject) => {
-            const results: IndexedDbBlockedUser[] = [];
-            let skipped = 0;
-            let taken = 0;
+        const allResults: IndexedDbBlockedUser[] = await this.performRequest(
+            'readonly',
+            (store) => store.index(index).getAll(range)
+        );
 
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const idx = store.index(index);
-            const request = idx.openCursor(range, 'next');
-
-            request.onsuccess = () => {
-                const cursor = request.result;
-                if (!cursor) {
-                    resolve(results);
-                    return;
-                }
-                if (skipped < offset) {
-                    skipped++;
-                    cursor.continue();
-                } else if (taken < pageSize) {
-                    results.push(cursor.value as IndexedDbBlockedUser);
-                    taken++;
-                    cursor.continue();
-                } else {
-                    resolve(results);
-                }
-            };
-
-            request.onerror = () => {
-                Logger.error('[DEBUG-IDB] getSearchResults =>', request.error);
-                reject(request.error);
-            };
-        });
+        return allResults.slice(offset, offset + pageSize);
     }
 
     /**
@@ -453,19 +405,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      */
     @MonitorPerformance
     private async deleteByListUriRange(listUri: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const lowerBound = `${listUri}#`;
-            const upperBound = `${listUri}#\uffff`;
-            const range = IDBKeyRange.bound(lowerBound, upperBound);
-            const request = store.delete(range);
-            request.onsuccess = () => resolve();
-            request.onerror = () => {
-                Logger.error('[DEBUG-IDB] deleteByListUriRange =>', request.error);
-                reject(request.error);
-            };
-        });
+        const lowerBound = `${listUri}`;
+        const upperBound = `${listUri}\uffff`;
+        const range = IDBKeyRange.bound(lowerBound, upperBound);
+        await this.performRequest('readwrite', (store) => store.delete(range));
     }
 
 
@@ -488,38 +431,30 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
             [listUri, Number.MIN_SAFE_INTEGER],
             [listUri, Number.MAX_SAFE_INTEGER]
         );
+        const results: IndexedDbBlockedUser[] = [];
+        const store = this.db.transaction(this.storeName, 'readonly').objectStore(this.storeName).index(index);
         const offset = (page - 1) * pageSize;
 
         return new Promise((resolve, reject) => {
-            const results: IndexedDbBlockedUser[] = [];
-            let skipped = 0;
-            let taken = 0;
-
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const idx = store.index(index);
-            const request = idx.openCursor(range, 'prev');
-
-            request.onsuccess = () => {
-                const cursor = request.result;
-                if (!cursor) {
-                    resolve(results);
-                    return;
-                }
-                if (skipped < offset) {
-                    skipped++;
-                    cursor.continue();
-                } else if (taken < pageSize) {
-                    results.push(cursor.value as IndexedDbBlockedUser);
-                    taken++;
-                    cursor.continue();
+            let count = 0;
+            const request = store.openCursor(range, 'prev');
+            request.onsuccess = (event) => {
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                if (cursor) {
+                    if (count >= offset && results.length < pageSize) {
+                        results.push(cursor.value);
+                    }
+                    count++;
+                    if (results.length < pageSize) {
+                        cursor.continue();
+                    } else {
+                        resolve(results);
+                    }
                 } else {
                     resolve(results);
                 }
             };
-
             request.onerror = () => {
-                Logger.error('[DEBUG-IDB] paginateByListUri =>', request.error);
                 reject(request.error);
             };
         });

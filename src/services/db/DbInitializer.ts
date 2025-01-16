@@ -1,4 +1,3 @@
-// src/services/db/DbInitializer.ts
 import Logger from '@src/utils/logger/Logger';
 import { IMigration } from './migrations/Migration';
 import { MigrationManager } from './migrations/MigrationManager';
@@ -19,11 +18,30 @@ export class DbInitializer implements IDbInitializer {
         this.migrationManager = new MigrationManager();
     }
 
-    public initDB(): Promise<IDBDatabase> {
-        return new Promise((resolve, reject) => {
+    public async initDB(): Promise<IDBDatabase> {
+        try {
             Logger.debug(
                 `[DEBUG-IDB] Attempting to open IndexedDB "${this.dbName}" with version ${this.dbVersion}.`
             );
+            const db = await this.openDatabase();
+            this.setupVersionChangeHandler(db);
+            Logger.debug(
+                `[DEBUG-IDB] IndexedDB "${this.dbName}" opened successfully at version ${db.version}.`
+            );
+            Logger.debug(
+                `[DEBUG-IDB] Existing object stores: ${Array.from(
+                    db.objectStoreNames
+                ).join(', ')}`
+            );
+            return db;
+        } catch (error) {
+            Logger.error(`[DEBUG-IDB] Failed to open IndexedDB "${this.dbName}":`, error);
+            throw error;
+        }
+    }
+
+    private openDatabase(): Promise<IDBDatabase> {
+        return new Promise<IDBDatabase>((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
 
             request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
@@ -36,36 +54,38 @@ export class DbInitializer implements IDbInitializer {
                     Logger.warn('[DEBUG-IDB] No transaction available during upgrade.');
                     return;
                 }
-                this.migrationManager.applyMigrations(db, event.oldVersion, event.newVersion!, transaction).catch((error) => {
-                    Logger.error('[DEBUG-IDB] Migration failed:', error);
-                    throw error;
-                });
+                this.migrationManager
+                    .applyMigrations(db, event.oldVersion, event.newVersion!, transaction)
+                    .catch((error) => {
+                        Logger.error('[DEBUG-IDB] Migration failed:', error);
+                        reject(error);
+                    });
             };
 
             request.onsuccess = (event: Event) => {
                 const db = (event.target as IDBOpenDBRequest).result as IDBDatabase;
-                Logger.debug(
-                    `[DEBUG-IDB] IndexedDB "${this.dbName}" opened successfully at version ${db.version}.`
-                );
-                Logger.debug(
-                    `[DEBUG-IDB] Existing object stores: ${Array.from(db.objectStoreNames).join(', ')}`
-                );
-                db.onversionchange = () => {
-                    Logger.warn(`[DEBUG-IDB] A new version of the database is available. Closing current connection.`);
-                    db.close();
-                };
                 resolve(db);
             };
 
             request.onerror = (event: Event) => {
                 const req = event.target as IDBOpenDBRequest;
-                Logger.error(`[DEBUG-IDB] Failed to open IndexedDB "${this.dbName}":`, req.error);
                 reject(req.error);
             };
 
             request.onblocked = () => {
-                Logger.warn(`[DEBUG-IDB] Opening IndexedDB "${this.dbName}" is blocked. Please close other connections.`);
+                Logger.warn(
+                    `[DEBUG-IDB] Opening IndexedDB "${this.dbName}" is blocked. Please close other connections.`
+                );
             };
         });
+    }
+
+    private setupVersionChangeHandler(db: IDBDatabase): void {
+        db.onversionchange = () => {
+            Logger.warn(
+                `[DEBUG-IDB] A new version of the database is available. Closing current connection.`
+            );
+            db.close();
+        };
     }
 }

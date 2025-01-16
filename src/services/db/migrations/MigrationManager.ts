@@ -10,7 +10,7 @@ export class MigrationManager {
         this.registerMigrations();
     }
 
-    private registerMigrations() {
+    private registerMigrations(): void {
         this.migrations.push(new Migration1());
         // Register additional migrations here
     }
@@ -22,7 +22,10 @@ export class MigrationManager {
         transaction: IDBTransaction
     ): Promise<void> {
         const migrationsToApply = this.migrations
-            .filter((migration) => migration.version > oldVersion && migration.version <= newVersion)
+            .filter(
+                (migration) =>
+                    migration.version > oldVersion && migration.version <= newVersion
+            )
             .sort((a, b) => a.version - b.version);
 
         for (const migration of migrationsToApply) {
@@ -30,8 +33,11 @@ export class MigrationManager {
                 migration.migrate(db, transaction);
                 Logger.debug(`Successfully applied migration for version ${migration.version}`);
             } catch (error) {
-                Logger.error(`Failed to apply migration for version ${migration.version}:`, error);
-                throw error; // Optionally, decide whether to continue or halt
+                Logger.error(
+                    `Failed to apply migration for version ${migration.version}:`,
+                    error
+                );
+                throw error; // Halt migrations on failure
             }
         }
     }
