@@ -303,9 +303,9 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         listUri: string,
         normalizedPartialHandle: string
     ): Promise<number> {
-        const index = 'listUriHandleIndex';
+        const index = 'listUriUserHandleIndex';
         const range = this.buildPartialHandleRange(listUri, normalizedPartialHandle);
-        return this.performRequest('readonly', (store) => {
+        return await this.performRequest('readonly', (store) => {
             const request = store.index(index).count(range)
             return this.transactionManager.wrapRequest(request);
         });
@@ -325,7 +325,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         page: number,
         pageSize: number
     ): Promise<IndexedDbBlockedUser[]> {
-        const index = 'listUriHandleIndex';
+        const index = 'listUriUserHandleIndex';
         const range = this.buildPartialHandleRange(listUri, normalizedPartialHandle);
         const offset = (page - 1) * pageSize;
 
@@ -363,7 +363,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         listUris: string[]
     ): Promise<boolean> {
         const normalizedHandle = userHandle.toLowerCase();
-        const index = 'userHandleListUriIndex';
+        const index = 'listUriUserHandleIndex';
         const checks = listUris.map((uri) => {
             return new Promise<boolean>((resolve, reject) => {
                 const range = IDBKeyRange.only([normalizedHandle, uri]);

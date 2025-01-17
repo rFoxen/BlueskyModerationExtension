@@ -22,7 +22,7 @@ export class Migration1 implements IMigration {
                 unique: false,
             });
             // Create composite index for efficient pagination
-            blockedUsersStore.createIndex('userHandleListUriIndex', ['userHandle', 'listUri'], {
+            blockedUsersStore.createIndex('listUriUserHandleIndex', ['listUri', 'userHandle'], {
                 unique: false,
             });
             Logger.debug(
