@@ -28,11 +28,6 @@ export class DbInitializer implements IDbInitializer {
             Logger.debug(
                 `[DEBUG-IDB] IndexedDB "${this.dbName}" opened successfully at version ${db.version}.`
             );
-            Logger.debug(
-                `[DEBUG-IDB] Existing object stores: ${Array.from(
-                    db.objectStoreNames
-                ).join(', ')}`
-            );
             return db;
         } catch (error) {
             Logger.error(`[DEBUG-IDB] Failed to open IndexedDB "${this.dbName}":`, error);
@@ -49,6 +44,11 @@ export class DbInitializer implements IDbInitializer {
                     `[DEBUG-IDB] onupgradeneeded fired. Old version: ${event.oldVersion}, New version: ${event.newVersion}`
                 );
                 const db = request.result;
+                Logger.debug(
+                    `[DEBUG-IDB] Existing object stores: ${Array.from(
+                        db.objectStoreNames
+                    ).join(', ')}`
+                );
                 const transaction = request.transaction;
                 if (!transaction) {
                     Logger.warn('[DEBUG-IDB] No transaction available during upgrade.');

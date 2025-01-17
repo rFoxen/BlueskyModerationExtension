@@ -14,7 +14,7 @@ export class BlockedUsersIndexedDbRepository {
         private readonly dbName: string = 'BlueskyModerationDB',
         private readonly storeName: string = 'blockedUsers',
         private readonly metadataStoreName: string = 'listMetadata',
-        private readonly dbVersion: number = 30
+        private readonly dbVersion: number = 1
     ) {
         const initializer = new DbInitializer(
             this.dbName,

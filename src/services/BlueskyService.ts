@@ -270,8 +270,6 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_UNBLOCK_USER);
             throw error;
-        } finally {
-            Logger.timeEnd(`unblockUser => ${blockedUser.userHandle}`);
         }
     }
 

@@ -404,6 +404,7 @@ export class BlockedUsersUI {
                 MESSAGES.USER_UNBLOCKED_SUCCESS(userHandle),
                 'success'
             );
+            this.renderCurrentPage();
         } catch (error) {
             Logger.error('handleUnblockUser => error:', error);
             this.notificationManager.displayNotification('An unknown error occurred.', 'error');

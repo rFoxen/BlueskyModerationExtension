@@ -21,6 +21,10 @@ export class Migration1 implements IMigration {
             blockedUsersStore.createIndex('listUriOrderIndex', ['listUri', 'order'], {
                 unique: false,
             });
+            // Create composite index for efficient pagination
+            blockedUsersStore.createIndex('userHandleListUriIndex', ['userHandle', 'listUri'], {
+                unique: false,
+            });
             Logger.debug(
                 '[Migration1] Created "blockedUsers" store with indexes including "listUriOrderIndex"'
             );
