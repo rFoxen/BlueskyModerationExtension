@@ -366,7 +366,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         const index = 'listUriUserHandleIndex';
         const checks = listUris.map((uri) => {
             return new Promise<boolean>((resolve, reject) => {
-                const range = IDBKeyRange.only([normalizedHandle, uri]);
+                const range = IDBKeyRange.only([uri, normalizedHandle]);
                 const cursorRequest = this.openCursor(index, range, 'next');
 
                 cursorRequest
