@@ -1,6 +1,6 @@
 ﻿import { BskyAgent } from '@atproto/api';
 import { IBlueskyService } from '@src/services/interfaces/IBlueskyService';
-import { API_ENDPOINTS, ERRORS } from '@src/constants/Constants';
+import { API_ENDPOINTS, STORAGE_KEYS, ERRORS } from '@src/constants/Constants';
 import { AppBskyGraphDefs } from '@atproto/api';
 
 import { SessionService } from '@src/services/session/SessionService';
@@ -13,6 +13,16 @@ import { AuthenticationError, NotFoundError } from '@src/services/errors/CustomE
 import { FetchListResponse, BlockedUser } from 'types/ApiResponses';
 import Logger from '@src/utils/logger/Logger';
 import {IndexedDbBlockedUser} from "../../types/IndexedDbBlockedUser";
+
+interface AccountProfile {
+    creationDate: Date | null;
+    postsCount: number | null;
+}
+
+interface CacheEntry {
+    data: AccountProfile;
+    timestamp: number;
+}
 
 /**
  * BlueskyService is now a facade that implements IBlueskyService,
@@ -51,6 +61,10 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
         
         // 5) Create CacheService for DID <-> Handle caching
         this.cacheService = new CacheService();
+        
+        setInterval(() => {
+            this.cacheService.clearExpired();
+        }, 10 * 60 * 1000);
     }
 
     /**
@@ -191,14 +205,16 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     
     public async resolveHandleFromDid(did: string): Promise<string> {
         // Check cache first
-        const cachedHandle = this.cacheService.getHandleFromDid(did);
-        if (cachedHandle) return cachedHandle;
+        const cachedHandle = this.cacheService.get<string>(STORAGE_KEYS.CACHE_NAMESPACE_HANDLE_DID, did);
+        if (cachedHandle) {
+            return cachedHandle;
+        }
 
         // If not found in cache, call the ApiService
         try {
             const response = await this.apiService.resolveDid(did);
             if (response.handle) {
-                this.cacheService.setHandleForDid(did, response.handle);
+                this.cacheService.set<string>(STORAGE_KEYS.CACHE_NAMESPACE_HANDLE_DID, did, response.handle);
                 return response.handle;
             } else {
                 throw this.errorService.createNotFoundError();
@@ -319,11 +335,30 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     }
 
     public async getAccountProfile(userDidOrHandle: string): Promise<{ creationDate: Date | null; postsCount: number | null }> {
+        const cacheKey = userDidOrHandle;
+        const cachedProfile = this.cacheService.get<AccountProfile>(
+            STORAGE_KEYS.CACHE_NAMESPACE_ACCOUNT_PROFILE,
+            cacheKey
+        );
+
+        if (cachedProfile) {
+            Logger.debug(`Cache hit for account profile: ${cacheKey}`);
+            return cachedProfile;
+        }
+        
         try {
             const profile = await this.apiService.fetchProfile(userDidOrHandle);
             const creationDate = profile.createdAt ? new Date(profile.createdAt) : null;
             const postsCount = profile.postsCount ?? null;
-            return { creationDate, postsCount };
+
+            const data: AccountProfile = { creationDate, postsCount };
+            this.cacheService.set<AccountProfile>(
+                STORAGE_KEYS.CACHE_NAMESPACE_ACCOUNT_PROFILE,
+                cacheKey,
+                data
+            );
+
+            return data;
         } catch (error) {
             this.errorService.handleError(error as Error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_FRESHNESS_DATA(userDidOrHandle));
@@ -333,7 +368,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
 
     public destroy(): void {
         // Clear caches, remove event listeners, etc.
-        this.cacheService = new CacheService();
+        this.cacheService.clearAll();
         this.removeAllListeners();
     }
 

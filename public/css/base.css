@@ -123,3 +123,10 @@ a:hover {
     filter: blur(8px);
     transition: filter 0.3s ease;
 }
+
+.freshness-very-new { color: red; }
+.freshness-new { color: orange; }
+.freshness-established { color: yellow; }
+.freshness-mature { color: lightgreen; }
+.freshness-very-old { color: green; }
+.freshness-unknown { color: gray; }

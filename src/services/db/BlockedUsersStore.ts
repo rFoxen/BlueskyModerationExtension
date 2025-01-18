@@ -106,9 +106,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         listUris: string[]
     ): Promise<boolean> {
         Logger.debug(
-            `[DEBUG-IDB] isUserHandleBlocked => userHandle="${userHandle}", listUris=${JSON.stringify(
-                listUris
-            )}`
+            `[DEBUG-IDB] isUserHandleBlocked => userHandle="${userHandle}"`
         );
         if (listUris.length === 0) {
             Logger.warn('[DEBUG-IDB] No list URIs provided, returning not blocked => false.');

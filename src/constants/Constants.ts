@@ -29,6 +29,7 @@ export const LABELS = {
     LOGIN: 'Login',
     LOGOUT: 'Logout',
     REFRESH: '↻',
+    DOWNLOAD: 'Download List',
     OPTIONS: '⚙',
     SWITCH_THEME: 'Switch Theme',
     BLOCK_LIST_SELECTION: 'Block List Selection',
@@ -42,13 +43,15 @@ export const LABELS = {
     PREVIOUS: 'Previous',
     NEXT: 'Next',
     PAGE_INFO: (currentPage: number, totalPages: number) => `Page ${currentPage} of ${totalPages}`,
-    ACCOUNT_FRESHNESS: (accountAge: string, postCount: string) => `Account age: ${accountAge}, ${postCount}`,
-    ACCOUNT_FRESHNESS_UNKNOWN: 'Account age: Unknown, posts count: Unknown',
+    ACCOUNT_FRESHNESS: (accountAge: string, postCount: string, postsPerTime: string) =>
+        `Age: ${accountAge}, Posts: ${postCount}, ${postsPerTime}`,
+    ACCOUNT_FRESHNESS_UNKNOWN: 'Account Freshness Failed',
     BLOCK: 'Block',
     UNBLOCK: 'Unblock',
     REPORT_ACCOUNT: 'Report User',
     REFRESH_BLOCK_LISTS: 'Refresh Block Lists',
     REFRESH_BLOCKED_USERS: 'Refresh Blocked Users',
+    DOWNLOAD_BLOCKED_USERS: 'Download Blocked Users',
     LOADING_BLOCKED_USERS: 'Loading blocked users...',
     SEARCH_BLOCKED_USERS: 'Search blocked users',
     SELECT_BLOCK_LIST_PLACEHOLDER: 'Select a block list',
@@ -129,7 +132,10 @@ export const STORAGE_KEYS = {
     THEME_PREFERENCE: 'theme',
     BLOCKED_POST_STYLE: 'blockedPostStyle',
     PREPEND_APPEND_OPTION: 'prependAppendOption',
-    ADDITIONAL_BLOCK_LISTS: 'additionalBlockLists'
+    ADDITIONAL_BLOCK_LISTS: 'additionalBlockLists',
+    CACHE_NAMESPACE_ACCOUNT_PROFILE: 'accountProfile',
+    CACHE_NAMESPACE_HANDLE_DID: 'handleDid',
+
 };
 
 export const API_ENDPOINTS = {
