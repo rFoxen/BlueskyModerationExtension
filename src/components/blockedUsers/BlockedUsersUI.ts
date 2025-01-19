@@ -143,6 +143,14 @@ export class BlockedUsersUI {
         };
         this.domEventHandlers['refresh'] = refreshHandler;
         this.view.onRefreshClick(refreshHandler);
+
+        // Download
+        const downloadHandler = (event: Event) => {
+            event.preventDefault();
+            this.downloadBlockedUsers();
+        };
+        this.domEventHandlers['download'] = downloadHandler;
+        this.view.onDownloadClick(downloadHandler);
     }
 
     private subscribeToServiceEvents(): void {
@@ -261,6 +269,75 @@ export class BlockedUsersUI {
         this.view.showLoading();
         await this.blockedUsersService.refreshBlockedUsers(selectedUri);
         Logger.timeEnd(`refreshBlockedUsers => ${selectedUri}`);
+    }
+
+    private async downloadBlockedUsers(): Promise<void> {
+        const selectedUri = this.blockListDropdown.getSelectedValue();
+        const selectedText = this.blockListDropdown.getSelectedText();
+        if (!selectedUri) {
+            this.notificationManager.displayNotification('Please select a block list to download.', 'error');
+            return;
+        }
+
+        try {
+            // 1. Check if all blocked users are fully downloaded (no 'pending' recordUris)
+            const blockedUsers = await this.blockedUsersService.blockedUsersRepo.getAllByListUri(selectedUri);
+            const hasPending = blockedUsers.some(user => user.recordUri === 'pending');
+
+            if (hasPending) {
+                this.notificationManager.displayNotification(
+                    'Blocked users are still being downloaded. Please wait until all users are fully loaded before downloading.',
+                    'error'
+                );
+                return;
+            }
+
+            if (blockedUsers.length === 0) {
+                this.notificationManager.displayNotification('No blocked users to download.', 'info');
+                return;
+            }
+
+            // 2. Convert blocked users to CSV
+            const csvContent = this.convertToCSV(blockedUsers);
+
+            // 3. Create a Blob from the CSV content
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            // 4. Create a temporary link to trigger the download
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${selectedText}_list.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // 5. Notify the user of successful download
+            this.notificationManager.displayNotification('Blocked users list has been downloaded.', 'success');
+        } catch (error) {
+            Logger.error('Failed to download blocked users:', error);
+            this.notificationManager.displayNotification('Failed to download blocked users.', 'error');
+        }
+    }
+
+    /**
+     * Converts an array of blocked users to CSV format.
+     * @param blockedUsers Array of blocked users.
+     * @returns CSV string.
+     */
+    private convertToCSV(blockedUsers: IndexedDbBlockedUser[]): string {
+        const headers = ['User Handle'];
+        const rows = blockedUsers.map(user => [
+            user.userHandle
+        ]);
+
+        const csv = [
+            headers.join(','), // Header row
+            ...rows.map(row => row.map(field => `"${field}"`).join(',')) // Data rows with quotes
+        ].join('\n');
+
+        return csv;
     }
 
     private toggleBlockedUsersSection(): void {
