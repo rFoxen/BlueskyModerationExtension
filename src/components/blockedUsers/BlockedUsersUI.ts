@@ -257,11 +257,17 @@ export class BlockedUsersUI {
 
     private async refreshBlockedUsers(): Promise<void> {
         const selectedUri = this.blockListDropdown.getSelectedValue();
+        const selectedText = this.blockListDropdown.getSelectedText();
         if (!selectedUri) {
             this.notificationManager.displayNotification(
                 MESSAGES.PLEASE_SELECT_BLOCK_LIST_TO_REFRESH,
                 'error'
             );
+            return;
+        }
+        
+        const confirmMessage = `Are you sure you want to refresh @${selectedText}?`;
+        if (!confirm(confirmMessage)) {
             return;
         }
 
