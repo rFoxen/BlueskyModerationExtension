@@ -54,10 +54,11 @@ export class BlockedUsersService extends EventEmitter {
      * Manually fetch from API and store in IDB, overwriting existing data for the listUri.
      */
     private async fetchAndPersistBlockedUsers(listUri: string): Promise<void> {
-        // 1) Force a fresh fetch from network
-        const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
-        // 2) Overwrite existing in IDB
+        // 1) Clear ListURI store
         await this.blockedUsersRepo.clearStoreByListUri(listUri);
+        // 2) Force a fresh fetch from network
+        const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
+        // 3) Overwrite existing in IDB
         const bulkItems = blockedUsers.slice().reverse().map((user, index) => ({
             userHandle: user.subject.handle || user.subject.did,
             did: user.subject.did,
@@ -69,10 +70,11 @@ export class BlockedUsersService extends EventEmitter {
 
     public async refreshBlockedUsers(listUri: string): Promise<void> {
         try {
-            // 1) Force a fresh fetch from network
-            const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
-            // 2) Overwrite existing in IDB
+            // 1) Clear ListURI store
             await this.blockedUsersRepo.clearStoreByListUri(listUri);
+            // 2) Force a fresh fetch from network
+            const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
+            // 3) Overwrite existing in IDB
             const bulkItems = blockedUsers.slice().reverse().map((user, index) => ({
                 userHandle: user.subject.handle || user.subject.did,
                 did: user.subject.did,
