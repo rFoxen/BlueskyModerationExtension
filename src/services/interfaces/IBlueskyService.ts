@@ -1,4 +1,5 @@
 import { AppBskyGraphDefs } from '@atproto/api';
+import { BlockedUser } from 'types/ApiResponses';
 import {IndexedDbBlockedUser} from "../../../types/IndexedDbBlockedUser";
 
 /**
@@ -11,7 +12,7 @@ export interface IBlueskyService {
     logout(): Promise<boolean>;
     getBlockLists(): Promise<AppBskyGraphDefs.ListView[]>;
     getBlockListName(listUri: string): Promise<string>;
-    getBlockedUsers(listUri: string): Promise<any[]>;
+    getBlockedUsers(listUri: string, maxRetries?: number, onChunkFetched?: (chunk: BlockedUser[]) => Promise<void>): Promise<BlockedUser[]>;
     resolveHandleFromDid(did: string): Promise<string>;
     resolveDidFromHandle(handle: string): Promise<string>;
     blockUser(userHandle: string, listUri: string): Promise<any>;

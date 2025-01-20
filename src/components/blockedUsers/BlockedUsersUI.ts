@@ -1,3 +1,4 @@
+// File: BlockedUsersUI.ts
 import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
@@ -8,6 +9,7 @@ import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
 import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import Logger from '@src/utils/logger/Logger';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
 
 export class BlockedUsersUI {
     private blockedUsersService: BlockedUsersService;
@@ -43,7 +45,6 @@ export class BlockedUsersUI {
         this.notificationManager = notificationManager;
         this.blockListDropdown = blockListDropdown;
         this.isLoggedIn = isLoggedIn;
-
         this.view = new BlockedUsersView(blockedUsersSectionId);
         this.itemFactory = new BlockedUserItemFactory(
             this.blockedUsersService,
@@ -51,7 +52,6 @@ export class BlockedUsersUI {
             this.handleUnblockUser.bind(this),
             this.handleReportUser.bind(this)
         );
-
         this.addDomEventListeners();
         this.view.applySavedToggleState();
         this.subscribeToServiceEvents();
@@ -61,7 +61,7 @@ export class BlockedUsersUI {
         Logger.time(`loadBlockedUsersUI => ${selectedUri}`);
         this.view.showLoading();
 
-        // 1) Possibly fetch from network if local DB is empty:
+        // 1) Possibly fetch from network if local DB is empty
         await this.blockedUsersService.loadBlockedUsers(selectedUri);
 
         // 2) Clear search input & reset pagination
@@ -154,22 +154,24 @@ export class BlockedUsersUI {
     }
 
     private subscribeToServiceEvents(): void {
-        this.registerServiceEvent('blockedUsersLoaded', this.handleBlockedUsersLoaded);
-        this.registerServiceEvent('blockedUsersRefreshed', this.handleBlockedUsersRefreshed);
-        this.registerServiceEvent('blockedUserAdded', this.handleBlockedUserAdded);
-        this.registerServiceEvent('blockedUserUpdated', this.handleBlockedUserUpdated);
-        this.registerServiceEvent('blockedUserRemoved', this.handleBlockedUserRemoved);
-        this.registerServiceEvent('blockedUsersProgress', this.handleBlockedUsersProgress);
-        this.registerServiceEvent('dbInitProgress', this.handleDbInitProgress);
-        this.registerServiceEvent('error', this.handleServiceError);
+        // Register events specifically to each service
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUsersLoaded', this.handleBlockedUsersLoaded);
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUsersRefreshed', this.handleBlockedUsersRefreshed);
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUserAdded', this.handleBlockedUserAdded);
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUserUpdated', this.handleBlockedUserUpdated);
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUserRemoved', this.handleBlockedUserRemoved);
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUsersProgress', this.handleBlockedUsersProgress);
+        this.registerServiceEvent(this.blockedUsersService, 'dbInitProgress', this.handleDbInitProgress);
+
+        // Error events can come from both services
+        this.registerServiceEvent(this.blockedUsersService, 'error', this.handleServiceError);
+        this.registerServiceEvent(this.blueskyService, 'error', this.handleServiceError);
     }
 
-    private registerServiceEvent(event: string, handler: (...args: any[]) => void): void {
+    private registerServiceEvent(service: EventEmitter, event: string, handler: (...args: any[]) => void): void {
         const boundHandler = handler.bind(this);
         this.serviceEventHandlers[event] = boundHandler;
-        // Attach to both services for convenience
-        this.blockedUsersService.on(event, boundHandler);
-        this.blueskyService.on(event, boundHandler);
+        service.on(event, boundHandler);
     }
 
     // ----------------------------------------------------------------
@@ -188,11 +190,9 @@ export class BlockedUsersUI {
     private handleBlockedUserAdded(newItem: any): void {
         // If it's just the optimistic placeholder, ignore
         if (newItem.uri === 'pending') return;
-
         Logger.debug('event: blockedUserAdded -> addUserToUI');
         const selectedUri = this.blockListDropdown.getSelectedValue();
         if (!selectedUri) return;
-
         if (!newItem || !newItem.subject || !this.isCurrentListSelected(newItem)) return;
 
         // Remove existing DOM element (avoid duplicates)
@@ -210,7 +210,6 @@ export class BlockedUsersUI {
         Logger.debug('event: blockedUserUpdated -> updateUI');
         const selectedUri = this.blockListDropdown.getSelectedValue();
         if (!selectedUri) return;
-
         if (updatedItem && updatedItem.subject && this.isCurrentListSelected(updatedItem)) {
             // Just re-render the current page to show the updated user
             this.reloadBlockedUsersUI();
@@ -265,7 +264,7 @@ export class BlockedUsersUI {
             );
             return;
         }
-        
+
         const confirmMessage = `Are you sure you want to refresh @${selectedText}?`;
         if (!confirm(confirmMessage)) {
             return;
@@ -289,7 +288,6 @@ export class BlockedUsersUI {
             // 1. Check if all blocked users are fully downloaded (no 'pending' recordUris)
             const blockedUsers = await this.blockedUsersService.blockedUsersRepo.getAllByListUri(selectedUri);
             const hasPending = blockedUsers.some(user => user.recordUri === 'pending');
-
             if (hasPending) {
                 this.notificationManager.displayNotification(
                     'Blocked users are still being downloaded. Please wait until all users are fully loaded before downloading.',
@@ -297,7 +295,6 @@ export class BlockedUsersUI {
                 );
                 return;
             }
-
             if (blockedUsers.length === 0) {
                 this.notificationManager.displayNotification('No blocked users to download.', 'info');
                 return;
@@ -327,22 +324,14 @@ export class BlockedUsersUI {
         }
     }
 
-    /**
-     * Converts an array of blocked users to CSV format.
-     * @param blockedUsers Array of blocked users.
-     * @returns CSV string.
-     */
     private convertToCSV(blockedUsers: IndexedDbBlockedUser[]): string {
         const headers = ['User Handle'];
-        const rows = blockedUsers.map(user => [
-            user.userHandle
-        ]);
-
+        const rows = blockedUsers.map(user => [user.userHandle]);
         const csv = [
             headers.join(','), // Header row
-            ...rows.map(row => row.map(field => `"${field}"`).join(',')) // Data rows with quotes
+            // Data rows with quotes
+            ...rows.map(row => row.map(field => `"${field}"`).join(','))
         ].join('\n');
-
         return csv;
     }
 
@@ -383,7 +372,6 @@ export class BlockedUsersUI {
             this.blockedUsersPage,
             this.blockedUsersPageSize
         );
-
         await this.renderBlockedUsers(users, total);
     }
 
@@ -420,8 +408,8 @@ export class BlockedUsersUI {
                 this.updatePaginationControls(this.totalBlockedUsers);
             }
 
-            // (Optionally update IDB if your flow requires it here or it might be done elsewhere)
-            // e.g. this.blockedUsersService.blockedUsersRepo.addOrUpdate(...)
+            // Optionally update IDB if your flow requires it here or it might be done elsewhere
+            // e.g., this.blockedUsersService.blockedUsersRepo.addOrUpdate(...)
         } catch (error) {
             Logger.error('Failed to add user to UI with correct order:', error);
             this.notificationManager.displayNotification(
@@ -533,7 +521,6 @@ export class BlockedUsersUI {
             try {
                 const currentPageData = await this.blockedUsersService.blockedUsersRepo
                     .getPageByListUri(selectedUri, this.blockedUsersPage, this.blockedUsersPageSize);
-
                 const itemsPromises = currentPageData.map(item => this.itemFactory.create(item));
                 const items = await Promise.all(itemsPromises);
                 this.view.renderBlockedUsersList(items as HTMLDivElement[]);
@@ -579,14 +566,12 @@ export class BlockedUsersUI {
             : await this.blockedUsersService.blockedUsersRepo.getCountByListUri(selectedUri);
 
         const totalPages = Math.max(1, Math.ceil(totalCount / this.blockedUsersPageSize));
-
         let newPage = this.blockedUsersPage + delta;
         if (newPage < 1) newPage = 1;
         if (newPage > totalPages) newPage = totalPages;
         if (newPage === this.blockedUsersPage) {
             return;
         }
-
         this.blockedUsersPage = newPage;
 
         // Re-render the current page based on the active search query
@@ -621,7 +606,6 @@ export class BlockedUsersUI {
         // Update pagination controls
         this.view.updatePagination(this.blockedUsersPage, totalPages);
         this.view.updateCount(this.totalBlockedUsers);
-
         this.view.hideLoading();
 
         if (items.length === 0) {

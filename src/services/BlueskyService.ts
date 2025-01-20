@@ -147,19 +147,16 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
         }
     }
 
-    /**
-     * Enhanced getBlockedUsers with retry and partial data handling.
-     * @param listUri The URI of the block list to fetch.
-     * @param maxRetries Maximum number of retries per chunk.
-     * @returns An array of BlockedUser objects.
-     */
-    public async getBlockedUsers(listUri: string, maxRetries: number = 3): Promise<BlockedUser[]> {
-        if (!this.sessionService.isLoggedIn()) return [];
-        const items: BlockedUser[] = [];
-        let cursor: string | null = null;
-        const MAX_LIMIT = 100;
-
+    public async getBlockedUsers(
+        listUri: string,
+        maxRetries: number = 3,
+        onChunkFetched?: (chunk: BlockedUser[]) => Promise<void> // Updated to return Promise<void>
+    ): Promise<BlockedUser[]> {
         try {
+            const items: BlockedUser[] = [];
+            let cursor: string | null = null;
+            const MAX_LIMIT = 100;
+
             while (true) {
                 let attempt = 0;
                 let success = false;
@@ -183,25 +180,31 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 }
 
                 if (!success || !response) {
-                    // Exit the main loop if fetching this chunk failed after retries
-                    break;
+                    break; // Exit main loop if fetching failed
                 }
 
-                items.push(...(response.items || []));
-                this.emit('blockedUsersProgress', items.length);
-                
-                cursor = response.cursor || null;
+                const currentChunk = response.items || [];
+                items.push(...currentChunk);
 
+                // Invoke and await the callback with the current chunk
+                if (onChunkFetched) {
+                    await onChunkFetched(currentChunk); // Await the async callback
+                }
+
+                this.emit('blockedUsersProgress', items.length);
+
+                cursor = response.cursor || null;
                 if (!cursor) break; // No more pages
             }
 
             return items;
         } catch (error) {
-            this.errorService.handleError(error as Error);
+            Logger.error('getBlockedUsers => error:', error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
-            return items; // Return whatever has been fetched so far
+            return [];
         }
     }
+
     
     public async resolveHandleFromDid(did: string): Promise<string> {
         // Check cache first

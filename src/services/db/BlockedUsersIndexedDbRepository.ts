@@ -66,7 +66,7 @@ export class BlockedUsersIndexedDbRepository {
     public async getAllByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return [];
-        return this.blockedUsersStore.getAllByListUri(listUri);
+        return this.blockedUsersStore.getAllByListUriDescending(listUri);
     }
 
     public async getAll(): Promise<IndexedDbBlockedUser[]> {

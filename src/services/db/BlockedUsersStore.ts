@@ -20,29 +20,12 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     // Public Store Operations
     // ------------------------
 
-    /**
-     * Retrieves all blocked users for a specific list URI, sorted in descending order.
-     * @param listUri The URI of the block list.
-     */
     @MonitorPerformance
-    public async getAllByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
-        Logger.debug(`[DEBUG-IDB] getAllByListUri => listUri="${listUri}"`);
-        const blockedUsers = await this.queryByListUri(listUri);
-        const sortedUsers = this.sortBlockedUsersDescending(blockedUsers);
-        Logger.debug(`[DEBUG-IDB] getAllByListUri => Finished`);
-        return sortedUsers;
-    }
-
-    /**
-     * Retrieves all blocked users across all lists, sorted in descending order.
-     */
-    @MonitorPerformance
-    public async getAll(): Promise<IndexedDbBlockedUser[]> {
-        Logger.debug('[DEBUG-IDB] getAll => fetching all records');
-        const blockedUsers = await super.getAll(); // Correctly calling the parent method
-        const sortedUsers = this.sortBlockedUsersDescending(blockedUsers);
-        Logger.debug(`[DEBUG-IDB] getAll => Finished`);
-        return sortedUsers;
+    public async getAllByListUriDescending(listUri: string): Promise<IndexedDbBlockedUser[]> {
+        Logger.debug(`[DEBUG-IDB] getAllByListUriDescending => listUri="${listUri}"`);
+        const blockedUsers = await this.queryByListUriDescending(listUri);
+        Logger.debug(`[DEBUG-IDB] getAllByListUriDescending => Finished`);
+        return blockedUsers;
     }
 
     /**
@@ -167,8 +150,8 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
             return;
         }
 
-        Logger.time('addOrUpdateBulk');
         try {
+            Logger.time('addOrUpdateBulk');
             const dataItems = items.map((i) =>
                 this.constructBlockedUser(
                     listUri,
@@ -274,6 +257,35 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     // Internals
     // ------------------------
 
+    @MonitorPerformance
+    private async queryByListUriDescending(listUri: string): Promise<IndexedDbBlockedUser[]> {
+        return this.performRequest('readonly', async (store) => {
+            const index = 'listUriOrderIndex';
+            const range = IDBKeyRange.bound(
+                [listUri, Number.MIN_SAFE_INTEGER],
+                [listUri, Number.MAX_SAFE_INTEGER]
+            );
+            const blockedUsers: IndexedDbBlockedUser[] = [];
+            const request = store.index(index).openCursor(range, 'prev'); // 'prev' for descending order
+
+            return new Promise<IndexedDbBlockedUser[]>((resolve, reject) => {
+                request.onsuccess = (event) => {
+                    const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                    if (cursor) {
+                        blockedUsers.push(cursor.value);
+                        cursor.continue();
+                    } else {
+                        resolve(blockedUsers);
+                    }
+                };
+                request.onerror = () => {
+                    Logger.error('[DEBUG-IDB] queryByListUriDescending => Cursor error:', request.error);
+                    reject(request.error);
+                };
+            });
+        });
+    }
+    
     /**
      * Queries blocked users by list URI using the 'listUriIndex'.
      * @param listUri The URI of the block list.
@@ -533,7 +545,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
 
         // If the removed user had the maxOrder, recalculate
         if (removedUser.order === meta.maxOrder) {
-            const remaining = await this.getAllByListUri(listUri);
+            const remaining = await this.getAllByListUriDescending(listUri);
             meta.maxOrder = remaining.length
                 ? Math.max(...remaining.map((u) => u.order))
                 : 0;
@@ -586,21 +598,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         listUri: string,
         dataItems: IndexedDbBlockedUser[]
     ): Promise<number> {
-        const existing = await this.getAllByListUri(listUri);
+        const existing = await this.getAllByListUriDescending(listUri);
         const existingHandles = new Set(existing.map((r) => r.userHandle));
         const newInserts = dataItems.filter((x) => !existingHandles.has(x.userHandle)).length;
         Logger.debug(`[DEBUG-IDB] filterNewInserts => newInserts=${newInserts}`);
         return newInserts;
-    }
-
-    /**
-     * Sorts blocked users in descending order based on their 'order' value.
-     * @param blockedUsers The array of blocked users to sort.
-     */
-    @MonitorPerformance
-    private sortBlockedUsersDescending(
-        blockedUsers: IndexedDbBlockedUser[]
-    ): IndexedDbBlockedUser[] {
-        return blockedUsers.sort((a, b) => b.order - a.order);
     }
 }

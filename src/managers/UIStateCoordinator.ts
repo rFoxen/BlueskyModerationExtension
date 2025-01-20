@@ -147,7 +147,6 @@ export class UIStateCoordinator {
     public updateUI(): void {
         this.isLoggedIn = this.getIsLoggedIn();
         Logger.debug('UIStateCoordinator: updateUI called, isLoggedIn:', this.isLoggedIn);
-
         if (this.isLoggedIn) {
             this.additionalBlockListsDropdown.loadBlockLists();
             this.slideoutManager.displayLoginInfo(this.blueskyService.getLoggedInUsername());
@@ -157,6 +156,7 @@ export class UIStateCoordinator {
                 this.blockListDropdown.onSelectionChange(this.handleBlockListSelectionChange.bind(this));
                 this.blockListDropdown.loadBlockLists();
             }
+
             this.slideoutManager.showBlockListsSection();
 
             if (!this.blockedUsersUI) {

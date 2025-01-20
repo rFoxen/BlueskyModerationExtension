@@ -38,11 +38,10 @@ export class BlockedUsersService extends EventEmitter {
             const listCount = await this.blockedUsersRepo.getCountByListUri(listUri);
             if (listCount > 0) {
                 // We have some data in IndexedDB
-                this.emit('blockedUsersLoaded', /* pass anything if needed */);
+                this.emit('blockedUsersLoaded');
             } else {
                 // 2) If no local data, fetch from network then persist
-                await this.fetchAndPersistBlockedUsers(listUri);
-                this.emit('blockedUsersLoaded');
+                await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersLoaded');
             }
         } catch (error) {
             Logger.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
@@ -51,39 +50,46 @@ export class BlockedUsersService extends EventEmitter {
     }
 
     /**
-     * Manually fetch from API and store in IDB, overwriting existing data for the listUri.
+     * Loads and persists blocked users in chunks.
+     * @param listUri The URI of the block list.
      */
-    private async fetchAndPersistBlockedUsers(listUri: string): Promise<void> {
-        // 1) Clear ListURI store
-        await this.blockedUsersRepo.clearStoreByListUri(listUri);
-        // 2) Force a fresh fetch from network
-        const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
-        // 3) Overwrite existing in IDB
-        const bulkItems = blockedUsers.slice().reverse().map((user, index) => ({
-            userHandle: user.subject.handle || user.subject.did,
-            did: user.subject.did,
-            recordUri: user.uri,
-            order: index, // Assign order based on API response index
-        }));
-        await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
+    private async fetchAndPersistBlockedUsers(
+        listUri: string,
+        completionEvent: string = 'blockedUsersLoaded'
+    ): Promise<void> {
+        try {
+            // 1) Clear existing blocked users for the list
+            await this.blockedUsersRepo.clearStoreByListUri(listUri);
+
+            // 2) Fetch and persist blocked users chunk by chunk
+            await this.blueskyService.getBlockedUsers(listUri, 3, async (chunk: BlockedUser[]) => {
+                // Transform API response to IndexedDB format
+                const bulkItems = chunk.slice().reverse().map((user, index) => ({
+                    userHandle: user.subject.handle || user.subject.did,
+                    did: user.subject.did,
+                    recordUri: user.uri,
+                    order: index, // Assign order based on API response index
+                }));
+
+                // Persist the current chunk to IndexedDB
+                await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
+
+                // Emit progress event with the current total count
+                const currentCount = await this.blockedUsersRepo.getCountByListUri(listUri);
+                this.emit('blockedUsersProgress', currentCount);
+            });
+
+            // 3) Emit completion event
+            this.emit(completionEvent);
+        } catch (error) {
+            Logger.error('fetchAndPersistBlockedUsers => error:', error);
+            this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
+        }
     }
 
     public async refreshBlockedUsers(listUri: string): Promise<void> {
         try {
-            // 1) Clear ListURI store
-            await this.blockedUsersRepo.clearStoreByListUri(listUri);
-            // 2) Force a fresh fetch from network
-            const blockedUsers = await this.blueskyService.getBlockedUsers(listUri);
-            // 3) Overwrite existing in IDB
-            const bulkItems = blockedUsers.slice().reverse().map((user, index) => ({
-                userHandle: user.subject.handle || user.subject.did,
-                did: user.subject.did,
-                recordUri: user.uri,
-                order: index, // Assign order based on API response index
-            }));
-            await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
-
-            this.emit('blockedUsersRefreshed');
+            await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersRefreshed');
         } catch (error) {
             Logger.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
