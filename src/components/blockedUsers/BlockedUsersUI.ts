@@ -159,6 +159,36 @@ export class BlockedUsersUI {
         };
         this.domEventHandlers['visit'] = visitHandler;
         this.view.onVisitClick(visitHandler);
+        
+        // --- Download Entire DB ---
+        const downloadDbHandler = (event: Event) => {
+            event.preventDefault();
+            this.handleDownloadEntireDb();
+        };
+        this.domEventHandlers['downloadDb'] = downloadDbHandler;
+        this.view.onDownloadDbClick(downloadDbHandler);
+
+        // --- Restore Entire DB Button (opens file dialog) ---
+        const restoreDbHandler = (event: Event) => {
+            event.preventDefault();
+            this.view.showSection(); // ensure UI is visible if needed
+            const fileInput = document.getElementById('restore-db-file') as HTMLInputElement;
+            if (fileInput) fileInput.click(); // open file dialog
+        };
+        this.domEventHandlers['restoreDb'] = restoreDbHandler;
+        this.view.onRestoreDbClick(restoreDbHandler);
+
+        // --- Restore Entire DB File Input (on change) ---
+        const restoreDbFileChangeHandler = (event: Event) => {
+            const fileInput = event.target as HTMLInputElement;
+            if (!fileInput.files || fileInput.files.length === 0) return;
+            const file = fileInput.files[0];
+            this.handleRestoreEntireDb(file);
+            // Clear selection so we can trigger "change" again if needed
+            fileInput.value = '';
+        };
+        this.domEventHandlers['restoreDbFile'] = restoreDbFileChangeHandler;
+        this.view.onRestoreDbFileChange(restoreDbFileChangeHandler);
     }
 
     private subscribeToServiceEvents(): void {
@@ -180,6 +210,80 @@ export class BlockedUsersUI {
         const boundHandler = handler.bind(this);
         this.serviceEventHandlers[event] = boundHandler;
         service.on(event, boundHandler);
+    }
+
+    // ---------------------------
+    // Download entire DB => JSON
+    // ---------------------------
+    private async handleDownloadEntireDb(): Promise<void> {
+        if (!confirm('Are you sure you want to download the entire database?')) {
+            return;
+        }
+
+        try {
+            const allData = await this.blockedUsersService.exportEntireDatabase();
+            const jsonString = JSON.stringify(allData, null, 2);
+
+            // Create a Blob and download
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'bluesky-moderation-db.json';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            this.notificationManager.displayNotification(
+                'Database export completed successfully.',
+                'success'
+            );
+        } catch (error) {
+            console.error('Failed to export entire DB:', error);
+            this.notificationManager.displayNotification('Failed to export database.', 'error');
+        }
+    }
+
+    // ---------------------------
+    // Restore entire DB from JSON
+    // ---------------------------
+    private async handleRestoreEntireDb(file: File): Promise<void> {
+        if (!confirm('Restoring will overwrite all local DB data. Continue?')) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                if (!content) throw new Error('Empty file');
+
+                const data = JSON.parse(content);
+                await this.blockedUsersService.importEntireDatabase(data);
+
+                this.notificationManager.displayNotification(
+                    'Database restored successfully.',
+                    'success'
+                );
+
+                // Optionally reload the UI
+                // e.g., if you want to show the newly imported block lists
+                // this.reloadBlockedUsersUI();
+            } catch (error) {
+                console.error('Failed to restore entire DB:', error);
+                this.notificationManager.displayNotification('Failed to restore database.', 'error');
+            }
+        };
+
+        reader.onerror = () => {
+            this.notificationManager.displayNotification('Error reading file.', 'error');
+        };
+
+        reader.readAsText(file);
     }
 
     // ----------------------------------------------------------------

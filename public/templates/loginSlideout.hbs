@@ -1,4 +1,5 @@
 <div id="slideout-overlay" class="slideout-overlay" aria-hidden="true"></div>
+
 <div id="login-slideout" class="slideout" role="dialog" aria-labelledby="slideout-title" aria-hidden="true">
     <div class="slideout-content">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -336,6 +337,35 @@
                         <!-- Options populated dynamically by new code -->
                     </select>
                 </div>
+
+                <div class="mt-3">
+                    <button
+                            id="download-db"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary mb-2"
+                            title="Download entire DB as JSON"
+                    >
+                        Download DB
+                    </button>
+
+                    <button
+                            id="restore-db"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            title="Restore entire DB from a JSON file"
+                    >
+                        Restore DB
+                    </button>
+
+                    <!-- Hidden file input for DB restore -->
+                    <input
+                            type="file"
+                            id="restore-db-file"
+                            accept="application/json"
+                            style="display: none;"
+                    />
+                </div>
+                
             </div>
         </div>
     </div>
@@ -344,3 +374,12 @@
 <button id="toggle-slideout" class="toggle-slideout btn btn-primary" aria-label="{{ariaLabels.OPEN_SLIDEOUT}}" title="{{blockListName}}">
     ☰ {{blockListName}}
 </button>
+
+<div id="db-restore-overlay" class="db-restore-overlay d-none" aria-hidden="true">
+    <div class="db-restore-overlay-content">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Restoring...</span>
+        </div>
+        <p class="mt-2">Restoring the database. Please wait...</p>
+    </div>
+</div>

@@ -17,6 +17,11 @@ export class BlockedUsersView {
     private downloadButton: HTMLElement;
     private visitButton: HTMLElement;
 
+    private dbRestoreOverlay: HTMLElement;
+    private downloadDbButton: HTMLElement;
+    private restoreDbButton: HTMLElement;
+    private restoreDbFileInput: HTMLInputElement;
+
     constructor(blockedUsersSectionId: string) {
         this.section = document.getElementById(blockedUsersSectionId)!;
         this.blockedUsersList = this.section.querySelector('#blocked-users-list')!;
@@ -31,6 +36,11 @@ export class BlockedUsersView {
         this.refreshButton = this.section.querySelector('#refresh-blocked-users') as HTMLElement;
         this.downloadButton = this.section.querySelector('#download-blocked-users') as HTMLElement;
         this.visitButton = this.section.querySelector('#visit-block-list') as HTMLElement;
+
+        this.dbRestoreOverlay = document.getElementById('db-restore-overlay')!;
+        this.downloadDbButton = document.getElementById('download-db')!;
+        this.restoreDbButton = document.getElementById('restore-db')!;
+        this.restoreDbFileInput = document.getElementById('restore-db-file')! as HTMLInputElement;
     }
 
     public clearBlockedUsersList(): void {
@@ -211,29 +221,48 @@ export class BlockedUsersView {
     public onVisitClick(handler: EventListener): void {
         EventListenerHelper.addEventListener(this.visitButton, 'click', handler);
     }
+    
+    public onDownloadDbClick(handler: EventListener): void {
+        EventListenerHelper.addEventListener(this.downloadDbButton, 'click', handler);
+    }
+
+    public onRestoreDbClick(handler: EventListener): void {
+        EventListenerHelper.addEventListener(this.restoreDbButton, 'click', handler);
+    }
+
+    public onRestoreDbFileChange(handler: EventListener): void {
+        EventListenerHelper.addEventListener(this.restoreDbFileInput, 'change', handler);
+    }
+
+    /**
+     * Show the full-screen overlay while DB is being restored
+     */
+    public showDbRestoreOverlay(): void {
+        this.dbRestoreOverlay.classList.remove('d-none');
+        this.dbRestoreOverlay.setAttribute('aria-hidden', 'false');
+    }
+
+    /**
+     * Hide the full-screen overlay once DB restore completes or fails
+     */
+    public hideDbRestoreOverlay(): void {
+        this.dbRestoreOverlay.classList.add('d-none');
+        this.dbRestoreOverlay.setAttribute('aria-hidden', 'true');
+    }
 
     public removeEventListener(eventKey: string, handler: EventListener): void {
         // Remove specific event listeners based on event key
         switch (eventKey) {
-            case 'toggle':
-                EventListenerHelper.removeEventListener(this.toggleButton, 'click', handler);
-                break;
-            case 'prevPage':
-                EventListenerHelper.removeEventListener(this.prevButton, 'click', handler);
-                break;
-            case 'nextPage':
-                EventListenerHelper.removeEventListener(this.nextButton, 'click', handler);
-                break;
-            case 'search':
-                EventListenerHelper.removeEventListener(this.searchInput, 'input', handler);
-                break;
-            case 'refresh':
-                EventListenerHelper.removeEventListener(this.refreshButton, 'click', handler);
-                break;
-            case 'download':
-                EventListenerHelper.removeEventListener(this.downloadButton, 'click', handler)
-            case 'visit':
-                EventListenerHelper.removeEventListener(this.visitButton, 'click', handler)
+            case 'toggle': EventListenerHelper.removeEventListener(this.toggleButton, 'click', handler); break;
+            case 'prevPage': EventListenerHelper.removeEventListener(this.prevButton, 'click', handler); break;
+            case 'nextPage': EventListenerHelper.removeEventListener(this.nextButton, 'click', handler); break;
+            case 'search': EventListenerHelper.removeEventListener(this.searchInput, 'input', handler); break;
+            case 'refresh': EventListenerHelper.removeEventListener(this.refreshButton, 'click', handler); break;
+            case 'download': EventListenerHelper.removeEventListener(this.downloadButton, 'click', handler); break;
+            case 'visit': EventListenerHelper.removeEventListener(this.visitButton, 'click', handler); break;
+            case 'downloadDb': EventListenerHelper.removeEventListener(this.downloadDbButton, 'click', handler); break;
+            case 'restoreDb': EventListenerHelper.removeEventListener(this.restoreDbButton, 'click', handler); break;
+            case 'restoreDbFile': EventListenerHelper.removeEventListener(this.restoreDbFileInput, 'change', handler); break;
             default:
                 break;
         }

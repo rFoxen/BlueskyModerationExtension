@@ -241,6 +241,16 @@ export class BlockedUsersService extends EventEmitter {
         }
     }
 
+    public async exportEntireDatabase(): Promise<any> {
+        return this.blockedUsersRepo.exportAllData();
+    }
+
+    public async importEntireDatabase(data: any): Promise<void> {
+        await this.blockedUsersRepo.importAllData(data);
+        // Optionally emit an event so UI can re-render:
+        this.emit('blockedUsersLoaded');
+    }
+
     /**
      * Helper to parse the `uri` from an API response
      */

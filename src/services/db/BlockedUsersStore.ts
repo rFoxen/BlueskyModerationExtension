@@ -400,7 +400,7 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param dataItems An array of blocked user data items.
      */
     @MonitorPerformance
-    private async bulkPutRecords(dataItems: IndexedDbBlockedUser[]): Promise<void> {
+    public async bulkPutRecords(dataItems: IndexedDbBlockedUser[]): Promise<void> {
         await new Promise<void>((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
             const store = tx.objectStore(this.storeName);

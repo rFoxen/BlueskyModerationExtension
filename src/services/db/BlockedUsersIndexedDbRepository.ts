@@ -63,6 +63,63 @@ export class BlockedUsersIndexedDbRepository {
     // Public API
     // ------------------------- //
 
+    public async exportAllData(): Promise<any> {
+        await this.ensureDbReady();
+        if (!this.isDbInitialized()) return {};
+
+        // 1) Retrieve blocked users
+        const blockedUsers = await this.getAll();
+
+        // 2) Retrieve metadata
+        // If you want all metadata, you'll need a dedicated method:
+        const listUris = await this.getAllListUris();
+        const metadata = [];
+        for (const listUri of listUris) {
+            const meta = await this.metadataStore.getListMetadata(listUri);
+            metadata.push(meta);
+        }
+
+        return {
+            blockedUsers,
+            metadata
+        };
+    }
+
+    public async importAllData(data: any): Promise<void> {
+        await this.ensureDbReady();
+        if (!this.isDbInitialized()) return;
+
+        // Example of structure we expect:
+        // data = {
+        //   blockedUsers: IndexedDbBlockedUser[],
+        //   metadata: IListMetadata[],
+        // }
+
+        // 1) Clear existing
+        await this.clearAll(); // clears blockedUsers & metadata
+
+        // 2) Re-insert all blocked users
+        if (Array.isArray(data.blockedUsers)) {
+            await this.blockedUsersStore.bulkPutRecords(data.blockedUsers);
+        }
+
+        // 3) Re-insert all metadata
+        if (Array.isArray(data.metadata)) {
+            for (const meta of data.metadata) {
+                await this.metadataStore.setListMetadata(meta.listUri, meta);
+            }
+        }
+    }
+    
+    /**
+     * Example helper to find all listUris from blockedUsers.
+     */
+    private async getAllListUris(): Promise<string[]> {
+        const allBlockedUsers = await this.getAll();
+        const uris = new Set<string>(allBlockedUsers.map(u => u.listUri));
+        return Array.from(uris);
+    }
+    
     public async getAllByListUri(listUri: string): Promise<IndexedDbBlockedUser[]> {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return [];
