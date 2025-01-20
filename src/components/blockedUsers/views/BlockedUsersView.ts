@@ -1,8 +1,11 @@
 import { LABELS, STORAGE_KEYS } from '@src/constants/Constants';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
+import { getContrastYIQ } from '@src/utils/colorUtils';
 
 export class BlockedUsersView {
+    private toggleSlideoutButton: HTMLElement;
+    
     private section: HTMLElement;
     private blockedUsersList: HTMLElement;
     private loadingIndicator: HTMLElement;
@@ -24,6 +27,8 @@ export class BlockedUsersView {
     private restoreDbFileInput: HTMLInputElement;
 
     constructor(blockedUsersSectionId: string) {
+        this.toggleSlideoutButton = document.getElementById('toggle-slideout')!;
+        
         this.section = document.getElementById(blockedUsersSectionId)!;
         this.blockedUsersList = this.section.querySelector('#blocked-users-list')!;
         this.loadingIndicator = document.querySelector('#blocked-users-loading')!;
@@ -63,6 +68,20 @@ export class BlockedUsersView {
         this.section.classList.add('d-none');
     }
 
+    
+    /**
+     * Updates the color of the toggle-slideout button.
+     * @param color The hexadecimal color code to apply.
+     */
+    public updateToggleSlideoutColor(color: string): void {
+        this.toggleSlideoutButton.style.backgroundColor = color;
+        this.toggleSlideoutButton.style.borderColor = color;
+
+        // Optional: Adjust text color for better contrast
+        const textColor = getContrastYIQ(color);
+        this.toggleSlideoutButton.style.color = textColor;
+    }
+    
     /**
      * Shows the loading indicator and hides the content.
      */

@@ -7,6 +7,7 @@ import { MESSAGES, ERRORS } from '@src/constants/Constants';
 import { debounce } from '@src/utils/helpers/debounce';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
+import { stringToColor } from '@src/utils/colorUtils';
 import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import Logger from '@src/utils/logger/Logger';
 import { EventEmitter } from '@src/utils/events/EventEmitter';
@@ -189,8 +190,27 @@ export class BlockedUsersUI {
         };
         this.domEventHandlers['restoreDbFile'] = restoreDbFileChangeHandler;
         this.view.onRestoreDbFileChange(restoreDbFileChangeHandler);
-    }
 
+
+        const blockListChangedHandler = (event: Event) => {
+            const customEvent = event as CustomEvent<{ listName: string }>;
+            const listName = customEvent.detail.listName;
+            this.handleBlockListChanged(listName);
+        };
+        this.domEventHandlers['blockListChanged'] = blockListChangedHandler;
+        document.addEventListener('blockListChanged', blockListChangedHandler);
+    }
+    
+    /**
+     * Handler for when the block list changes.
+     * @param listName The name of the selected block list.
+     */
+    private handleBlockListChanged(listName: string): void {
+        Logger.debug(`Block list changed to: ${listName}`);
+        const newColor = stringToColor(listName);
+        this.view.updateToggleSlideoutColor(newColor);
+    }
+    
     private subscribeToServiceEvents(): void {
         // Register events specifically to each service
         this.registerServiceEvent(this.blockedUsersService, 'blockedUsersLoaded', this.handleBlockedUsersLoaded);

@@ -91,12 +91,6 @@ body.dark-mode .nav-tabs .nav-link:hover {
     justify-content: center;
     padding: 0 12px; /* Horizontal padding for better spacing */
     font-size: 1rem;
-    transition:
-            background-color var(--transition-duration),
-            color var(--transition-duration),
-            width var(--transition-duration),
-            padding var(--transition-duration);
-    background-image: linear-gradient(135deg, rgb(90, 113, 250), rgb(0, 133, 255));
     color: #ffffff;
     z-index: 1001;
     white-space: nowrap; /* Prevent text from wrapping */
@@ -107,7 +101,6 @@ body.dark-mode .nav-tabs .nav-link:hover {
 }
 
 .toggle-slideout:hover {
-    background-image: linear-gradient(135deg, rgb(80, 103, 240), rgb(0, 123, 245)); /* Slightly darker on hover */
 }
 
 .toggle-slideout:focus {
