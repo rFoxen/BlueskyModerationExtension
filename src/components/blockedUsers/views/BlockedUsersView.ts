@@ -15,6 +15,7 @@ export class BlockedUsersView {
     private searchInput: HTMLInputElement;
     private refreshButton: HTMLElement;
     private downloadButton: HTMLElement;
+    private visitButton: HTMLElement;
 
     constructor(blockedUsersSectionId: string) {
         this.section = document.getElementById(blockedUsersSectionId)!;
@@ -29,6 +30,7 @@ export class BlockedUsersView {
         this.searchInput = this.section.querySelector('#blocked-users-search') as HTMLInputElement;
         this.refreshButton = this.section.querySelector('#refresh-blocked-users') as HTMLElement;
         this.downloadButton = this.section.querySelector('#download-blocked-users') as HTMLElement;
+        this.visitButton = this.section.querySelector('#visit-block-list') as HTMLElement;
     }
 
     public clearBlockedUsersList(): void {
@@ -206,6 +208,10 @@ export class BlockedUsersView {
         EventListenerHelper.addEventListener(this.downloadButton, 'click', handler);
     }
 
+    public onVisitClick(handler: EventListener): void {
+        EventListenerHelper.addEventListener(this.visitButton, 'click', handler);
+    }
+
     public removeEventListener(eventKey: string, handler: EventListener): void {
         // Remove specific event listeners based on event key
         switch (eventKey) {
@@ -226,6 +232,8 @@ export class BlockedUsersView {
                 break;
             case 'download':
                 EventListenerHelper.removeEventListener(this.downloadButton, 'click', handler)
+            case 'visit':
+                EventListenerHelper.removeEventListener(this.visitButton, 'click', handler)
             default:
                 break;
         }

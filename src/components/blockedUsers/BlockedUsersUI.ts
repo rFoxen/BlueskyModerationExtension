@@ -151,6 +151,14 @@ export class BlockedUsersUI {
         };
         this.domEventHandlers['download'] = downloadHandler;
         this.view.onDownloadClick(downloadHandler);
+
+        // Visit
+        const visitHandler = (event: Event) => {
+            event.preventDefault();
+            this.visitBlockList();
+        };
+        this.domEventHandlers['visit'] = visitHandler;
+        this.view.onVisitClick(visitHandler);
     }
 
     private subscribeToServiceEvents(): void {
@@ -324,6 +332,38 @@ export class BlockedUsersUI {
         }
     }
 
+    private visitBlockList(): void {
+        const selectedUri = this.blockListDropdown.getSelectedValue();
+
+        if (!selectedUri) {
+            this.notificationManager.displayNotification('Please select a block list to visit.', 'error');
+            return;
+        }
+
+        const uriPattern = /^at:\/\/(did:[^\/]+)\/app\.bsky\.graph\.list\/(.+)$/;
+        const match = selectedUri.match(uriPattern);
+
+        if (!match) {
+            this.notificationManager.displayNotification('Invalid block list URI format.', 'error');
+            return;
+        }
+
+        const did = match[1];
+        const listId = match[2];
+        const url = `https://bsky.app/profile/${did}/lists/${listId}`;
+
+        try {
+            const newTab = window.open(url, '_blank');
+            if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
+                throw new Error('Popup blocked');
+            }
+        } catch (error) {
+            this.notificationManager.displayNotification('Failed to open the block list. Please allow popups for this site.', 'error');
+            console.error('Error opening new tab:', error);
+        }
+    }
+
+    
     private convertToCSV(blockedUsers: IndexedDbBlockedUser[]): string {
         const headers = ['User Handle'];
         const rows = blockedUsers.map(user => [user.userHandle]);
