@@ -375,11 +375,16 @@
     ☰ {{blockListName}}
 </button>
 
-<div id="db-restore-overlay" class="db-restore-overlay d-none" aria-hidden="true">
+<div id="db-restore-overlay" class="db-restore-overlay d-none" role="dialog" aria-modal="true" aria-labelledby="db-restore-title" aria-describedby="db-restore-description">
     <div class="db-restore-overlay-content">
-        <div class="spinner-border" role="status">
-            <span class="visually-hidden">Restoring...</span>
+        <div class="spinner-border" role="status" aria-hidden="true">
+            <!-- Screen readers will announce "Restoring..." via aria-describedby -->
         </div>
-        <p class="mt-2">Restoring the database. Please wait...</p>
+        <h2 id="db-restore-title" class="mt-2">Database Restoration</h2>
+        <p id="db-restore-description">Restoring the database. Please wait...</p>
+
+        <!-- Detailed logs area using <pre> for better formatting -->
+        <pre id="db-restore-logs" class="db-restore-logs" aria-live="polite"></pre>
     </div>
 </div>
+

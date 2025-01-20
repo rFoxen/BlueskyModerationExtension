@@ -3,8 +3,9 @@ import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import { DbInitializer } from './DbInitializer';
 import { MetadataStore } from './MetadataStore';
 import { BlockedUsersStore } from './BlockedUsersStore';
+import {EventEmitter} from "../../utils/events/EventEmitter";
 
-export class BlockedUsersIndexedDbRepository {
+export class BlockedUsersIndexedDbRepository extends EventEmitter {
     private dbInstance!: IDBDatabase;
     private readyPromise: Promise<void>;
     private metadataStore!: MetadataStore;
@@ -16,6 +17,7 @@ export class BlockedUsersIndexedDbRepository {
         private readonly metadataStoreName: string = 'listMetadata',
         private readonly dbVersion: number = 1
     ) {
+        super();
         const initializer = new DbInitializer(
             this.dbName,
             this.dbVersion,
@@ -95,19 +97,36 @@ export class BlockedUsersIndexedDbRepository {
         //   metadata: IListMetadata[],
         // }
 
-        // 1) Clear existing
-        await this.clearAll(); // clears blockedUsers & metadata
-
-        // 2) Re-insert all blocked users
-        if (Array.isArray(data.blockedUsers)) {
-            await this.blockedUsersStore.bulkPutRecords(data.blockedUsers);
-        }
-
-        // 3) Re-insert all metadata
-        if (Array.isArray(data.metadata)) {
-            for (const meta of data.metadata) {
-                await this.metadataStore.setListMetadata(meta.listUri, meta);
+        try {
+            // 1) Clear existing
+            this.emit('dbRestoreProgress', 'Clearing existing data...');
+            await this.clearAll(); // clears blockedUsers & metadata
+    
+            // 2) Re-insert all blocked users
+            if (Array.isArray(data.blockedUsers)) {
+                this.emit('dbRestoreProgress', `Inserting ${data.blockedUsers.length} blocked user(s)...`);
+                await this.blockedUsersStore.bulkPutRecords(data.blockedUsers);
+            } else {
+                this.emit('dbRestoreProgress', 'No blockedUsers found in JSON');
             }
+    
+            // Step 3: Insert metadata
+            if (Array.isArray(data.metadata)) {
+                this.emit('dbRestoreProgress', `Inserting ${data.metadata.length} metadata record(s)...`);
+                for (const meta of data.metadata) {
+                    await this.metadataStore.setListMetadata(meta.listUri, meta);
+                }
+            } else {
+                this.emit('dbRestoreProgress', 'No metadata found in JSON');
+            }
+            
+            // Step 4: Done
+            this.emit('dbRestoreProgress', 'Restoration complete.');
+            this.emit('blockedUsersLoaded');
+        } catch (error) {
+            // If something fails, emit a progress line to notify
+            this.emit('dbRestoreProgress', 'Error: ' + (error as Error).message);
+            throw error;
         }
     }
     

@@ -18,6 +18,7 @@ export class BlockedUsersView {
     private visitButton: HTMLElement;
 
     private dbRestoreOverlay: HTMLElement;
+    private dbRestoreLogs: HTMLElement;
     private downloadDbButton: HTMLElement;
     private restoreDbButton: HTMLElement;
     private restoreDbFileInput: HTMLInputElement;
@@ -38,6 +39,7 @@ export class BlockedUsersView {
         this.visitButton = this.section.querySelector('#visit-block-list') as HTMLElement;
 
         this.dbRestoreOverlay = document.getElementById('db-restore-overlay')!;
+        this.dbRestoreLogs = document.getElementById('db-restore-logs')!;
         this.downloadDbButton = document.getElementById('download-db')!;
         this.restoreDbButton = document.getElementById('restore-db')!;
         this.restoreDbFileInput = document.getElementById('restore-db-file')! as HTMLInputElement;
@@ -240,6 +242,8 @@ export class BlockedUsersView {
     public showDbRestoreOverlay(): void {
         this.dbRestoreOverlay.classList.remove('d-none');
         this.dbRestoreOverlay.setAttribute('aria-hidden', 'false');
+        // Clear any old logs each time we show the overlay
+        this.dbRestoreLogs.innerHTML = '';
     }
 
     /**
@@ -248,6 +252,19 @@ export class BlockedUsersView {
     public hideDbRestoreOverlay(): void {
         this.dbRestoreOverlay.classList.add('d-none');
         this.dbRestoreOverlay.setAttribute('aria-hidden', 'true');
+    }
+
+    /**
+     * Appends a new line of text to the restoration logs in the overlay.
+     */
+    public appendDbRestoreLog(message: string): void {
+        // For multi-line logs, create a new <div> or <p> for each step
+        const line = document.createElement('div');
+        line.textContent = message;
+        this.dbRestoreLogs.appendChild(line);
+
+        // Optionally auto-scroll to bottom
+        this.dbRestoreLogs.scrollTop = this.dbRestoreLogs.scrollHeight;
     }
 
     public removeEventListener(eventKey: string, handler: EventListener): void {

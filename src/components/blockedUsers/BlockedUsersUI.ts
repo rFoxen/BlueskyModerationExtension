@@ -204,7 +204,8 @@ export class BlockedUsersUI {
         // Error events can come from both services
         this.registerServiceEvent(this.blockedUsersService, 'error', this.handleServiceError);
         this.registerServiceEvent(this.blueskyService, 'error', this.handleServiceError);
-    }
+
+        this.registerServiceEvent(this.blockedUsersService.blockedUsersRepo, 'dbRestoreProgress', this.handleDbRestoreProgress);    }
 
     private registerServiceEvent(service: EventEmitter, event: string, handler: (...args: any[]) => void): void {
         const boundHandler = handler.bind(this);
@@ -215,6 +216,12 @@ export class BlockedUsersUI {
     // ---------------------------
     // Download entire DB => JSON
     // ---------------------------
+
+    // Callback that appends a line to the overlay logs
+    private handleDbRestoreProgress(message: string): void {
+        this.view.appendDbRestoreLog(message);
+    }
+    
     private async handleDownloadEntireDb(): Promise<void> {
         if (!confirm('Are you sure you want to download the entire database?')) {
             return;
@@ -256,6 +263,9 @@ export class BlockedUsersUI {
             return;
         }
 
+        // Show the overlay to block interaction
+        this.view.showDbRestoreOverlay();
+        
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -276,10 +286,15 @@ export class BlockedUsersUI {
             } catch (error) {
                 console.error('Failed to restore entire DB:', error);
                 this.notificationManager.displayNotification('Failed to restore database.', 'error');
+                this.view.appendDbRestoreLog('Restore process failed. Check console or logs.');
+            } finally {
+                // Hide the overlay after success or failure
+                this.view.hideDbRestoreOverlay();
             }
         };
 
         reader.onerror = () => {
+            this.view.hideDbRestoreOverlay();
             this.notificationManager.displayNotification('Error reading file.', 'error');
         };
 
