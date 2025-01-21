@@ -61,14 +61,17 @@ export class BlockedUsersService extends EventEmitter {
             // 1) Clear existing blocked users for the list
             await this.blockedUsersRepo.clearStoreByListUri(listUri);
 
-            // 2) Fetch and persist blocked users chunk by chunk
+            // 2) Initialize a global order counter
+            let currentOrder = 0;
+            
+            // 3) Fetch and persist blocked users chunk by chunk
             await this.blueskyService.getBlockedUsers(listUri, 3, async (chunk: BlockedUser[]) => {
                 // Transform API response to IndexedDB format
                 const bulkItems = chunk.slice().reverse().map((user, index) => ({
                     userHandle: user.subject.handle || user.subject.did,
                     did: user.subject.did,
                     recordUri: user.uri,
-                    order: index, // Assign order based on API response index
+                    order: currentOrder++,
                 }));
 
                 // Persist the current chunk to IndexedDB
@@ -79,7 +82,7 @@ export class BlockedUsersService extends EventEmitter {
                 this.emit('blockedUsersProgress', currentCount);
             });
 
-            // 3) Emit completion event
+            // 4) Emit completion event
             this.emit(completionEvent);
         } catch (error) {
             Logger.error('fetchAndPersistBlockedUsers => error:', error);

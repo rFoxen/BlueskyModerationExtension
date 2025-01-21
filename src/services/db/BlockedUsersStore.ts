@@ -545,11 +545,13 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
 
         // If the removed user had the maxOrder, recalculate
         if (removedUser.order === meta.maxOrder) {
-            const remaining = await this.getAllByListUriDescending(listUri);
-            meta.maxOrder = remaining.length
-                ? Math.max(...remaining.map((u) => u.order))
-                : 0;
+            // If you *just* removed the user, the store is already updated.
+            // The "next highest" item is simply the first cursor in descending order (if any).
+            const newMaxOrder = await this.findMaxOrderForList(listUri);
+            meta.maxOrder = newMaxOrder;
         }
+
+        await this.metadataStore.setListMetadata(listUri, meta);
 
         await this.metadataStore.setListMetadata(listUri, meta);
     }
@@ -558,6 +560,42 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     // Helper Methods
     // ------------------------
 
+    /**
+     * Find the new highest order in the list (descending by `order`)
+     * This opens a single cursor at the highest order, returning
+     * the first record (or null if none exist).
+     */
+    private async findMaxOrderForList(listUri: string): Promise<number> {
+        return this.performRequest('readonly', async (store) => {
+            return new Promise<number>((resolve, reject) => {
+                const index = store.index('listUriOrderIndex');
+                // [listUri, Number.MIN_SAFE_INTEGER] -> [listUri, Number.MAX_SAFE_INTEGER]
+                // means "all entries whose first index field = listUri, and second index field is any number"
+                const range = IDBKeyRange.bound(
+                    [listUri, Number.MIN_SAFE_INTEGER],
+                    [listUri, Number.MAX_SAFE_INTEGER]
+                );
+
+                // Open a cursor in `prev` direction so the first result is the highest order
+                const request = index.openCursor(range, 'prev');
+
+                request.onsuccess = (event) => {
+                    const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                    if (!cursor) {
+                        // No records left => max order is 0
+                        return resolve(0);
+                    }
+                    const record = cursor.value as IndexedDbBlockedUser;
+                    resolve(record.order);
+                };
+
+                request.onerror = () => {
+                    reject(request.error);
+                };
+            });
+        });
+    }
+    
     /**
      * Constructs a blocked user object.
      * @param listUri The URI of the block list.
