@@ -4,6 +4,8 @@ import { EventListenerHelper } from '@src/utils/events/EventListenerHelper';
 import { getContrastYIQ } from '@src/utils/colorUtils';
 
 export class BlockedUsersView {
+    private logLineElements: Record<string, HTMLDivElement> = {};
+    
     private toggleSlideoutButton: HTMLElement;
     
     private section: HTMLElement;
@@ -274,16 +276,27 @@ export class BlockedUsersView {
     }
 
     /**
-     * Appends a new line of text to the restoration logs in the overlay.
+     * Normal "append" version for logs:
      */
     public appendDbRestoreLog(message: string): void {
-        // For multi-line logs, create a new <div> or <p> for each step
         const line = document.createElement('div');
         line.textContent = message;
         this.dbRestoreLogs.appendChild(line);
-
-        // Optionally auto-scroll to bottom
         this.dbRestoreLogs.scrollTop = this.dbRestoreLogs.scrollHeight;
+    }
+
+    /**
+     * Replaces or creates a single "line" in the DB restore overlay logs, identified by `lineKey`.
+     */
+    public updateRestoreLogLine(lineKey: string, text: string): void {
+        let lineEl = this.logLineElements[lineKey];
+        // If we haven't created this line yet, create it
+        if (!lineEl) {
+            lineEl = document.createElement('div');
+            this.logLineElements[lineKey] = lineEl;
+            this.dbRestoreLogs.appendChild(lineEl);
+        }
+        lineEl.textContent = text;
     }
 
     public removeEventListener(eventKey: string, handler: EventListener): void {

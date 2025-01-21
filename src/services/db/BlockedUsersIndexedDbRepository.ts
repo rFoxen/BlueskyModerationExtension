@@ -86,46 +86,77 @@ export class BlockedUsersIndexedDbRepository extends EventEmitter {
             metadata
         };
     }
+    
+    private static readonly CHUNK_SIZE = 100; // Tweak as desired
 
     public async importAllData(data: any): Promise<void> {
-        await this.ensureDbReady();
-        if (!this.isDbInitialized()) return;
-
-        // Example of structure we expect:
-        // data = {
-        //   blockedUsers: IndexedDbBlockedUser[],
-        //   metadata: IListMetadata[],
-        // }
+            await this.ensureDbReady();
+            if (!this.isDbInitialized()) return;
 
         try {
-            // 1) Clear existing
+            // 1) Start
+            this.emit('dbRestoreProgress', 'Starting database restoration...');
+
+            // 2) Clear existing data
             this.emit('dbRestoreProgress', 'Clearing existing data...');
-            await this.clearAll(); // clears blockedUsers & metadata
-    
-            // 2) Re-insert all blocked users
-            if (Array.isArray(data.blockedUsers)) {
-                this.emit('dbRestoreProgress', `Inserting ${data.blockedUsers.length} blocked user(s)...`);
-                await this.blockedUsersStore.bulkPutRecords(data.blockedUsers);
+            await this.clearAll();
+
+            // 3) Insert blocked users in chunks
+            if (Array.isArray(data.blockedUsers) && data.blockedUsers.length > 0) {
+                const total = data.blockedUsers.length;
+                this.emit('dbRestoreProgress', `Found ${total} blocked user(s). Starting insertion...`);
+
+                const chunkCount = Math.ceil(total / BlockedUsersIndexedDbRepository.CHUNK_SIZE);
+                let insertedSoFar = 0;
+
+                for (let i = 0; i < total; i += BlockedUsersIndexedDbRepository.CHUNK_SIZE) {
+                    const chunkIndex = Math.floor(i / BlockedUsersIndexedDbRepository.CHUNK_SIZE) + 1;
+                    const chunk = data.blockedUsers.slice(i, i + BlockedUsersIndexedDbRepository.CHUNK_SIZE);
+
+                    // 3a) "Line update" for chunk info
+                    this.emit('dbRestoreProgressUpdate', {
+                        lineKey: 'CHUNK_INFO',
+                        text: `Inserting chunk ${chunkIndex}/${chunkCount}... (size=${chunk.length})`
+                    });
+
+                    await this.blockedUsersStore.bulkPutRecords(chunk);
+
+                    insertedSoFar += chunk.length;
+                    // 3b) "Line update" for total inserted so far
+                    this.emit('dbRestoreProgressUpdate', {
+                        lineKey: 'INSERT_PROGRESS',
+                        text: `Inserted ${insertedSoFar}/${total} blocked user(s) so far.`
+                    });
+
+                    // (Optional) Small yield to let UI refresh:
+                    await new Promise(res => setTimeout(res, 0));
+                }
             } else {
                 this.emit('dbRestoreProgress', 'No blockedUsers found in JSON');
             }
-    
-            // Step 3: Insert metadata
-            if (Array.isArray(data.metadata)) {
+
+            // 4) Insert metadata
+            if (Array.isArray(data.metadata) && data.metadata.length > 0) {
                 this.emit('dbRestoreProgress', `Inserting ${data.metadata.length} metadata record(s)...`);
-                for (const meta of data.metadata) {
+                for (let j = 0; j < data.metadata.length; j++) {
+                    const meta = data.metadata[j];
                     await this.metadataStore.setListMetadata(meta.listUri, meta);
+
+                    // "Line update" for metadata record count
+                    this.emit('dbRestoreProgressUpdate', {
+                        lineKey: 'METADATA_PROGRESS',
+                        text: `Metadata item ${j + 1}/${data.metadata.length} inserted.`
+                    });
                 }
             } else {
                 this.emit('dbRestoreProgress', 'No metadata found in JSON');
             }
-            
-            // Step 4: Done
-            this.emit('dbRestoreProgress', 'Restoration complete.');
-            this.emit('blockedUsersLoaded');
+
+            // 5) Done
+            this.emit('dbRestoreProgress', 'All data imported successfully. Refreshing UI...');
+            this.emit('blockedUsersLoaded'); // or similar event
         } catch (error) {
-            // If something fails, emit a progress line to notify
-            this.emit('dbRestoreProgress', 'Error: ' + (error as Error).message);
+            this.emit('dbRestoreProgress', `Error during restoration: ${(error as Error).message}`);
             throw error;
         }
     }

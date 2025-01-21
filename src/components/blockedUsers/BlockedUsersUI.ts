@@ -172,6 +172,13 @@ export class BlockedUsersUI {
         // --- Restore Entire DB Button (opens file dialog) ---
         const restoreDbHandler = (event: Event) => {
             event.preventDefault();
+            
+            // 1) Confirm right away, while we’re still in a direct user click
+            if (!confirm('Restoring will overwrite all local DB data. Continue?')) {
+                console.log('User canceled restore at confirm()');
+                return;
+            }
+            
             this.view.showSection(); // ensure UI is visible if needed
             const fileInput = document.getElementById('restore-db-file') as HTMLInputElement;
             if (fileInput) fileInput.click(); // open file dialog
@@ -225,7 +232,9 @@ export class BlockedUsersUI {
         this.registerServiceEvent(this.blockedUsersService, 'error', this.handleServiceError);
         this.registerServiceEvent(this.blueskyService, 'error', this.handleServiceError);
 
-        this.registerServiceEvent(this.blockedUsersService.blockedUsersRepo, 'dbRestoreProgress', this.handleDbRestoreProgress);    }
+        this.registerServiceEvent(this.blockedUsersService.blockedUsersRepo, 'dbRestoreProgress', this.handleDbRestoreProgress);
+        this.registerServiceEvent(this.blockedUsersService.blockedUsersRepo, 'dbRestoreProgressUpdate', this.handleDbRestoreProgressUpdate);
+    }
 
     private registerServiceEvent(service: EventEmitter, event: string, handler: (...args: any[]) => void): void {
         const boundHandler = handler.bind(this);
@@ -240,6 +249,10 @@ export class BlockedUsersUI {
     // Callback that appends a line to the overlay logs
     private handleDbRestoreProgress(message: string): void {
         this.view.appendDbRestoreLog(message);
+    }
+
+    private handleDbRestoreProgressUpdate(payload: { lineKey: string; text: string }): void {
+        this.view.updateRestoreLogLine(payload.lineKey, payload.text);
     }
     
     private async handleDownloadEntireDb(): Promise<void> {
@@ -279,9 +292,7 @@ export class BlockedUsersUI {
     // Restore entire DB from JSON
     // ---------------------------
     private async handleRestoreEntireDb(file: File): Promise<void> {
-        if (!confirm('Restoring will overwrite all local DB data. Continue?')) {
-            return;
-        }
+        console.log('Handle restore triggered. File:', file.name);
 
         // Show the overlay to block interaction
         this.view.showDbRestoreOverlay();
