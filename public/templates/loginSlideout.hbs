@@ -148,6 +148,19 @@
                     </div>
                 </div>
 
+                <!-- Manual Block Section -->
+                <div id="manual-block-section" class="mt-4">
+                    <h4>{{labels.MANUAL_BLOCK_TITLE}}</h4>
+                    <p>{{labels.MANUAL_BLOCK_INFO}}</p>
+                    <div class="input-group mb-3">
+                        <input type="text" id="manual-block-input" class="form-control" placeholder="{{labels.ENTER_USER_HANDLE}}" aria-label="{{labels.USER_HANDLE}}" />
+                        <button id="manual-block-button" class="btn btn-primary" type="button" aria-label="{{ariaLabels.BLOCK_USER}}">
+                            {{labels.BLOCK_USER}}
+                        </button>
+                    </div>
+                    <div id="manual-block-feedback" class="text-danger"></div>
+                </div>
+                
                 <!-- Blocked Users Accordion Section -->
                 <div id="blocked-users-section" class="mt-3 accordion">
                     <button

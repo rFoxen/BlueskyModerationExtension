@@ -33,7 +33,7 @@ export class BlockedUserItemFactory {
         }
 
         const ariaLabels = {
-            unblockUserLabel: ARIA_LABELS.UNBLOCK_USER(userHandle),
+            unblockUserLabel: ARIA_LABELS.UNBLOCK_USER_FUNC(userHandle),
             reportUserLabel: ARIA_LABELS.REPORT_USER(userHandle),
         };
         const htmlString = blockedUserItemTemplate({ labels: LABELS, ariaLabels, userHandle });

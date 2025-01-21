@@ -3,7 +3,7 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
-import { MESSAGES, ERRORS } from '@src/constants/Constants';
+import { MESSAGES, ERRORS, LABELS } from '@src/constants/Constants';
 import { debounce } from '@src/utils/helpers/debounce';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
@@ -206,6 +206,56 @@ export class BlockedUsersUI {
         };
         this.domEventHandlers['blockListChanged'] = blockListChangedHandler;
         document.addEventListener('blockListChanged', blockListChangedHandler);
+
+        // Manual Block Button Click
+        const manualBlockHandler = (event: Event) => {
+            event.preventDefault();
+            this.handleManualBlock();
+        };
+        this.domEventHandlers['manualBlock'] = manualBlockHandler;
+        this.view.onManualBlockButtonClick(manualBlockHandler);
+
+        // Manual Block Input Enter Key
+        const manualBlockEnterHandler = (event: Event) => {
+            const keyEvent = event as KeyboardEvent;
+            if (keyEvent.key === 'Enter') {
+                keyEvent.preventDefault();
+                this.handleManualBlock();
+            }
+        };
+        this.domEventHandlers['manualBlockEnter'] = manualBlockEnterHandler;
+        this.view.onManualBlockInputEnter(manualBlockEnterHandler);
+    }
+
+    private async handleManualBlock(): Promise<void> {
+        const userHandle = this.view.getManualBlockInputValue();
+        if (!userHandle) {
+            this.view.showManualBlockFeedback(ERRORS.ENTER_USER_HANDLE_ERROR);
+            return;
+        }
+
+        // Basic validation: ensure handle starts with '@'
+        const normalizedHandle = userHandle.startsWith('@') ? userHandle.slice(1) : userHandle;
+
+        // Clear previous feedback
+        this.view.clearManualBlockFeedback();
+
+        const selectedUri = this.blockListDropdown.getSelectedValue();
+        const selectedList = this.blockListDropdown.getSelectedText();
+        if (!selectedUri || !selectedList) {
+            this.view.showManualBlockFeedback(MESSAGES.PLEASE_SELECT_BLOCK_LIST, true);
+            return;
+        }
+
+        try {
+            // Optimistically add to UI
+            await this.blockedUsersService.addBlockedUser(normalizedHandle, selectedUri);
+            this.view.showManualBlockFeedback(MESSAGES.USER_BLOCKED_SUCCESS(normalizedHandle, selectedList), false);
+            this.view.clearManualBlockInput();
+        } catch (error) {
+            Logger.error('Manual block failed:', error);
+            this.view.showManualBlockFeedback(ERRORS.FAILED_TO_BLOCK_USER, true);
+        }
     }
     
     /**

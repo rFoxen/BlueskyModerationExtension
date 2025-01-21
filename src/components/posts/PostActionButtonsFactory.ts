@@ -28,8 +28,8 @@ export class PostActionButtonsFactory {
                 : 'toggle-block-button btn btn-outline-secondary btn-sm',
             text: isUserBlocked ? LABELS.UNBLOCK : LABELS.BLOCK,
             ariaLabel: isUserBlocked
-                ? ARIA_LABELS.UNBLOCK_USER(profileHandle)
-                : ARIA_LABELS.BLOCK_USER(profileHandle),
+                ? ARIA_LABELS.UNBLOCK_USER_FUNC(profileHandle)
+                : ARIA_LABELS.BLOCK_USER_FUNC(profileHandle),
         });
 
         const reportButton = new Button({

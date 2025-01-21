@@ -1,7 +1,7 @@
 import {EventEmitter} from '@src/utils/events/EventEmitter';
 import {BlueskyService} from '@src/services/BlueskyService';
 import {NotFoundError} from '@src/services/errors/CustomErrors';
-import {ERRORS, LABELS} from '@src/constants/Constants';
+import {ERRORS, LABELS, MESSAGES} from '@src/constants/Constants';
 import {BlockedUsersIndexedDbRepository} from '@src/services/db/BlockedUsersIndexedDbRepository';
 import Logger from '@src/utils/logger/Logger';
 import {BlockedUser} from 'types/ApiResponses';
@@ -171,6 +171,7 @@ export class BlockedUsersService extends EventEmitter {
             const alreadyBlocked = await this.isUserBlocked(userHandle, [listUri]);
             if (alreadyBlocked) {
                 Logger.debug(`User ${userHandle} is already blocked in ${listUri}`);
+                this.emit('error', ERRORS.USER_ALREADY_BLOCKED(userHandle));
                 return;
             }
             const maxOrder = await this.blockedUsersRepo.getMaxOrder(listUri);

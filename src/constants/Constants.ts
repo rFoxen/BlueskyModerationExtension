@@ -68,6 +68,10 @@ export const LABELS = {
     POST_INSERTION_METHOD: 'Post Insertion Method',
     PREPEND: 'Above Post',
     APPEND: 'Below Post',
+    MANUAL_BLOCK_TITLE: 'Manual Block',
+    MANUAL_BLOCK_INFO: 'Enter the user handle you wish to block:',
+    ENTER_USER_HANDLE: 'Enter user handle...',
+    BLOCK_USER: 'Block User',
 };
 
 export const ARIA_LABELS = {
@@ -84,8 +88,9 @@ export const ARIA_LABELS = {
     TOGGLE_FRESHNESS: 'Toggle account freshness visibility',
     TOGGLE_BLOCK_BUTTONS: 'Toggle block buttons visibility',
     TOGGLE_REPORT_BUTTONS: 'Toggle report buttons visibility',
-    BLOCK_USER: (userHandle: string) => `Block user ${userHandle}`,
-    UNBLOCK_USER: (userHandle: string) => `Unblock user ${userHandle}`,
+    BLOCK_USER_FUNC: (userHandle: string) => `Block user ${userHandle}`,
+    BLOCK_USER: 'Block User',
+    UNBLOCK_USER_FUNC: (userHandle: string) => `Unblock user ${userHandle}`,
     REPORT_USER: (username: string) => `Report user ${username}`,
     PREPEND_OPTION: 'Select to prepend blocked posts to the top',
     APPEND_OPTION: 'Select to append blocked posts to the bottom',
@@ -100,6 +105,7 @@ export const ERRORS = {
     LOGIN_FAILED: 'Login failed. Please check your credentials.',
     LOGOUT_FAILED: 'Logout failed. Please try again.',
     POST_COUNT_ERROR: 'Unknown posts count',
+    ENTER_USER_HANDLE_ERROR: 'Enter a valid user handle',
     FAILED_TO_BLOCK_USER: 'Failed to block the user. Please try again.',
     FAILED_TO_SAVE_SESSION: 'Failed to save session data.',
     FAILED_TO_LOAD_SESSION: 'Failed to load session data.',
@@ -116,6 +122,7 @@ export const ERRORS = {
     FAILED_TO_RETRIEVE_BLOCKED_USERS_TOGGLE_STATE: 'Failed to retrieve blocked users toggle state.',
     FAILED_TO_SAVE_BLOCKED_USERS: 'Failed to save blocked users data.',
     FAILED_TO_LOAD_BLOCKED_USERS: 'Failed to load blocked users data.',
+    USER_ALREADY_BLOCKED: (userHandle: string ) => `@${userHandle} is already blocked`,
     FAILED_TO_LOAD_FRESHNESS_DATA: (userHandle: string) => `Failed to load @${userHandle} fresshness data`,
     FAILED_TO_RESOLVE_HANDLE_FROM_DID: 'Failed to resolve handle from DID.',
     FAILED_TO_UNBLOCK_USER: 'Failed to unblock the user. Please try again.',

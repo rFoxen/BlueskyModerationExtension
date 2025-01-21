@@ -27,6 +27,10 @@ export class BlockedUsersView {
     private downloadDbButton: HTMLElement;
     private restoreDbButton: HTMLElement;
     private restoreDbFileInput: HTMLInputElement;
+    
+    private manualBlockInput: HTMLInputElement;
+    private manualBlockButton: HTMLElement;
+    private manualBlockFeedback: HTMLElement;
 
     constructor(blockedUsersSectionId: string) {
         this.toggleSlideoutButton = document.getElementById('toggle-slideout')!;
@@ -50,6 +54,10 @@ export class BlockedUsersView {
         this.downloadDbButton = document.getElementById('download-db')!;
         this.restoreDbButton = document.getElementById('restore-db')!;
         this.restoreDbFileInput = document.getElementById('restore-db-file')! as HTMLInputElement;
+        
+        this.manualBlockInput = document.querySelector('#manual-block-input') as HTMLInputElement;
+        this.manualBlockButton = document.querySelector('#manual-block-button') as HTMLElement;
+        this.manualBlockFeedback = document.querySelector('#manual-block-feedback') as HTMLElement;
     }
 
     public clearBlockedUsersList(): void {
@@ -214,6 +222,38 @@ export class BlockedUsersView {
 
     public updateCount(count: number): void {
         this.countElement.textContent = String(count);
+    }
+
+    // Method to display feedback messages
+    public showManualBlockFeedback(message: string, isError: boolean = true): void {
+        this.manualBlockFeedback.textContent = message;
+        this.manualBlockFeedback.classList.toggle('text-danger', isError);
+        this.manualBlockFeedback.classList.toggle('text-success', !isError);
+    }
+
+    // Method to clear feedback messages
+    public clearManualBlockFeedback(): void {
+        this.manualBlockFeedback.textContent = '';
+        this.manualBlockFeedback.classList.remove('text-danger', 'text-success');
+    }
+
+    // Getter for manual block input value
+    public getManualBlockInputValue(): string {
+        return this.manualBlockInput.value.trim();
+    }
+
+    // Method to clear the manual block input
+    public clearManualBlockInput(): void {
+        this.manualBlockInput.value = '';
+    }
+
+    // Event hookup methods for manual block
+    public onManualBlockButtonClick(handler: EventListener): void {
+        EventListenerHelper.addEventListener(this.manualBlockButton, 'click', handler);
+    }
+
+    public onManualBlockInputEnter(handler: EventListener): void {
+        EventListenerHelper.addEventListener(this.manualBlockInput, 'keypress', handler);
     }
 
     // Event hookup methods
