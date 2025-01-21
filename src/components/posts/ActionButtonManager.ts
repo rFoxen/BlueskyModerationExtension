@@ -231,7 +231,6 @@ export class ActionButtonManager {
         // 3) Update in memory + notify
         this.debugLog(`API returned success for blocking ${userHandle}. Updating...`);
         await this.blockedUsersService.addBlockedUserFromResponse(response, userHandle, listUri);
-        await this.onUserBlocked(userHandle);
 
         // 4) Notification
         Logger.time('getBlockListName');
