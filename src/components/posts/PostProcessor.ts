@@ -5,7 +5,7 @@ import { UserReporter } from '@src/components/reporting/UserReporter';
 import { PostTypeDeterminer } from '@src/utils/helpers/PostTypeDeterminer';
 import { ActionButtonManager } from './ActionButtonManager';
 import { AccountFreshnessManager } from './AccountFreshnessManager';
-import { isElementHiddenByCss } from '@src/utils/helpers/isElementHidden';
+// import { isElementHiddenByCss } from '@src/utils/helpers/isElementHidden';
 import { STORAGE_KEYS } from '@src/constants/Constants';
 import { StorageHelper } from '@src/utils/helpers/StorageHelper';
 import Logger from '@src/utils/logger/Logger';
@@ -133,10 +133,10 @@ export class PostProcessor {
         // Instead of checking a Set, we check for a 'data-processed' attribute.
         if (this.isElementProcessed(element)) return;
 
-        if (!this.isElementEligibleForProcessing(element)) {
-            this.markAsProcessed(element);
-            return;
-        }
+        // if (!this.isElementEligibleForProcessing(element)) {
+        //     this.markAsProcessed(element);
+        //     return;
+        // }
 
         const postType = this.postTypeDeterminer.determinePostType(element);
         if (!postType) {
@@ -176,9 +176,9 @@ export class PostProcessor {
         return element.hasAttribute('data-processed');
     }
 
-    private isElementEligibleForProcessing(element: HTMLElement): boolean {
-        return !isElementHiddenByCss(element);
-    }
+    // private isElementEligibleForProcessing(element: HTMLElement): boolean {
+    //     return !isElementHiddenByCss(element);
+    // }
 
     /**
      * Mark the element with a data attribute to signal it's processed.
