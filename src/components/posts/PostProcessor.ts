@@ -85,6 +85,7 @@ export class PostProcessor {
             'blocked-post--none',
             'blocked-post--darkened',
             'blocked-post--hidden',
+            'blocked-post--compact',
             'blocked-post--blurred',
         ];
         return blockedClasses
@@ -98,6 +99,7 @@ export class PostProcessor {
             'blocked-post--none',
             'blocked-post--darkened',
             'blocked-post--hidden',
+            'blocked-post--compact',
             'blocked-post--blurred'
         );
     }
@@ -113,6 +115,8 @@ export class PostProcessor {
             case 'blurred':
                 wrapper.classList.add('blocked-post--blurred');
                 break;
+            case 'compact':
+                wrapper.classList.add('blocked-post--compact');
             default:
                 wrapper.classList.add('blocked-post--darkened');
                 break;
@@ -420,6 +424,7 @@ export class PostProcessor {
             'blocked-post--none',
             'blocked-post--darkened',
             'blocked-post--hidden',
+            'blocked-post--compact',
             'blocked-post--blurred'
         );
     }

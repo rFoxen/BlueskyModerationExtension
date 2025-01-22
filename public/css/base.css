@@ -124,6 +124,15 @@ a:hover {
     transition: filter 0.3s ease;
 }
 
+
+/* Compact Blocked Post Style */
+.blocked-post--compact {
+    opacity: 0.5; /* Slightly dimmed */
+    max-height: 65px; /* Limited height */
+    overflow: hidden; /* Hide overflow content */
+    transition: opacity var(--transition-duration), max-height var(--transition-duration);
+}
+
 .freshness-very-new { color: red; }
 .freshness-new { color: orange; }
 .freshness-established { color: yellow; }
