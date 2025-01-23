@@ -161,9 +161,8 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
                     i.order
                 )
             );
-            const newInserts = await this.filterNewInserts(listUri, dataItems);
             await this.bulkPutRecords(dataItems);
-            await this.updateMetadataAfterBulk(listUri, newInserts, dataItems);
+            await this.updateMetadataAfterBulk(listUri, dataItems);
         } finally {
             Logger.timeEnd('addOrUpdateBulk');
         }
@@ -517,11 +516,10 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
     @MonitorPerformance
     private async updateMetadataAfterBulk(
         listUri: string,
-        newInserts: number,
         dataItems: IndexedDbBlockedUser[]
     ): Promise<void> {
         const meta = await this.metadataStore.getListMetadata(listUri);
-        meta.count += newInserts;
+        meta.count += dataItems.length;
 
         const highestNewOrder = Math.max(...dataItems.map((d) => d.order), 0);
         if (highestNewOrder > meta.maxOrder) {
@@ -604,7 +602,6 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      * @param recordUri The record URI from the Bluesky API.
      * @param order The order position.
      */
-    @MonitorPerformance
     private constructBlockedUser(
         listUri: string,
         userHandle: string,
@@ -624,22 +621,5 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
      */
     private constructId(listUri: string, userHandle: string): string {
         return `${listUri}#${userHandle}`;
-    }
-
-    /**
-     * Filters out new inserts by checking existing records.
-     * @param listUri The URI of the block list.
-     * @param dataItems The array of blocked user data items.
-     */
-    @MonitorPerformance
-    private async filterNewInserts(
-        listUri: string,
-        dataItems: IndexedDbBlockedUser[]
-    ): Promise<number> {
-        const existing = await this.getAllByListUriDescending(listUri);
-        const existingHandles = new Set(existing.map((r) => r.userHandle));
-        const newInserts = dataItems.filter((x) => !existingHandles.has(x.userHandle)).length;
-        Logger.debug(`[DEBUG-IDB] filterNewInserts => newInserts=${newInserts}`);
-        return newInserts;
     }
 }
