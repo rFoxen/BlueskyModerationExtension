@@ -1,5 +1,5 @@
 import { BskyAgent } from '@atproto/api';
-import { API_ENDPOINTS, ERRORS } from '@src/constants/Constants';
+import { API_ENDPOINTS, MESSAGES, ERRORS } from '@src/constants/Constants';
 import { EventEmitter } from '@src/utils/events/EventEmitter';
 import { SessionService } from '../session/SessionService';
 import { RateLimitService } from '@src/services/RateLimitService';
@@ -85,55 +85,18 @@ export class ApiService extends EventEmitter {
             // Update rate limit status
             this.rateLimitService.updateRateLimit(allHeaders);
 
-            // Extract and log rate limit headers using correct names
-            const rateLimit = {
-                limit: response.headers.get('ratelimit-limit'),
-                remaining: response.headers.get('ratelimit-remaining'),
-                reset: new Date(parseInt(response.headers.get('ratelimit-reset') || '-1')*1000).toLocaleTimeString(),
-            };
-            Logger.debug(`Rate Limit for ${endpoint}:`, rateLimit);
-
-            if (response.ok) {
-                Logger.timeEnd(`fetchWithAuth => ${endpoint}`);
-                return response.json();
-            }
-
-            // Handle 429 Too Many Requests
+            // Handle rate limits
             if (response.status === 429) {
                 Logger.warn(`Rate limit exceeded for ${endpoint}. Received 429 response.`);
-
-                // Attempt to parse 'Retry-After' or 'ratelimit-reset' headers
-                const retryAfterHeader = response.headers.get('retry-after');
-                const rateLimitResetHeader = response.headers.get('ratelimit-reset');
-
-                let waitTime = 60000; // Default to 60 seconds
-
-                if (retryAfterHeader) {
-                    const retryAfterSeconds = parseInt(retryAfterHeader, 10);
-                    if (!isNaN(retryAfterSeconds)) {
-                        waitTime = retryAfterSeconds * 1000; // Convert to milliseconds
-                    }
-                } else if (rateLimitResetHeader) {
-                    const resetTimestamp = parseInt(rateLimitResetHeader, 10) * 1000; // Convert to milliseconds
-                    const currentTime = Date.now();
-                    const calculatedWait = resetTimestamp - currentTime;
-                    if (!isNaN(calculatedWait) && calculatedWait > 0) {
-                        waitTime = calculatedWait;
-                    }
-                }
-
-                // Ensure waitTime is within reasonable bounds (e.g., max 5 minutes)
-                waitTime = Math.min(waitTime, 300000); // 5 minutes
-
-                // Emit rateLimitExceeded event with wait time in seconds
-                const waitTimeSeconds = Math.ceil(waitTime / 1000);
-                this.emit('rateLimitExceeded', { waitTime: waitTimeSeconds });
-
+                const waitTime = this.rateLimitService.timeUntilReset();
                 Logger.warn(`Retrying after ${waitTime}ms (Attempt ${retryCount + 1}/${maxRetries})`);
+
+                // Emit rateLimitExceeded event
+                this.emit('rateLimitExceeded', { waitTime: Math.ceil(waitTime / 1000) });
 
                 if (retryCount >= maxRetries) {
                     Logger.error(`Max retries reached for ${endpoint}. Throwing error.`);
-                    throw new APIError(ERRORS.UNKNOWN_ERROR, response.status);
+                    throw new APIError(MESSAGES.RETRY_LIMIT_EXCEEDED, 429);
                 }
 
                 // Wait for the specified time before retrying
@@ -142,45 +105,31 @@ export class ApiService extends EventEmitter {
                 // Retry the request with incremented retryCount
                 return this.fetchWithAuth(endpoint, options, timeout, retryCount + 1, maxRetries);
             }
-
-            // If still 401, fallback: maybe token was revoked or mismatch.
-            if (response.status === 401) {
-                Logger.debug(
-                    `fetchWithAuth => 401 (post-refresh?). Session might be invalid.`
-                );
-                // We can auto-logout or throw. Let's just throw an auth error:
-                throw this.errorService.createAuthenticationError(
-                    ERRORS.SESSION_EXPIRED
-                );
+            if (response.ok) {
+                Logger.timeEnd(`fetchWithAuth => ${endpoint}`);
+                return response.json();
             }
 
-            // Other errors
-            const errorData = await response
-                .json()
-                .catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
-            Logger.error(
-                `API Error (${response.status}) for ${endpoint}:`,
-                errorData.message
-            );
+            // Handle other status codes (e.g., 401)
+            if (response.status === 401) {
+                Logger.debug(`fetchWithAuth => 401 (post-refresh?). Session might be invalid.`);
+                throw this.errorService.createAuthenticationError(ERRORS.SESSION_EXPIRED);
+            }
+
+            // Handle other errors
+            const errorData = await response.json().catch(() => ({ message: ERRORS.UNKNOWN_ERROR }));
+            Logger.error(`API Error (${response.status}) for ${endpoint}:`, errorData.message);
             throw new APIError(errorData.message || ERRORS.UNKNOWN_ERROR, response.status);
         } catch (error: any) {
             clearTimeout(id);
-
-            // Check for CORS/timeouts, etc
             if (error.name === 'AbortError') {
-                Logger.error(
-                    `fetchWithAuth => ${endpoint} timed out after ${timeout}ms`
-                );
+                Logger.error(`fetchWithAuth => ${endpoint} timed out after ${timeout}ms`);
                 throw new Error(`Request to ${endpoint} timed out.`);
             } else if (
                 error instanceof TypeError &&
-                (error.message.includes('NetworkError') ||
-                    error.message.includes('Failed to fetch'))
+                (error.message.includes('NetworkError') || error.message.includes('Failed to fetch'))
             ) {
-                Logger.error(
-                    `fetchWithAuth => CORS/Network error for ${endpoint}:`,
-                    error
-                );
+                Logger.error(`fetchWithAuth => CORS/Network error for ${endpoint}:`, error);
                 throw new Error('Network or CORS error occurred.');
             }
 

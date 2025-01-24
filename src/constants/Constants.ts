@@ -19,6 +19,7 @@ export const MESSAGES = {
     ERROR_LOADING_BLOCKED_USERS: 'Error loading blocked users.',
     ERROR_REFRESHING_BLOCKED_USERS: 'Error refreshing blocked users.',
     RATE_LIMIT_EXCEEDED: (waitTimeSeconds: number) => `Rate limit exceeded. Please wait ${waitTimeSeconds} seconds before retrying.`,
+    RETRY_LIMIT_EXCEEDED: 'Retry limit exceeded. Try again',
 };
 
 export const LABELS = {
