@@ -61,7 +61,6 @@ export class UIStateCoordinator {
             this.postScanner?.setFreshnessVisibility(visible);
         });
 
-        this.slideoutManager.on('blockListSelectionChange', this.handleBlockListSelectionChange.bind(this));
         this.slideoutManager.on('refreshBlockLists', () => this.blockListDropdown?.refreshBlockLists());
 
         // Listen for loginFailed and logoutFailed from BlueskyService

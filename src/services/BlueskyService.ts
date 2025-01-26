@@ -150,11 +150,12 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     public async getBlockedUsers(
         listUri: string,
         maxRetries: number = 3,
-        onChunkFetched?: (chunk: BlockedUser[]) => Promise<void> // Updated to return Promise<void>
-    ): Promise<BlockedUser[]> {
+        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined) => Promise<void>,
+        resumeCursor?: string|undefined,
+    ): Promise<boolean> {
         try {
             const items: BlockedUser[] = [];
-            let cursor: string | null = null;
+            let cursor: string | null = resumeCursor || null;
             const MAX_LIMIT = 100;
 
             while (true) {
@@ -187,21 +188,22 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 items.push(...currentChunk);
 
                 // Invoke and await the callback with the current chunk
+                const newCursor = response.cursor || undefined;
                 if (onChunkFetched) {
-                    await onChunkFetched(currentChunk); // Await the async callback
+                    await onChunkFetched(currentChunk, newCursor); // Await the async callback
                 }
 
-                this.emit('blockedUsersProgress', items.length);
-
-                cursor = response.cursor || null;
-                if (!cursor) break; // No more pages
+                if (!newCursor) {
+                    // No more pages => fully done
+                    return true; // “true” => we finished
+                }
             }
 
-            return items;
+            return false;
         } catch (error) {
             Logger.error('getBlockedUsers => error:', error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
-            return [];
+            return false;
         }
     }
 

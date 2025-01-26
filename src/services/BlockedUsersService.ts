@@ -9,6 +9,7 @@ import {IndexedDbBlockedUser} from 'types/IndexedDbBlockedUser';
 
 export class BlockedUsersService extends EventEmitter {
     public blockedUsersRepo: BlockedUsersIndexedDbRepository;
+    private currentLoadCancelToken: { canceled: boolean } | null = null;
 
     constructor(private blueskyService: BlueskyService) {
         super();
@@ -29,23 +30,66 @@ export class BlockedUsersService extends EventEmitter {
         }
     }
 
+    public async refreshBlockedUsers(listUri: string): Promise<void> {
+        // Cancel any existing load in progress:
+        if (this.currentLoadCancelToken) {
+            this.currentLoadCancelToken.canceled = true;
+        }
+        // Create a fresh token for the new load
+        const cancelToken = { canceled: false };
+        this.currentLoadCancelToken = cancelToken;
+        
+        try {
+            await this.blockedUsersRepo.clearStoreByListUri(listUri);
+            
+            const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
+            meta.isComplete = false;
+            meta.nextCursor = undefined;
+            await this.blockedUsersRepo.setMetadataForList(listUri, meta);
+            
+            await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersRefreshed', cancelToken, meta.nextCursor);
+        } catch (error) {
+            Logger.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
+            this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
+        }
+    }
+
     /**
      * Called by UI when a user selects a block list to load.
      */
     public async loadBlockedUsers(listUri: string): Promise<void> {
+        // Cancel any existing load in progress:
+        if (this.currentLoadCancelToken) {
+            this.currentLoadCancelToken.canceled = true;
+        }
+        // Create a fresh token for the new load
+        const cancelToken = { canceled: false };
+        this.currentLoadCancelToken = cancelToken;
+
         try {
-            // 1) Check local DB first
             const listCount = await this.blockedUsersRepo.getCountByListUri(listUri);
-            if (listCount > 0) {
-                // We have some data in IndexedDB
+            const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
+            
+            // If the local DB has no data for this list,
+            // or if it's fully complete (no reason to “resume”),
+            // then we do a fresh fetch from chunk #1
+            const shouldStartOver = (listCount === 0 || meta.isComplete);
+            
+            if (meta.isComplete) {
+                // Already have local data, so we’re done:
                 this.emit('blockedUsersLoaded');
             } else {
-                // 2) If no local data, fetch from network then persist
-                await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersLoaded');
+                // Need to fetch from network:
+                await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersLoaded', cancelToken, meta.nextCursor);
             }
         } catch (error) {
             Logger.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
+        } finally {
+            // If we are still the active load token, clear it now
+            if (this.currentLoadCancelToken === cancelToken) {
+                this.currentLoadCancelToken = null;
+            }
         }
     }
 
@@ -55,47 +99,54 @@ export class BlockedUsersService extends EventEmitter {
      */
     private async fetchAndPersistBlockedUsers(
         listUri: string,
-        completionEvent: string = 'blockedUsersLoaded'
+        completionEvent: string = 'blockedUsersLoaded',
+        cancelToken: { canceled: boolean },
+        resumeCursor: string|undefined,
     ): Promise<void> {
         try {
-            // 1) Clear existing blocked users for the list
-            await this.blockedUsersRepo.clearStoreByListUri(listUri);
-
-            // 2) Initialize a global order counter
-            let currentOrder = 0;
+            let currentOrder = await this.blockedUsersRepo.getMaxOrder(listUri);
+            let lastCursor: string|undefined = resumeCursor;
             
-            // 3) Fetch and persist blocked users chunk by chunk
-            await this.blueskyService.getBlockedUsers(listUri, 3, async (chunk: BlockedUser[]) => {
-                // Transform API response to IndexedDB format
-                const bulkItems = chunk.slice().reverse().map((user, index) => ({
+            // onChunkFetched callback:
+            const chunkCallback = async (chunk: BlockedUser[], newCursor: string|undefined) => {
+                // If canceled, stop right away:
+                if (cancelToken.canceled) {
+                    Logger.warn(`Canceled fetching chunk for listUri="${listUri}"`);
+                    return;
+                }
+                // Transform & persist this chunk
+                const bulkItems = chunk.slice().reverse().map((user) => ({
                     userHandle: user.subject.handle || user.subject.did,
                     did: user.subject.did,
                     recordUri: user.uri,
                     order: currentOrder++,
                 }));
-
-                // Persist the current chunk to IndexedDB
                 await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
 
-                // Emit progress event with the current total count
+                // Update metadata with partial progress
+                const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
+                meta.nextCursor = newCursor;   // store the “paging” cursor
+                await this.blockedUsersRepo.setMetadataForList(listUri, meta);
+
                 const currentCount = await this.blockedUsersRepo.getCountByListUri(listUri);
                 this.emit('blockedUsersProgress', currentCount);
-            });
+            };
 
-            // 4) Emit completion event
-            this.emit(completionEvent);
+            // Actually fetch in chunks, providing our callback
+            const finished = await this.blueskyService.getBlockedUsers(listUri, 3, chunkCallback, lastCursor);
+
+            // If we never got canceled, emit done
+            if (!cancelToken.canceled && finished) {
+                const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
+                meta.isComplete = true;     // fully done
+                meta.nextCursor = undefined;     // no more chunks
+                await this.blockedUsersRepo.setMetadataForList(listUri, meta);
+
+                this.emit(completionEvent);
+            }
         } catch (error) {
             Logger.error('fetchAndPersistBlockedUsers => error:', error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
-        }
-    }
-
-    public async refreshBlockedUsers(listUri: string): Promise<void> {
-        try {
-            await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersRefreshed');
-        } catch (error) {
-            Logger.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
-            this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
         }
     }
 

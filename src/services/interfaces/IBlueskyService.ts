@@ -12,7 +12,11 @@ export interface IBlueskyService {
     logout(): Promise<boolean>;
     getBlockLists(): Promise<AppBskyGraphDefs.ListView[]>;
     getBlockListName(listUri: string): Promise<string>;
-    getBlockedUsers(listUri: string, maxRetries?: number, onChunkFetched?: (chunk: BlockedUser[]) => Promise<void>): Promise<BlockedUser[]>;
+    getBlockedUsers(
+        listUri: string,
+        maxRetries?: number,
+        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined) => Promise<void>,
+        resumeCursor?: string|undefined): Promise<boolean>;
     resolveHandleFromDid(did: string): Promise<string>;
     resolveDidFromHandle(handle: string): Promise<string>;
     blockUser(userHandle: string, listUri: string): Promise<any>;

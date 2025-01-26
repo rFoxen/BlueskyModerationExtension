@@ -1,6 +1,6 @@
 import Logger from '@src/utils/logger/Logger';
-import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
-import { IListMetadata, MetadataStore } from './MetadataStore';
+import { IndexedDbBlockedUser, IListMetadata } from 'types/IndexedDbBlockedUser';
+import { MetadataStore } from './MetadataStore';
 import { BaseStore } from './BaseStore';
 import { MonitorPerformance } from '@src/utils/performance/MonitorPerformance';
 

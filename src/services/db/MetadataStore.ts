@@ -1,12 +1,9 @@
 import Logger from '@src/utils/logger/Logger';
+import { IListMetadata } from 'types/IndexedDbBlockedUser';
 import { MonitorPerformance } from '@src/utils/performance/MonitorPerformance';
 import { BaseStore } from './BaseStore';
 
-export interface IListMetadata {
-    listUri: string;
-    count: number;
-    maxOrder: number;
-}
+
 
 export class MetadataStore extends BaseStore<IListMetadata> {
     constructor(
@@ -27,18 +24,21 @@ export class MetadataStore extends BaseStore<IListMetadata> {
                 listUri,
                 count: 0,
                 maxOrder: 0,
+                isComplete: false,
+                nextCursor: undefined,
             }
         );
     }
 
     @MonitorPerformance
-    public async setListMetadata(
-        listUri: string,
-        meta: IListMetadata
-    ): Promise<void> {
-        Logger.debug(
-            `[DEBUG-IDB] setListMetadata => listUri="${listUri}", count=${meta.count}, maxOrder=${meta.maxOrder}`
-        );
+    public async setListMetadata(listUri: string, meta: IListMetadata): Promise<void> {
+        // Ensure defaults for new fields if missing
+        if (typeof meta.isComplete !== 'boolean') {
+            meta.isComplete = false;
+        }
+        if (!('nextCursor' in meta)) {
+            meta.nextCursor = undefined;
+        }
         await this.put(meta);
     }
 

@@ -7,3 +7,13 @@ export interface IndexedDbBlockedUser {
     order: number;    // position to maintain order
     ngramKeys?: [string, string][];
 }
+
+export interface IListMetadata {
+    listUri: string;
+    count: number;
+    maxOrder: number;
+
+    // NEW FIELDS:
+    isComplete?: boolean;     // defaults to false until full fetch finishes
+    nextCursor?: string|undefined; // the last known pagination cursor from server
+}

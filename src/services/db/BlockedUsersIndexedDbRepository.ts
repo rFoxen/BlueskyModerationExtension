@@ -1,5 +1,5 @@
 import Logger from '@src/utils/logger/Logger';
-import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
+import { IndexedDbBlockedUser, IListMetadata } from 'types/IndexedDbBlockedUser';
 import { DbInitializer } from './DbInitializer';
 import { MetadataStore } from './MetadataStore';
 import { BlockedUsersStore } from './BlockedUsersStore';
@@ -140,6 +140,8 @@ export class BlockedUsersIndexedDbRepository extends EventEmitter {
                 this.emit('dbRestoreProgress', `Inserting ${data.metadata.length} metadata record(s)...`);
                 for (let j = 0; j < data.metadata.length; j++) {
                     const meta = data.metadata[j];
+                    meta.isComplete = true;
+                    meta.nextCursor = undefined;
                     await this.metadataStore.setListMetadata(meta.listUri, meta);
 
                     // "Line update" for metadata record count
@@ -288,6 +290,13 @@ export class BlockedUsersIndexedDbRepository extends EventEmitter {
         await this.ensureDbReady();
         if (!this.isDbInitialized()) return 0;
         return this.blockedUsersStore.getCountByListUri(listUri);
+    }
+
+    public async getMetadataForList(listUri: string): Promise<IListMetadata> {
+        return this.metadataStore.getListMetadata(listUri);
+    }
+    public async setMetadataForList(listUri: string, meta: IListMetadata): Promise<void> {
+        return this.metadataStore.setListMetadata(listUri, meta);
     }
 
     public async getMaxOrder(listUri: string): Promise<number> {
