@@ -236,9 +236,12 @@
                     </div>
                 </div>
 
-                <!-- Blocked Users loading Segment -->
-                <div id="blocked-users-loading" class="text-center d-none">
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <!-- Blocked Users Loading Segment -->
+                <div id="blocked-users-loading" class="d-none">
+                    <div class="progress-container">
+                        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <span class="progress-text">0%</span>
+                    </div>
                     <span class="loading-text">{{labels.LOADING_BLOCKED_USERS}}</span>
                     <span class="initializing-db-text"></span>
                 </div>

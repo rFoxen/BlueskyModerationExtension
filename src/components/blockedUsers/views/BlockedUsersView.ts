@@ -32,6 +32,10 @@ export class BlockedUsersView {
     private manualBlockButton: HTMLElement;
     private manualBlockFeedback: HTMLElement;
 
+    private progressBar: HTMLElement;
+    private progressText: HTMLElement;
+    private loadingTextElement: HTMLElement;
+    
     constructor(blockedUsersSectionId: string) {
         this.toggleSlideoutButton = document.getElementById('toggle-slideout')!;
         
@@ -58,6 +62,11 @@ export class BlockedUsersView {
         this.manualBlockInput = document.querySelector('#manual-block-input') as HTMLInputElement;
         this.manualBlockButton = document.querySelector('#manual-block-button') as HTMLElement;
         this.manualBlockFeedback = document.querySelector('#manual-block-feedback') as HTMLElement;
+        
+        // Initialize progress bar elements
+        this.progressBar = document.querySelector('.progress-bar') as HTMLElement;
+        this.progressText = document.querySelector('.progress-text') as HTMLElement;
+        this.loadingTextElement = document.querySelector('.loading-text') as HTMLElement;
     }
 
     public clearBlockedUsersList(): void {
@@ -97,8 +106,10 @@ export class BlockedUsersView {
      */
     public showLoading(): void {
         this.clearBlockedUsersList(); // Clear the list immediately
-        this.updateLoadingCount(0,0);
         this.loadingIndicator.classList.remove('d-none'); // Show the loading spinner
+        this.progressBar.style.width = '0%';
+        this.progressText.textContent = '0%';
+        this.loadingTextElement.textContent = 'Loading blocked users...';
     }
 
     /**
@@ -114,18 +125,11 @@ export class BlockedUsersView {
      * Updates the loading indicator with the current count of loaded blocked users.
      * @param count The number of blocked users loaded so far.
      */
-    public updateLoadingCount(count: number, listItemCount: number): void {
-        let loadingText = this.loadingIndicator.querySelector('.loading-text') as HTMLElement | null;
-
-        if (!loadingText) {
-            // Create a span to hold the dynamic loading text if it doesn't exist
-            loadingText = document.createElement('span');
-            loadingText.classList.add('loading-text');
-            this.loadingIndicator.appendChild(loadingText);
-        }
-
-        // Update the text content with the current count
-        loadingText.textContent = `Loaded ${count}/${listItemCount} blocked user${count !== 1 ? 's' : ''}...`;
+    public updateLoadingCount(current: number, total: number): void {
+        const percentage = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 100;
+        this.progressBar.style.width = `${percentage}%`;
+        this.progressText.textContent = `${percentage}%`;
+        this.loadingTextElement.textContent = `Loaded ${current}/${total} blocked user${current !== 1 ? 's' : ''}...`;
     }
 
     public updateDbLoadingContext(message: string): void {

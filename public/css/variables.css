@@ -47,6 +47,12 @@
     --tab-active-text-color: var(--button-bg);
     --tab-hover-bg-color: var(--input-bg);
     --tab-active-bg-color: var(--background-color);
+
+    /* Progress Bar Colors */
+    --progress-bar-bg: #e0e0e0; /* Background of the progress bar container */
+    --progress-bar-fill: #0d6efd; /* Fill color of the progress bar */
+    --progress-bar-text-color: #000; /* Text color for percentage */
+    --progress-bar-stripe-color: rgba(255, 255, 255, 0.15); /* Light stripes for visibility */
 }
 
 /* Dark Mode Variables */
@@ -77,4 +83,10 @@ body.dark-mode {
     --tab-active-text-color: var(--button-bg);
     --tab-hover-bg-color: #333333;
     --tab-active-bg-color: var(--slideout-bg);
+
+    /* Progress Bar Colors for Dark Mode */
+    --progress-bar-bg: #555; /* Darker background */
+    --progress-bar-fill: #1a73e8; /* Lighter fill color */
+    --progress-bar-text-color: #fff; /* White text for contrast */
+    --progress-bar-stripe-color: rgba(255, 255, 255, 0.2); /* Slightly brighter stripes */
 }
