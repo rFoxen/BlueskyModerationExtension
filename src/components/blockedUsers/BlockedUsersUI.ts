@@ -519,8 +519,9 @@ export class BlockedUsersUI {
             // 4. Create a temporary link to trigger the download
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
+            const dateTime = getFormattedDateTime().replace(/[:]/g, '-');
             link.setAttribute('href', url);
-            link.setAttribute('download', `${selectedText}_list.csv`);
+            link.setAttribute('download', `${selectedText}_list ${dateTime}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
