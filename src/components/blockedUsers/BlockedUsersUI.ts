@@ -5,6 +5,7 @@ import { NotificationManager } from '@src/components/common/NotificationManager'
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
 import { MESSAGES, ERRORS, LABELS } from '@src/constants/Constants';
 import { debounce } from '@src/utils/helpers/debounce';
+import { getFormattedDateTime } from '@src/utils/helpers/date';
 import { BlockedUsersView } from './views/BlockedUsersView';
 import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
 import { stringToColor } from '@src/utils/colorUtils';
@@ -320,7 +321,8 @@ export class BlockedUsersUI {
 
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'bluesky-moderation-db.json';
+            const dateTime = getFormattedDateTime().replace(/[:]/g, '-');
+            link.download = `Bluesky-Moderation-Database-Export ${dateTime}.json`;
             link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
