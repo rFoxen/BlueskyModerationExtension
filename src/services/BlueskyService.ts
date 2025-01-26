@@ -150,12 +150,12 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     public async getBlockedUsers(
         listUri: string,
         maxRetries: number = 3,
-        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined) => Promise<void>,
+        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined, listItemCount: number|undefined) => Promise<void>,
         resumeCursor?: string|undefined,
     ): Promise<boolean> {
         try {
             const items: BlockedUser[] = [];
-            let cursor: string | null = resumeCursor || null;
+            let cursor: string | undefined = resumeCursor || undefined;
             const MAX_LIMIT = 100;
 
             while (true) {
@@ -167,6 +167,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 while (attempt < maxRetries && !success) {
                     try {
                         response = await this.apiService.fetchList(listUri, cursor, MAX_LIMIT);
+                        cursor = response.cursor;
                         Logger.debug(response);
                         success = true;
                     } catch (error) {
@@ -189,8 +190,9 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
 
                 // Invoke and await the callback with the current chunk
                 const newCursor = response.cursor || undefined;
+                const listItemCount = response?.list?.listItemCount;
                 if (onChunkFetched) {
-                    await onChunkFetched(currentChunk, newCursor); // Await the async callback
+                    await onChunkFetched(currentChunk, newCursor, listItemCount); // Await the async callback
                 }
 
                 if (!newCursor) {

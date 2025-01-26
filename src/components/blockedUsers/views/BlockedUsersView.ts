@@ -97,7 +97,7 @@ export class BlockedUsersView {
      */
     public showLoading(): void {
         this.clearBlockedUsersList(); // Clear the list immediately
-        this.updateLoadingCount(0);
+        this.updateLoadingCount(0,0);
         this.loadingIndicator.classList.remove('d-none'); // Show the loading spinner
     }
 
@@ -114,7 +114,7 @@ export class BlockedUsersView {
      * Updates the loading indicator with the current count of loaded blocked users.
      * @param count The number of blocked users loaded so far.
      */
-    public updateLoadingCount(count: number): void {
+    public updateLoadingCount(count: number, listItemCount: number): void {
         let loadingText = this.loadingIndicator.querySelector('.loading-text') as HTMLElement | null;
 
         if (!loadingText) {
@@ -125,7 +125,7 @@ export class BlockedUsersView {
         }
 
         // Update the text content with the current count
-        loadingText.textContent = `Loaded ${count} blocked user${count !== 1 ? 's' : ''}...`;
+        loadingText.textContent = `Loaded ${count}/${listItemCount} blocked user${count !== 1 ? 's' : ''}...`;
     }
 
     public updateDbLoadingContext(message: string): void {

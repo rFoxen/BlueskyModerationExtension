@@ -108,7 +108,7 @@ export class BlockedUsersService extends EventEmitter {
             let lastCursor: string|undefined = resumeCursor;
             
             // onChunkFetched callback:
-            const chunkCallback = async (chunk: BlockedUser[], newCursor: string|undefined) => {
+            const chunkCallback = async (chunk: BlockedUser[], newCursor: string|undefined, listItemCount: number|undefined) => {
                 // If canceled, stop right away:
                 if (cancelToken.canceled) {
                     Logger.warn(`Canceled fetching chunk for listUri="${listUri}"`);
@@ -129,7 +129,7 @@ export class BlockedUsersService extends EventEmitter {
                 await this.blockedUsersRepo.setMetadataForList(listUri, meta);
 
                 const currentCount = await this.blockedUsersRepo.getCountByListUri(listUri);
-                this.emit('blockedUsersProgress', currentCount);
+                this.emit('blockedUsersProgress', currentCount, listItemCount);
             };
 
             // Actually fetch in chunks, providing our callback

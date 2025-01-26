@@ -1,5 +1,8 @@
 export interface FetchListResponse {
     items: BlockedUser[];
+    list: {
+        listItemCount: number,
+    }
     cursor?: string;
 }
 

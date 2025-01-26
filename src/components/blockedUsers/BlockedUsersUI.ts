@@ -431,8 +431,8 @@ export class BlockedUsersUI {
         this.removeUserFromUI(userHandle);
     }
 
-    private handleBlockedUsersProgress(currentCount: number): void {
-        this.view.updateLoadingCount(currentCount);
+    private handleBlockedUsersProgress(currentCount: number, listItemCount: number): void {
+        this.view.updateLoadingCount(currentCount, listItemCount);
     }
 
     private handleDbInitProgress(message: string): void {

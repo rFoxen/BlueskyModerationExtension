@@ -15,7 +15,7 @@ export interface IBlueskyService {
     getBlockedUsers(
         listUri: string,
         maxRetries?: number,
-        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined) => Promise<void>,
+        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined, listItemCount: number|undefined) => Promise<void>,
         resumeCursor?: string|undefined): Promise<boolean>;
     resolveHandleFromDid(did: string): Promise<string>;
     resolveDidFromHandle(handle: string): Promise<string>;
