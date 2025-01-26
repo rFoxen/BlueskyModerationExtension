@@ -112,6 +112,16 @@ export class BlockedUsersView {
         this.loadingTextElement.textContent = 'Loading blocked users...';
     }
 
+    public async showCompletedLoading(): Promise<void> {
+        // Ensure progress bar is at 100%
+        this.progressBar.style.width = '100%';
+        this.progressText.textContent = '100%';
+        this.loadingTextElement.textContent = 'Loading complete.';
+
+        // Wait for 1 second to allow users to see the completed state
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
     /**
      * Hides the loading indicator and shows the content.
      */
@@ -129,7 +139,7 @@ export class BlockedUsersView {
         const percentage = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 100;
         this.progressBar.style.width = `${percentage}%`;
         this.progressText.textContent = `${percentage}%`;
-        this.loadingTextElement.textContent = `Loaded ${current}/${total} blocked user${current !== 1 ? 's' : ''}...`;
+        this.loadingTextElement.textContent = `Loaded ${current} blocked user${current !== 1 ? 's' : ''}...`;
     }
 
     public updateDbLoadingContext(message: string): void {

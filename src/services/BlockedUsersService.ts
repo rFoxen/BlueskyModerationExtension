@@ -77,7 +77,7 @@ export class BlockedUsersService extends EventEmitter {
             
             if (meta.isComplete) {
                 // Already have local data, so we’re done:
-                this.emit('blockedUsersLoaded');
+                this.emit('blockedUsersAlreadyLoaded');
             } else {
                 // Need to fetch from network:
                 await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersLoaded', cancelToken, meta.nextCursor);

@@ -67,6 +67,13 @@
     color: var(--text-color);
 }
 
+.estimated-time {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #6c757d);
+}
+
 /* Optional: Animate the progress bar */
 @keyframes progressAnimation {
     from {

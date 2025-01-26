@@ -62,16 +62,12 @@ export class BlockedUsersUI {
     public async loadBlockedUsersUI(selectedUri: string): Promise<void> {
         Logger.time(`loadBlockedUsersUI => ${selectedUri}`);
         this.view.showLoading();
-
-        // 1) Possibly fetch from network if local DB is empty
-        await this.blockedUsersService.loadBlockedUsers(selectedUri);
-
-        // 2) Clear search input & reset pagination
+        
         this.view.clearSearchInput();
         this.blockedUsersPage = 1;
 
-        // 3) Render current page from DB
-        await this.renderCurrentPage();
+        // 1) Possibly fetch from network if local DB is empty
+        await this.blockedUsersService.loadBlockedUsers(selectedUri);
 
         Logger.timeEnd(`loadBlockedUsersUI => ${selectedUri}`);
     }
@@ -271,6 +267,7 @@ export class BlockedUsersUI {
     
     private subscribeToServiceEvents(): void {
         // Register events specifically to each service
+        this.registerServiceEvent(this.blockedUsersService, 'blockedUsersAlreadyLoaded', this.handleBlockedUsersAlreadyLoaded);
         this.registerServiceEvent(this.blockedUsersService, 'blockedUsersLoaded', this.handleBlockedUsersLoaded);
         this.registerServiceEvent(this.blockedUsersService, 'blockedUsersRefreshed', this.handleBlockedUsersRefreshed);
         this.registerServiceEvent(this.blockedUsersService, 'blockedUserAdded', this.handleBlockedUserAdded);
@@ -387,14 +384,21 @@ export class BlockedUsersUI {
     // ----------------------------------------------------------------
     // Service events => UI
     // ----------------------------------------------------------------
-    private handleBlockedUsersLoaded(): void {
-        Logger.debug('event: blockedUsersLoaded -> reloadBlockedUsersUI');
-        this.reloadBlockedUsersUI();
+    private async handleBlockedUsersAlreadyLoaded(): Promise<void> {
+        await this.reloadBlockedUsersUI();
+    }
+    private async handleBlockedUsersLoaded(): Promise<void> {
+        // Show completed loading state and wait
+        await this.view.showCompletedLoading();
+
+        await this.reloadBlockedUsersUI();
     }
 
-    private handleBlockedUsersRefreshed(): void {
-        Logger.debug('event: blockedUsersRefreshed -> reloadBlockedUsersUI');
-        this.reloadBlockedUsersUI(MESSAGES.BLOCKED_USERS_LIST_REFRESHED);
+    private async handleBlockedUsersRefreshed(): Promise<void> {        
+        // Show completed loading state and wait
+        await this.view.showCompletedLoading();
+
+        await this.reloadBlockedUsersUI(MESSAGES.BLOCKED_USERS_LIST_REFRESHED);
     }
 
     private handleBlockedUserAdded(newItem: any): void {

@@ -203,6 +203,8 @@ export class UIStateCoordinator {
             this.notificationManager.displayNotification(MESSAGES.LOGOUT_SUCCESS, 'success');
             this.blockListDropdown?.clearSelection();
             this.blockedUsersService?.clearBlockedUsersData();
+            this.blockListDropdown?.destroy();
+            this.blockedUsersUI?.destroy();
             this.blockListDropdown = null;
             this.blockedUsersUI = null;
         } else {
