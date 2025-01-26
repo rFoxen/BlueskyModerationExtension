@@ -1,18 +1,12 @@
-/* Highlight Animation */
 .highlight {
     animation: highlightBackground 0.5s ease-in-out;
 }
 
 @keyframes highlightBackground {
-    0% {
-        background-color: #fff3cd;
-    }
-    100% {
-        background-color: white;
-    }
+    0% { background-color: #fff3cd; }
+    100% { background-color: white; }
 }
 
-/* Progress Bar Container */
 .progress-container {
     position: relative;
     width: 100%;
@@ -23,14 +17,11 @@
     margin-bottom: 1rem;
 }
 
-/* Progress Bar */
 .progress-bar {
     width: 0%;
     height: 100%;
     background-color: var(--progress-bar-fill, #0d6efd);
-    transition: width 0.6s ease; /* Smoother transition */
-
-    /* Add the following for striped pattern */
+    transition: width 0.6s ease;
     background-image: linear-gradient(
             -45deg,
             rgba(255, 255, 255, 0.15) 25%,
@@ -41,29 +32,25 @@
             transparent 75%,
             transparent
     );
-    background-size: 20px 20px; /* Adjust size for stripe width */
-
-    /* Animation */
+    background-size: 20px 20px;
     animation: progressStripe 1s linear infinite;
 }
 
-/* Progress Text */
 .progress-text {
     position: absolute;
     top: 50%;
-    right: 10px; /* Adjust as needed */
+    right: 10px;
     transform: translateY(-50%);
     font-weight: bold;
     color: var(--progress-bar-text-color, #000);
-    pointer-events: none; /* Allow clicks to pass through */
-    white-space: nowrap; /* Prevent text wrapping */
+    pointer-events: none;
+    white-space: nowrap;
 }
 
-/* Loading Text */
 .loading-text {
     text-align: center;
     margin-top: 0.5rem;
-    font-size: 0.9rem; /* Slightly smaller font */
+    font-size: 0.9rem;
     color: var(--text-color);
 }
 
@@ -74,22 +61,105 @@
     color: var(--text-secondary, #6c757d);
 }
 
-/* Optional: Animate the progress bar */
 @keyframes progressAnimation {
-    from {
-        width: 0;
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@keyframes progressStripe {
+    from { background-position: 0 0; }
+    to { background-position: 20px 0; }
+}
+
+/* Success Animation Styles */
+.loading-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1rem;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.loading-success.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.checkmark {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: block;
+    stroke-width: 2;
+    stroke: #28a745; /* Green color for success */
+    stroke-miterlimit: 10;
+    box-shadow: inset 0px 0px 0px #28a745;
+    animation: stroke 0.5s cubic-bezier(0.65, 0, 0.45, 1) forwards, pulse 1s ease-in-out infinite;
+}
+
+.checkmark__circle {
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    stroke-width: 2;
+    stroke-miterlimit: 10;
+    stroke: #28a745;
+    fill: none;
+    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    animation-delay: 0.3s;
+}
+
+.checkmark__check {
+    transform-origin: 50% 50%;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    animation-delay: 0.9s;
+}
+
+@keyframes stroke {
+    100% { stroke-dashoffset: 0; }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+@keyframes fadeInSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
     }
-    to {
-        width: 100%;
+    100% {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* Keyframes for stripe animation */
-@keyframes progressStripe {
-    from {
-        background-position: 0 0;
-    }
-    to {
-        background-position: 20px 0; /* Match background-size width */
-    }
+.loading-success svg {
+    margin-bottom: 0.5rem;
+}
+
+.loading-success .success-text {
+    color: var(--text-color);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    animation: none; /* Already handled by fadeInSlideUp */
+}
+
+
+/* Subtle Shake Animation Styles */
+@keyframes shake {
+    0% { transform: translateY(0); }
+    60% { transform: translateY(-3px); }
+    80% { transform: translateY(3px); }
+    100% { transform: translateY(0); }
+}
+
+.shake {
+    animation: shake 0.6s ease-in-out;
 }

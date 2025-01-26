@@ -32,9 +32,14 @@ export class BlockedUsersView {
     private manualBlockButton: HTMLElement;
     private manualBlockFeedback: HTMLElement;
 
+    private progressContainer: HTMLElement;
     private progressBar: HTMLElement;
     private progressText: HTMLElement;
     private loadingTextElement: HTMLElement;
+    
+    // Add a reference to the success animation element
+    private loadingSuccessElement: HTMLElement;
+    private successTextElement: HTMLElement;
     
     constructor(blockedUsersSectionId: string) {
         this.toggleSlideoutButton = document.getElementById('toggle-slideout')!;
@@ -64,9 +69,14 @@ export class BlockedUsersView {
         this.manualBlockFeedback = document.querySelector('#manual-block-feedback') as HTMLElement;
         
         // Initialize progress bar elements
+        this.progressContainer = document.querySelector('.progress-container') as HTMLElement;
         this.progressBar = document.querySelector('.progress-bar') as HTMLElement;
         this.progressText = document.querySelector('.progress-text') as HTMLElement;
         this.loadingTextElement = document.querySelector('.loading-text') as HTMLElement;
+
+        // Initialize success animation elements
+        this.loadingSuccessElement = document.querySelector('.loading-success') as HTMLElement;
+        this.successTextElement = this.loadingSuccessElement.querySelector('.success-text') as HTMLElement;
     }
 
     public clearBlockedUsersList(): void {
@@ -110,17 +120,56 @@ export class BlockedUsersView {
         this.progressBar.style.width = '0%';
         this.progressText.textContent = '0%';
         this.loadingTextElement.textContent = 'Loading blocked users...';
+
+        // Reset success animation elements
+        if (this.loadingSuccessElement) {
+            this.loadingSuccessElement.classList.add('d-none');
+            this.loadingSuccessElement.classList.remove('active');
+        }
+
+        // Reset progress container animation state if necessary
+        if (this.progressContainer) {
+            this.progressContainer.classList.remove('shake');
+        }
     }
+
+
 
     public async showCompletedLoading(): Promise<void> {
         // Ensure progress bar is at 100%
         this.progressBar.style.width = '100%';
         this.progressText.textContent = '100%';
-        this.loadingTextElement.textContent = 'Loading complete.';
+        this.loadingTextElement.textContent = ''; // Clear loading text
 
-        // Wait for 1 second to allow users to see the completed state
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Trigger the success animation
+        if (this.loadingSuccessElement) {
+            this.loadingSuccessElement.classList.remove('d-none'); // Make it visible
+
+            // Trigger the CSS animation by adding the 'active' class
+            setTimeout(() => {
+                this.loadingSuccessElement.classList.add('active');
+            }, 100); // Slight delay to ensure the element is rendered before animation
+        }
+
+        // Trigger the shake animation on the progress container
+        if (this.progressContainer) {
+            setTimeout(() => {
+                this.progressContainer.classList.add('shake');
+            }, 500); // Slight delay to ensure the element is rendered before animation
+
+            // Remove the 'shake' class after the animation completes to allow re-triggering in the future
+            setTimeout(() => {
+                this.progressContainer.classList.remove('shake');
+            }, 1100); // Duration should match the CSS animation duration (0.5s)
+        }
+
+        // Optional: Wait for the animations to complete before hiding the loading indicator
+        await new Promise(resolve => setTimeout(resolve, 3500)); // Adjust based on combined animation durations
+
+        // Hide the loading indicator after the animations
+        this.hideLoading();
     }
+
 
     /**
      * Hides the loading indicator and shows the content.
