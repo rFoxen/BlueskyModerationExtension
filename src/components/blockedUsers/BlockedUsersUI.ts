@@ -3,20 +3,22 @@ import { BlockedUsersService } from '@src/services/BlockedUsersService';
 import { BlueskyService } from '@src/services/BlueskyService';
 import { NotificationManager } from '@src/components/common/NotificationManager';
 import { BlockListDropdown } from '@src/components/blockedUsers/BlockListDropdown';
+import { EventEmitter } from '@src/utils/events/EventEmitter';
+import { UserReporter } from '@src/components/reporting/UserReporter';
+import { BlockedUsersView } from './views/BlockedUsersView';
+import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
 import { MESSAGES, ERRORS, LABELS } from '@src/constants/Constants';
 import { debounce } from '@src/utils/helpers/debounce';
 import { getFormattedDateTime } from '@src/utils/helpers/date';
-import { BlockedUsersView } from './views/BlockedUsersView';
-import { BlockedUserItemFactory } from './views/BlockedUserItemFactory';
 import { stringToColor } from '@src/utils/colorUtils';
 import { IndexedDbBlockedUser } from 'types/IndexedDbBlockedUser';
 import Logger from '@src/utils/logger/Logger';
-import { EventEmitter } from '@src/utils/events/EventEmitter';
 
 export class BlockedUsersUI {
     private blockedUsersService: BlockedUsersService;
     private blueskyService: BlueskyService;
     private notificationManager: NotificationManager;
+    private userReporter: UserReporter;
     private blockListDropdown: BlockListDropdown;
     private isLoggedIn: () => boolean;
     private view: BlockedUsersView;
@@ -54,6 +56,14 @@ export class BlockedUsersUI {
             this.handleUnblockUser.bind(this),
             this.handleReportUser.bind(this)
         );
+        
+        // NEW: Instantiate a UserReporter just like in ActionButtonManager
+        this.userReporter = new UserReporter(
+            this.notificationManager,
+            this.blockedUsersService,
+            this.isLoggedIn
+        );
+        
         this.addDomEventListeners();
         this.view.applySavedToggleState();
         this.subscribeToServiceEvents();
@@ -736,9 +746,28 @@ export class BlockedUsersUI {
         }
     }
 
-    private handleReportUser(userHandle: string): void {
+    private async handleReportUser(userHandle: string): Promise<void> {
         Logger.debug('handleReportUser =>', userHandle);
-        // Your reporting logic
+
+        // 1) Check if the user is logged in
+        if (!this.isLoggedIn()) {
+            this.notificationManager.displayNotification(
+                MESSAGES.LOGIN_REQUIRED_TO_REPORT_USERS,
+                'error'
+            );
+            return;
+        }
+
+        // 2) Delegate to the UserReporter
+        try {
+            await this.userReporter.reportUser(userHandle);
+        } catch (error) {
+            Logger.error('handleReportUser => error:', error);
+            this.notificationManager.displayNotification(
+                ERRORS.FAILED_TO_REPORT_USER,
+                'error'
+            );
+        }
     }
 
     // ----------------------------------------------------------------
