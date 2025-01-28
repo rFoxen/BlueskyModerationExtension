@@ -1,0 +1,195 @@
+/* Base Styles */
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: var(--font-size-base);
+    line-height: 1.4;
+    transition: background-color var(--transition-duration), color var(--transition-duration), font-size var(--transition-duration);
+}
+
+/* No-scroll body */
+body.no-scroll {
+    overflow: hidden;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Links */
+a {
+    color: var(--button-bg);
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+/* Form Controls */
+.form-check {
+    margin-bottom: 1rem; /* Add spacing between form controls */
+}
+/* Added focus state for form controls */
+.form-control:focus {
+    outline: 2px solid var(--input-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Blocked Users List */
+#blocked-users-list {
+    overflow-y: auto;
+    max-height: 400px; /* Adjust height as needed */
+    padding-right: 0.5rem; /* Prevent scrollbar overlap */
+}
+#blocked-users-list::-webkit-scrollbar {
+    width: 8px; /* Adjust width as needed */
+}
+#blocked-users-list::-webkit-scrollbar-track {
+    background: var(--input-bg); /* Background color for scrollbar track */
+}
+#blocked-users-list::-webkit-scrollbar-thumb {
+    background-color: var(--button-hover-bg); /* Scrollbar thumb color */
+    border-radius: 4px; /* Rounded corners */
+    border: 2px solid var(--input-bg); /* Add border to blend with track */
+}
+#blocked-users-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--button-bg); /* Hover color for scrollbar thumb */
+}
+
+/* List Group Items */
+.list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--input-border); /* Consistent border color */
+    border-radius: 4px; /* Rounded corners for better design */
+    margin-bottom: 8px; /* Add spacing between items */
+    padding: 12px; /* Better padding */
+    background-color: var(--input-bg); /* Match background with theme */
+    transition: background-color var(--transition-duration), border-color var(--transition-duration);
+}
+.list-group-item:last-child {
+    margin-bottom: 0;
+}
+.list-group-item:hover {
+    background-color: var(--input-hover-bg); /* Highlight on hover */
+    border-color: var(--button-hover-bg); /* Accent the border */
+}
+
+/* Blocked User Handle */
+.blocked-user-handle {
+    display: inline-block;
+    max-width: 50%; /* Adjust as necessary based on the layout */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+/* .list-group-item .btn-group prevents button compression */
+.list-group-item .btn-group {
+    flex-shrink: 0;
+}
+
+/* CSS Effect for Blocked Post */
+.blocked-post {
+}
+
+.unblocked-post {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* NEW: Additional classes for blocked post appearance */
+.blocked-post--none {
+}
+
+/* Darkened style: darken the content */
+.blocked-post--darkened {
+    opacity: 0.2;
+    transition: opacity 0.3s ease;
+}
+
+/* Hidden style: remove from layout entirely */
+.blocked-post--hidden {
+    display: none !important;
+}
+
+/* Blurred style: blur the content */
+.blocked-post--blurred {
+    filter: blur(8px);
+    transition: filter 0.3s ease;
+}
+
+
+/* Compact Blocked Post Style */
+.blocked-post--compact {
+    opacity: 0.5; /* Slightly dimmed */
+    max-height: 65px; /* Limited height */
+    overflow: hidden; /* Hide overflow content */
+    transition: opacity var(--transition-duration), max-height var(--transition-duration);
+}
+
+.freshness-very-new { color: red; }
+.freshness-new { color: orange; }
+.freshness-established { color: yellow; }
+.freshness-mature { color: lightgreen; }
+.freshness-very-old { color: green; }
+.freshness-unknown { color: gray; }
+
+/* Fullscreen overlay */
+.db-restore-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999999; /* big enough to be on top of everything */
+    background-color: rgba(0, 0, 0, 0.5); /* semi-transparent black */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto; /* ensures clicks are captured by the overlay */
+}
+
+/* Centered content inside the overlay */
+.db-restore-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #fff;
+    text-align: center;
+    width: 90%; /* Responsive width */
+    max-width: 800px; /* Adjusted for better aesthetics */
+}
+
+/* Detailed logs area */
+.db-restore-logs {
+    margin-top: 1rem;
+    width: 100%; /* Full width of the container */
+    height: 300px; /* Increased height for better readability */
+    overflow-y: auto; /* Vertical scrolling */
+    overflow-x: auto; /* Horizontal scrolling to prevent word wrap */
+    padding: 1rem;
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.85); /* Slightly darker for better contrast */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Enhanced shadow for depth */
+    font-family: 'Courier New', Courier, monospace; /* Log-like font */
+    font-size: 0.9rem; /* Consistent font size */
+    line-height: 1.5; /* Improved line spacing */
+    color: #cfcfcf; /* Light grey text for contrast */
+    text-align: left; /* Left-aligned for better readability */
+    white-space: pre; /* Preserve whitespace and prevent wrapping */
+    word-wrap: normal; /* Disable word wrapping */
+    word-break: keep-all; /* Prevent breaking words */
+}
+
+/* Individual log lines */
+.db-restore-logs div {
+    margin-bottom: 0.5rem; /* Space between log lines */
+    /* Optional: Add icons or styling based on log type */
+}

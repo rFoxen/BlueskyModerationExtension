@@ -1,0 +1,419 @@
+<div id="slideout-overlay" class="slideout-overlay" aria-hidden="true"></div>
+
+<div id="login-slideout" class="slideout" role="dialog" aria-labelledby="slideout-title" aria-hidden="true">
+    <div class="slideout-content">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 id="slideout-title" class="h6">{{labels.EXTENSION_TITLE}}</h2>
+            <button id="theme-toggle" type="button" class="btn btn-outline-secondary btn-sm" aria-label="{{ariaLabels.THEME_TOGGLE}}">
+                🌙
+            </button>
+            <button id="close-slideout" type="button" class="btn-close" aria-label="{{ariaLabels.CLOSE_SLIDEOUT}}">X</button>
+        </div>
+
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs" id="slideoutTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button
+                        class="nav-link active"
+                        id="login-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#login-tab-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="login-tab-pane"
+                        aria-selected="true"
+                >
+                    {{labels.LOGIN_TAB}}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button
+                        class="nav-link"
+                        id="blocked-users-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#blocked-users-tab-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="blocked-users-tab-pane"
+                        aria-selected="false"
+                >
+                    {{labels.BLOCKED_USERS_TAB}}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button
+                        class="nav-link"
+                        id="options-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#options-tab-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="options-tab-pane"
+                        aria-selected="false"
+                >
+                    {{labels.OPTIONS}}
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="slideoutTabsContent">
+            <!-- Login Tab Pane -->
+            <div
+                    class="tab-pane fade show active"
+                    id="login-tab-pane"
+                    role="tabpanel"
+                    aria-labelledby="login-tab"
+            >
+                <form id="login-form" aria-describedby="login-description" class="d-none">
+                    <p id="login-description" class="form-label mb-2">Enter your credentials to log in.</p>
+                    <div class="mb-2">
+                        <label for="username" class="form-label">{{labels.USERNAME}}</label>
+                        <input
+                                type="text"
+                                id="username"
+                                name="username"
+                                class="form-control"
+                                required
+                                aria-required="true"
+                        />
+                    </div>
+                    <div class="mb-2">
+                        <label for="password" class="form-label">{{labels.PASSWORD}}</label>
+                        <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                class="form-control"
+                                required
+                                aria-required="true"
+                        />
+                    </div>
+                    <button
+                            type="submit"
+                            class="btn btn-primary w-100 mb-2"
+                            aria-label="{{ariaLabels.SUBMIT_LOGIN}}"
+                    >
+                        {{labels.LOGIN}}
+                    </button>
+                </form>
+
+                <!-- User Info Section -->
+                <div id="user-info" class="mt-2 d-none">
+                    <p class="mb-1">Logged in as:</p>
+                    <p id="logged-in-username" class="fw-bold text-truncate"></p>
+                    <div class="mt-2 d-flex justify-content-between align-items-center">
+                        <button
+                                id="logout-button"
+                                type="button"
+                                class="btn btn-secondary btn-sm"
+                                aria-label="{{ariaLabels.LOGOUT}}"
+                        >
+                            {{labels.LOGOUT}}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blocked Users Tab Pane -->
+            <div
+                    class="tab-pane fade"
+                    id="blocked-users-tab-pane"
+                    role="tabpanel"
+                    aria-labelledby="blocked-users-tab"
+            >
+                <!-- Dropdown for Block Lists -->
+                <div id="block-lists-section" class="mt-3 d-none">
+                    <h3>{{labels.BLOCK_LIST_SELECTION}}</h3>
+                    <label for="block-lists-dropdown" class="form-label">
+                        {{labels.BLOCK_LIST_SELECTION_INFO}}
+                    </label>
+                    <div class="d-flex align-items-center mb-2">
+                        <select
+                                id="block-lists-dropdown"
+                                class="form-select"
+                                aria-label="{{labels.SELECT_BLOCK_LIST}}"
+                        >
+                            <option disabled selected>{{labels.SELECT_BLOCK_LIST_PLACEHOLDER}}</option>
+                            <!-- Block list options will be populated dynamically -->
+                        </select>
+                        <button
+                                id="refresh-block-lists"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary ms-2"
+                                aria-label="{{ariaLabels.REFRESH_BLOCK_LISTS}}"
+                        >
+                            {{labels.REFRESH}}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Manual Block Section -->
+                <div id="manual-block-section" class="mt-4">
+                    <h4>{{labels.MANUAL_BLOCK_TITLE}}</h4>
+                    <p>{{labels.MANUAL_BLOCK_INFO}}</p>
+                    <div class="input-group mb-3">
+                        <input type="text" id="manual-block-input" class="form-control" placeholder="{{labels.ENTER_USER_HANDLE}}" aria-label="{{labels.USER_HANDLE}}" />
+                        <button id="manual-block-button" class="btn btn-primary" type="button" aria-label="{{ariaLabels.BLOCK_USER}}">
+                            {{labels.BLOCK_USER}}
+                        </button>
+                    </div>
+                    <div id="manual-block-feedback" class="text-danger"></div>
+                </div>
+                
+                <!-- Blocked Users Accordion Section -->
+                <div id="blocked-users-section" class="mt-3 accordion">
+                    <button
+                            type="button"
+                            id="blocked-users-toggle"
+                            class="accordion-header d-flex justify-content-between align-items-center"
+                            aria-expanded="false"
+                            aria-controls="blocked-users-content"
+                    >
+                        <span>{{labels.BLOCKED_USERS}}</span>
+                        <span
+                                id="blocked-users-count"
+                                class="badge bg-primary ms-2"
+                                aria-live="polite"
+                        >0</span
+                        >
+                        <span class="accordion-icon"></span>
+                    </button>
+                    <div id="blocked-users-content" class="accordion-content d-none">
+                        <div class="d-flex align-items-center mb-2">
+                            <input
+                                    type="text"
+                                    id="blocked-users-search"
+                                    class="form-control me-2"
+                                    placeholder="{{labels.SEARCH_BLOCKED_USERS}}"
+                            />
+                            <button
+                                    id="refresh-blocked-users"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    aria-label="{{ariaLabels.REFRESH_BLOCKED_USERS}}"
+                            >
+                                {{labels.REFRESH}}
+                            </button>
+                        </div>
+                        <button
+                                id="visit-block-list"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                aria-label="{{ariaLabels.VISIT}}"
+                        >
+                            {{labels.VISIT}}
+                        </button>
+                        <button
+                                id="download-blocked-users"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                aria-label="{{ariaLabels.DOWNLOAD_BLOCKED_USERS}}"
+                        >
+                            {{labels.DOWNLOAD}}
+                        </button>
+                        <div id="blocked-users-list" class="list-group">
+                            <!-- Blocked users will be dynamically populated here -->
+                        </div>
+                        <!-- Pagination Controls -->
+                        <div id="blocked-users-pagination" class="pagination">
+                            <button
+                                    id="blocked-users-prev"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    disabled
+                            >
+                                {{labels.PREVIOUS}}
+                            </button>
+                            <span id="blocked-users-page-info">{{labels.PAGE_INFO 1 1}}</span>
+                            <button
+                                    id="blocked-users-next"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    disabled
+                            >
+                                {{labels.NEXT}}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blocked Users Loading Segment -->
+                <div id="blocked-users-loading" class="d-none">
+                    <div class="progress-container">
+                        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="deleted-progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <span class="progress-text">0%</span>
+                    </div>
+                    <span class="loading-text">{{labels.LOADING_BLOCKED_USERS}}</span>
+                    <span class="initializing-db-text"></span>
+
+
+                    <!-- Success Animation Element -->
+                    <div class="loading-success d-none" aria-live="polite">
+                        <!-- SVG Checkmark -->
+                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                            <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                            <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                        </svg>
+                        <span class="success-text">Loading Complete!</span>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                    class="tab-pane fade"
+                    id="options-tab-pane"
+                    role="tabpanel"
+                    aria-labelledby="blocked-users-tab"
+            >
+                <!-- Freshness Toggle -->
+                <div id="freshness-toggle-section" class="mt-3">
+                    <div class="form-check form-switch">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="freshness-toggle"
+                                checked
+                                aria-label="{{ariaLabels.TOGGLE_FRESHNESS}}"
+                        />
+                        <label class="form-check-label" for="freshness-toggle">
+                            {{labels.SHOW_FRESHNESS}}
+                        </label>
+                    </div>
+                </div>
+                <!-- Block Buttons Toggle -->
+                <div id="block-buttons-toggle-section" class="mt-3">
+                    <div class="form-check form-switch">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="block-buttons-toggle"
+                                checked
+                                aria-label="{{ariaLabels.TOGGLE_BLOCK_BUTTONS}}"
+                        />
+                        <label class="form-check-label" for="block-buttons-toggle">
+                            {{labels.SHOW_BLOCK_BUTTONS}}
+                        </label>
+                    </div>
+                </div>
+                <!-- Report Buttons Toggle -->
+                <div id="report-buttons-toggle-section" class="mt-3">
+                    <div class="form-check form-switch">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="report-buttons-toggle"
+                                checked
+                                aria-label="{{ariaLabels.TOGGLE_REPORT_BUTTONS}}"
+                        />
+                        <label class="form-check-label" for="report-buttons-toggle">
+                            {{labels.SHOW_REPORT_BUTTONS}}
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Post Insertion Method Section -->
+                <div id="prepend-append-section" class="mt-4">
+                    <label class="form-label mb-2 d-block">{{labels.POST_INSERTION_METHOD}}:</label>
+                    <div class="pill-toggle">
+                        <input
+                                class="form-check-input visually-hidden"
+                                type="radio"
+                                name="post-insertion-method"
+                                id="prepend-radio"
+                                value="prepend"
+                        />
+                        <label class="pill-toggle-label" for="prepend-radio">{{labels.PREPEND}}</label>
+
+                        <input
+                                class="form-check-input visually-hidden"
+                                type="radio"
+                                name="post-insertion-method"
+                                id="append-radio"
+                                value="append"
+                                checked
+                        />
+                        <label class="pill-toggle-label" for="append-radio">{{labels.APPEND}}</label>
+                    </div>
+                </div>
+
+                <!-- Blocked Post Appearance -->
+                <div id="block-post-style-section" class="mt-3">
+                    <label for="block-post-style-select" class="form-label">Blocked Post Appearance</label>
+                    <select id="block-post-style-select" class="form-select">
+                        <option value="none">None</option>
+                        <option value="darkened" selected>Darkened (default)</option>
+                        <option value="hidden">Hidden</option>
+                        <option value="compact">Compact</option>
+                        <option value="blurred">Blurred</option>
+                    </select>
+                </div>
+
+                <!-- Additional block lists section" ... -->
+                <div id="additional-block-lists-section" class="mt-3">
+                    <h3>{{labels.ADDITIONAL_BLOCK_LISTS}}</h3>
+                    <p class="small">{{labels.ADDITIONAL_BLOCK_LISTS_INFO}}</p>
+
+                    <label for="additional-block-lists-dropdown" class="form-label">
+                        {{labels.ADDITIONAL_BLOCK_LISTS_INSTRUCTION}}
+                    </label>
+
+                    <select
+                            id="additional-block-lists-dropdown"
+                            class="form-select"
+                            multiple
+                            aria-label="Select Additional Block Lists"
+                    >
+                        <!-- Options populated dynamically by new code -->
+                    </select>
+                </div>
+
+                <div class="mt-3">
+                    <button
+                            id="download-db"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary mb-2"
+                            title="Download entire DB as JSON"
+                    >
+                        Download DB
+                    </button>
+
+                    <button
+                            id="restore-db"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            title="Restore entire DB from a JSON file"
+                    >
+                        Restore DB
+                    </button>
+
+                    <!-- Hidden file input for DB restore -->
+                    <input
+                            type="file"
+                            id="restore-db-file"
+                            accept="application/json"
+                            style="display: none;"
+                    />
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<button id="toggle-slideout" class="toggle-slideout btn btn-primary" aria-label="{{ariaLabels.OPEN_SLIDEOUT}}" title="{{blockListName}}">
+    ☰ {{blockListName}}
+</button>
+
+<div id="db-restore-overlay" class="db-restore-overlay d-none" role="dialog" aria-modal="true" aria-labelledby="db-restore-title" aria-describedby="db-restore-description">
+    <div class="db-restore-overlay-content">
+        <div class="spinner-border" role="status" aria-hidden="true">
+            <!-- Screen readers will announce "Restoring..." via aria-describedby -->
+        </div>
+        <h2 id="db-restore-title" class="mt-2">Database Restoration</h2>
+        <p id="db-restore-description">Restoring the database. Please wait...</p>
+
+        <!-- Detailed logs area using <pre> for better formatting -->
+        <pre id="db-restore-logs" class="db-restore-logs" aria-live="polite"></pre>
+    </div>
+</div>
+

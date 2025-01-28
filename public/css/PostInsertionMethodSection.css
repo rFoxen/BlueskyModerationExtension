@@ -1,0 +1,60 @@
+/* Hide radio inputs visually but keep them accessible */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap; /* added line */
+    border: 0;
+}
+
+/* Pill-shaped toggle container */
+.pill-toggle {
+    display: flex;
+    border: 1px solid var(--input-border);
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: var(--input-bg);
+    box-shadow: inset 0 0 0 1px var(--input-border);
+}
+
+/* Style for the toggle labels */
+.pill-toggle-label {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+    font-size: 0.9rem;
+    user-select: none;
+}
+
+/* Default state for labels */
+.pill-toggle-label {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+/* Active state when the corresponding radio is checked */
+.form-check-input:checked + .pill-toggle-label {
+    background-color: var(--button-bg);
+    color: #fff;
+}
+
+/* Optional: Hover effects for better UX */
+.pill-toggle-label:hover {
+    background-color: var(--button-hover-bg);
+    color: #fff;
+}
+
+/* Adjust spacing and prevent wrapping */
+#prepend-append-section {
+    width: 100%;
+}
+
+.pill-toggle {
+    width: 100%;
+}

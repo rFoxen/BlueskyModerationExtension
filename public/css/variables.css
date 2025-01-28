@@ -1,0 +1,93 @@
+/* Custom CSS Variables */
+:root {
+    /* Color Variables */
+    --muted-text-color: #6c757d;
+    --background-color: #ffffff;
+    --text-color: #000000;
+    --slideout-bg: #ffffff;
+    --slideout-text: #000000;
+    --button-bg: #007bff;
+    --button-text: #ffffff;
+    --button-hover-bg: #0056b3;
+    --input-bg: #ffffff;
+    --input-border: #ccc;
+    --input-focus-outline: #007bff;
+    --input-hover-bg: #f0f0f0;
+    --user-info-bg: #f1f1f1;
+    --block-button-bg: #f44336;
+    --block-button-hover-bg: #d32f2f;
+    --report-button-bg: #ffc107;
+    --report-button-hover-bg: #ffb300;
+    --unblock-button-bg: #4caf50;
+    --unblock-button-hover-bg: #388e3c;
+
+    /* Font Sizes */
+    --font-size-base: 1.0rem; /* 12px */
+    --font-size-lg: 1.0rem;   /* 14px */
+    --font-size-sm: 1.0rem;   /* 12px */
+
+    /* Slideout Dimensions */
+    --slideout-width-desktop: 400px;
+    --slideout-width-mobile: 100%;
+
+    /* Additional Styling Variables */
+    --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --border-radius: 4px;
+    --transition-duration: 0.3s;
+    --overlay-opacity: 0.5;
+    --overlay-hover-opacity: 0.5;
+    --slideout-box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+    --notification-success-bg: #28a745;
+    --notification-error-bg: #dc3545;
+    --notification-info-bg: #17a2b8;
+    --notification-bg: #323232;
+
+    /* Tab Colors */
+    --tab-text-color: var(--text-color);
+    --tab-active-text-color: var(--button-bg);
+    --tab-hover-bg-color: var(--input-bg);
+    --tab-active-bg-color: var(--background-color);
+
+    /* Progress Bar Colors */
+    --progress-bar-bg: #e0e0e0; /* Background of the progress bar container */
+    --progress-bar-fill: #0d6efd; /* Fill color of the progress bar */
+    --progress-bar-text-color: #000; /* Text color for percentage */
+    --progress-bar-stripe-color: rgba(255, 255, 255, 0.15); /* Light stripes for visibility */
+}
+
+/* Dark Mode Variables */
+body.dark-mode {
+    --muted-text-color: #aaaaaa;
+    --background-color: #121212;
+    --text-color: #e0e0e0;
+    --slideout-bg: #1e1e1e;
+    --slideout-text: #e0e0e0;
+    --button-bg: #bb86fc;
+    --button-text: #000000;
+    --button-hover-bg: #3700b3;
+    --input-bg: #2c2c2c;
+    --input-border: #555555;
+    --input-focus-outline: #bb86fc;
+    --input-hover-bg: #333333;
+    --user-info-bg: #2c2c2c;
+
+    /* Adjusted Notification Backgrounds for Dark Mode */
+    --notification-success-bg: #4caf50;
+    --notification-error-bg: #f44336;
+    --notification-warn-bg: #fff3cd;
+    --notification-info-bg: #03a9f4;
+    --notification-bg: #424242;
+
+    /* Tab Colors for Dark Mode */
+    --tab-text-color: var(--slideout-text);
+    --tab-active-text-color: var(--button-bg);
+    --tab-hover-bg-color: #333333;
+    --tab-active-bg-color: var(--slideout-bg);
+
+    /* Progress Bar Colors for Dark Mode */
+    --progress-bar-bg: #555; /* Darker background */
+    --progress-bar-fill: #1a73e8; /* Lighter fill color */
+    --progress-bar-text-color: #fff; /* White text for contrast */
+    --progress-bar-stripe-color: rgba(255, 255, 255, 0.2); /* Slightly brighter stripes */
+    --deleted-progress-bar-fill: rgba(255, 0, 0, 0.5);
+}
