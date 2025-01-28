@@ -159,42 +159,43 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 *Login/Logout.*
 
-   ![Extension Popup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step1.png)
+
+   ![Extension Login](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step1.png)
    
-   ![Extension Popup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step2.png)
+   ![Extension Logout](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step2.png)
    
    
 *Block list download.*
    
-   ![Extension Popup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step3.png)
+   ![Extension Download](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step3.png)
 
-   ![Extension Popup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step4.png)
+   ![Extension Download Complete](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step4.png)
    
 *Searching user.*
 
-   ![Blocking Animation](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Search.png)
+   ![Blocking Searching](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Search.png)
    
 *The extension interface showing block.*
    
-   ![Blocking Animation](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step5.png)
+   ![Blocking Block](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step5.png)
    
 *The extension interface showing unblock.*
 
-   ![Blocking Animation](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step6.png)
+   ![Blocking Unblock](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Step6.png)
    
 *Create offline backup.*
    
-   ![Extension Popup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/CreateBackup.png)
+   ![Extension Backup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/CreateBackup.png)
 
 *Restore from offline backup.*
 
-   ![Extension Popup](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/RestoreBackup.png)
+   ![Extension Restore](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/RestoreBackup.png)
    
 *Reporting user.*
    
-   ![Blocking Darkened](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Report1.png)
+   ![Blocking Report](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Report1.png)
    
-   ![Blocking Darkened](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Report2.png)
+   ![Blocking Report](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/Report2.png)
    
 *Darkened block styles.*
    
@@ -222,16 +223,15 @@ This project is licensed under the MIT License. See the LICENSE file for details
    
 *Insert injected elements below posts*
 
-   ![AdditionalBlocking with](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/InsertBelowPost.png)
+   ![AdditionalBlocking Options1](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/InsertBelowPost.png)
    
 *Hide all Insert injected elements*
 
-   ![AdditionalBlocking with](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/OptionsToggledOff.png)
+   ![AdditionalBlocking Options2](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/OptionsToggledOff.png)
    
 *Show only Block button injected element*
 
-   ![AdditionalBlocking with](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/OnlyBlockButton.png)
-
+   ![AdditionalBlocking Options3](https://raw.githubusercontent.com/rFoxen/BlueskyModerationExtension/main/images/OnlyBlockButton.png)
 
 ---
 
