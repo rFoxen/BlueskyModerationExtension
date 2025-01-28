@@ -175,6 +175,19 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
+### v2.0
+- Fixes: Better list downloading (automatic pause and resume)
+- Feature: Adds ETA and additional context when downloading lists
+- Feature: Adds display options for freshness, blocked post appearance, and additional block list selection
+- Feature: Adds manual block by userhandle input
+- Feature: Adds link to currently selected list
+- Feature: Labeled and Color coded tab based on selected block list
+- Feature: Adds account freshness information beside injected buttons
+- Feature: Adds list downloading
+- Feature: Adds download/restore database for ease of transfer between devices
+- Improvement: Better consistency of injected button placement
+- Improvement: Utilizes browser database for faster querying of data and better persistence
+
 ### v1.5.0
 - Fixes: Better session management
 - Features: Adds searchable user menu
