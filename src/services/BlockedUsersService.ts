@@ -43,11 +43,12 @@ export class BlockedUsersService extends EventEmitter {
             await this.blockedUsersRepo.clearStoreByListUri(listUri);
             
             const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
+            meta.processedCursors = 0;
             meta.isComplete = false;
             meta.nextCursor = undefined;
             await this.blockedUsersRepo.setMetadataForList(listUri, meta);
             
-            await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersRefreshed', cancelToken, meta.nextCursor);
+            await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersRefreshed', cancelToken, meta.processedCursors, meta.nextCursor);
         } catch (error) {
             Logger.error(ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS, error);
             this.emit('error', ERRORS.FAILED_TO_REFRESH_BLOCKED_USERS);
@@ -69,18 +70,13 @@ export class BlockedUsersService extends EventEmitter {
         try {
             const listCount = await this.blockedUsersRepo.getCountByListUri(listUri);
             const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
-            
-            // If the local DB has no data for this list,
-            // or if it's fully complete (no reason to “resume”),
-            // then we do a fresh fetch from chunk #1
-            const shouldStartOver = (listCount === 0 || meta.isComplete);
-            
+                        
             if (meta.isComplete) {
                 // Already have local data, so we’re done:
                 this.emit('blockedUsersAlreadyLoaded');
             } else {
                 // Need to fetch from network:
-                await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersLoaded', cancelToken, meta.nextCursor);
+                await this.fetchAndPersistBlockedUsers(listUri, 'blockedUsersLoaded', cancelToken, meta.processedCursors, meta.nextCursor);
             }
         } catch (error) {
             Logger.error(ERRORS.FAILED_TO_LOAD_BLOCKED_USERS, error);
@@ -101,20 +97,41 @@ export class BlockedUsersService extends EventEmitter {
         listUri: string,
         completionEvent: string = 'blockedUsersLoaded',
         cancelToken: { canceled: boolean },
-        resumeCursor: string|undefined,
+        processedCursors: number,
+        resumeCursor: string | undefined,
     ): Promise<void> {
         try {
             let currentOrder = await this.blockedUsersRepo.getMaxOrder(listUri);
-            let lastCursor: string|undefined = resumeCursor;
-            
+            let totalSeenSoFar = processedCursors * 100;
+            let totalRemovedUsers = totalSeenSoFar - await this.blockedUsersRepo.getCountByListUri(listUri);
+
+            // Time-tracking variables
+            let chunkCount = 0;
+            let totalChunkTime = 0;
+
             // onChunkFetched callback:
-            const chunkCallback = async (chunk: BlockedUser[], newCursor: string|undefined, listItemCount: number|undefined) => {
-                // If canceled, stop right away:
+            const chunkCallback = async (
+                chunk: BlockedUser[],
+                newCursor: string | undefined,
+                blockListTotal: number,
+                fetchDurationMs: number   // network time
+            ) => {
+                // If canceled, stop right away
                 if (cancelToken.canceled) {
-                    Logger.warn(`Canceled fetching chunk for listUri="${listUri}"`);
                     return;
                 }
-                // Transform & persist this chunk
+
+                // Start measuring local processing
+                const localStart = performance.now();
+
+                // Compute how many suspended in this chunk
+                const remaining = blockListTotal - totalSeenSoFar;
+                const expectedChunkSize = Math.min(100, remaining);
+                const removedInChunk = expectedChunkSize - chunk.length;
+                totalRemovedUsers += Math.max(0, removedInChunk);
+                totalSeenSoFar += chunk.length + Math.max(0, removedInChunk);
+
+                // Local DB insertion
                 const bulkItems = chunk.slice().reverse().map((user) => ({
                     userHandle: user.subject.handle || user.subject.did,
                     did: user.subject.did,
@@ -123,31 +140,87 @@ export class BlockedUsersService extends EventEmitter {
                 }));
                 await this.blockedUsersRepo.addOrUpdateBulk(listUri, bulkItems);
 
-                // Update metadata with partial progress
+                // Update metadata, etc.
                 const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
-                meta.nextCursor = newCursor;   // store the “paging” cursor
+                meta.processedCursors++;
+                meta.nextCursor = newCursor;
                 await this.blockedUsersRepo.setMetadataForList(listUri, meta);
 
+                // Stop measuring local processing
+                const localEnd = performance.now();
+                const localProcessingDuration = localEnd - localStart; // ms
+
+                // Full chunk time = network + local
+                const fullChunkDurationMs = fetchDurationMs + localProcessingDuration;
+
+                // Update average
+                chunkCount++;
+                totalChunkTime += fullChunkDurationMs;
+                const avgChunkTime = totalChunkTime / chunkCount; // ms per chunk
+
+                // Estimate how many user-chunks remain
+                const usersRemaining = blockListTotal - totalSeenSoFar;
+                const chunkSize = 100;
+                const remainingChunks = Math.ceil(usersRemaining / chunkSize);
+
+                // ETA in ms => format to human string
+                const estimatedTimeLeftMs = remainingChunks * avgChunkTime;
+                const estimatedTimeLeftStr = this.formatEta(estimatedTimeLeftMs);
+
+                // Current DB count
                 const currentCount = await this.blockedUsersRepo.getCountByListUri(listUri);
-                this.emit('blockedUsersProgress', currentCount, listItemCount);
+
+                // Emit progress with new ETA
+                this.emit(
+                    'blockedUsersProgress',
+                    currentCount,
+                    totalRemovedUsers,
+                    blockListTotal,
+                    estimatedTimeLeftStr
+                );
             };
 
-            // Actually fetch in chunks, providing our callback
-            const finished = await this.blueskyService.getBlockedUsers(listUri, 3, chunkCallback, lastCursor);
+            // Actually fetch in chunks
+            const finished = await this.blueskyService.getBlockedUsers(
+                listUri,
+                3,
+                chunkCallback,   // pass chunkCallback
+                resumeCursor
+            );
 
-            // If we never got canceled, emit done
             if (!cancelToken.canceled && finished) {
                 const meta = await this.blockedUsersRepo.getMetadataForList(listUri);
-                meta.isComplete = true;     // fully done
-                meta.nextCursor = undefined;     // no more chunks
+                meta.isComplete = true;
+                meta.nextCursor = undefined;
                 await this.blockedUsersRepo.setMetadataForList(listUri, meta);
 
                 this.emit(completionEvent);
             }
         } catch (error) {
-            Logger.error('fetchAndPersistBlockedUsers => error:', error);
             this.emit('error', ERRORS.FAILED_TO_LOAD_BLOCKED_USERS);
         }
+    }
+
+    /**
+     * Helper to format milliseconds into a human-readable "mm:ss" or similar.
+     */
+    private formatEta(ms: number): string {
+        if (ms <= 0) return '0s';
+
+        const totalSeconds = Math.floor(ms / 1000);
+        const days = Math.floor(totalSeconds / 86400); // 1 day = 86400 seconds
+        const hours = Math.floor((totalSeconds % 86400) / 3600); // 1 hour = 3600 seconds
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        // Build parts
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0 || days > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
+        if (seconds > 0 || (days === 0 && hours === 0 && minutes === 0)) parts.push(`${seconds}s`);
+
+        return parts.join(' ');
     }
 
     /**

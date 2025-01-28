@@ -150,7 +150,7 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
     public async getBlockedUsers(
         listUri: string,
         maxRetries: number = 3,
-        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined, listItemCount: number|undefined) => Promise<void>,
+        onChunkFetched?: (chunk: BlockedUser[], nextCursor: string|undefined, listItemCount: number, fetchDurationMs: number) => Promise<void>,
         resumeCursor?: string|undefined,
     ): Promise<boolean> {
         try {
@@ -162,11 +162,14 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 let attempt = 0;
                 let success = false;
                 let response: FetchListResponse | null = null;
+                let chunkFetchStart: number, chunkFetchEnd: number;
 
                 // Retry mechanism for each chunk
                 while (attempt < maxRetries && !success) {
                     try {
+                        chunkFetchStart = performance.now();
                         response = await this.apiService.fetchList(listUri, cursor, MAX_LIMIT);
+                        chunkFetchEnd = performance.now();
                         cursor = response.cursor;
                         Logger.debug(response);
                         success = true;
@@ -189,10 +192,11 @@ export class BlueskyService extends EventEmitter implements IBlueskyService {
                 items.push(...currentChunk);
 
                 // Invoke and await the callback with the current chunk
+                const chunkFetchDuration = chunkFetchEnd! - chunkFetchStart!; // ms
                 const newCursor = response.cursor || undefined;
                 const listItemCount = response?.list?.listItemCount;
                 if (onChunkFetched) {
-                    await onChunkFetched(currentChunk, newCursor, listItemCount); // Await the async callback
+                    await onChunkFetched(currentChunk, newCursor, listItemCount, chunkFetchDuration); // Await the async callback
                 }
 
                 if (!newCursor) {

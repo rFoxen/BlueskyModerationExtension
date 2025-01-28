@@ -435,9 +435,16 @@ export class BlockedUsersUI {
         this.removeUserFromUI(userHandle);
     }
 
-    private handleBlockedUsersProgress(currentCount: number, listItemCount: number): void {
-        this.view.updateLoadingCount(currentCount, listItemCount);
+    private handleBlockedUsersProgress(
+        currentCount: number,
+        totalRemoved: number,
+        listItemCount: number,
+        estimatedTimeLeft: string = ''
+    ): void {
+        // Now we pass the ETA into the view
+        this.view.updateLoadingCount(currentCount, totalRemoved, listItemCount, estimatedTimeLeft);
     }
+
 
     private handleDbInitProgress(message: string): void {
         // Reuse the existing "loadingIndicator" => update the text with the new message

@@ -89,4 +89,5 @@ body.dark-mode {
     --progress-bar-fill: #1a73e8; /* Lighter fill color */
     --progress-bar-text-color: #fff; /* White text for contrast */
     --progress-bar-stripe-color: rgba(255, 255, 255, 0.2); /* Slightly brighter stripes */
+    --deleted-progress-bar-fill: rgba(255, 0, 0, 0.5);
 }

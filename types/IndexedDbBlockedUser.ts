@@ -15,5 +15,6 @@ export interface IListMetadata {
 
     // NEW FIELDS:
     isComplete?: boolean;     // defaults to false until full fetch finishes
+    processedCursors: number;
     nextCursor?: string|undefined; // the last known pagination cursor from server
 }

@@ -34,6 +34,7 @@ export class BlockedUsersView {
 
     private progressContainer: HTMLElement;
     private progressBar: HTMLElement;
+    private deletedAccountsProgressBar: HTMLElement;
     private progressText: HTMLElement;
     private loadingTextElement: HTMLElement;
     
@@ -71,6 +72,7 @@ export class BlockedUsersView {
         // Initialize progress bar elements
         this.progressContainer = document.querySelector('.progress-container') as HTMLElement;
         this.progressBar = document.querySelector('.progress-bar') as HTMLElement;
+        this.deletedAccountsProgressBar = document.querySelector('.deleted-progress-bar') as HTMLElement;
         this.progressText = document.querySelector('.progress-text') as HTMLElement;
         this.loadingTextElement = document.querySelector('.loading-text') as HTMLElement;
 
@@ -118,6 +120,7 @@ export class BlockedUsersView {
         this.clearBlockedUsersList(); // Clear the list immediately
         this.loadingIndicator.classList.remove('d-none'); // Show the loading spinner
         this.progressBar.style.width = '0%';
+        this.deletedAccountsProgressBar.style.width = '0%';
         this.progressText.textContent = '0%';
         this.loadingTextElement.textContent = 'Loading blocked users...';
 
@@ -133,14 +136,7 @@ export class BlockedUsersView {
         }
     }
 
-
-
     public async showCompletedLoading(): Promise<void> {
-        // Ensure progress bar is at 100%
-        this.progressBar.style.width = '100%';
-        this.progressText.textContent = '100%';
-        this.loadingTextElement.textContent = ''; // Clear loading text
-
         // Trigger the success animation
         if (this.loadingSuccessElement) {
             this.loadingSuccessElement.classList.remove('d-none'); // Make it visible
@@ -164,7 +160,7 @@ export class BlockedUsersView {
         }
 
         // Optional: Wait for the animations to complete before hiding the loading indicator
-        await new Promise(resolve => setTimeout(resolve, 3500)); // Adjust based on combined animation durations
+        await new Promise(resolve => setTimeout(resolve, 4000000)); // Adjust based on combined animation durations
 
         // Hide the loading indicator after the animations
         this.hideLoading();
@@ -184,12 +180,30 @@ export class BlockedUsersView {
      * Updates the loading indicator with the current count of loaded blocked users.
      * @param count The number of blocked users loaded so far.
      */
-    public updateLoadingCount(current: number, total: number): void {
+    public updateLoadingCount(
+        current: number,
+        totalRemovedUsers: number,
+        total: number,
+        estimatedTimeLeft: string = ''
+    ): void {
+        const actualCurrent = current + totalRemovedUsers;
         const percentage = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 100;
+        const actualPercentage = total > 0 ? Math.min(Math.round((actualCurrent / total) * 100), 100) : 100;
+
         this.progressBar.style.width = `${percentage}%`;
-        this.progressText.textContent = `${percentage}%`;
-        this.loadingTextElement.textContent = `Loaded ${current} blocked user${current !== 1 ? 's' : ''}...`;
+        this.deletedAccountsProgressBar.style.width = `${actualPercentage}%`;
+
+        this.progressText.textContent = `${actualPercentage}%`;
+
+        // Show suspended count, plus "ETA" if provided
+        const removedContext = totalRemovedUsers > 0 ? ` (${totalRemovedUsers} suspended)` : '';
+        const etaString = estimatedTimeLeft ? ` (ETA: ${estimatedTimeLeft})` : '';
+
+        this.loadingTextElement.textContent =
+            `Loaded ${actualCurrent}/${total} blocked user${current !== 1 ? 's' : ''}${removedContext}...` + etaString;
     }
+
+
 
     public updateDbLoadingContext(message: string): void {
         // Reuse the same "loadingIndicator" element

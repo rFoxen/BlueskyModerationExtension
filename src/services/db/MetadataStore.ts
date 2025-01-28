@@ -24,6 +24,7 @@ export class MetadataStore extends BaseStore<IListMetadata> {
                 listUri,
                 count: 0,
                 maxOrder: 0,
+                processedCursors: 0,
                 isComplete: false,
                 nextCursor: undefined,
             }

@@ -205,11 +205,15 @@ export class BlockedUsersStore extends BaseStore<IndexedDbBlockedUser> {
         Logger.debug(`[DEBUG-IDB] clearStoreByListUri => listUri="${listUri}"`);
         await this.deleteByListUriRange(listUri);
         // Reset metadata
-        await this.metadataStore.setListMetadata(listUri, {
-            listUri,
-            count: 0,
-            maxOrder: 0,
-        });
+        await this.metadataStore.setListMetadata(
+            listUri, 
+            {
+                listUri,
+                count: 0,
+                maxOrder: 0,
+                processedCursors: 0,
+            }
+        );
     }
 
     /**
