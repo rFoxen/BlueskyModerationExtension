@@ -175,6 +175,9 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
+### v2.0.1
+- Fixes: Fixes infinite block list completion screen
+
 ### v2.0
 - Fixes: Better list downloading (automatic pause and resume)
 - Feature: Adds ETA and additional context when downloading lists
