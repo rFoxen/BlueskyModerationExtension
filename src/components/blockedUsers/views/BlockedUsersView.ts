@@ -160,7 +160,7 @@ export class BlockedUsersView {
         }
 
         // Optional: Wait for the animations to complete before hiding the loading indicator
-        await new Promise(resolve => setTimeout(resolve, 4000000)); // Adjust based on combined animation durations
+        await new Promise(resolve => setTimeout(resolve, 2500)); // Adjust based on combined animation durations
 
         // Hide the loading indicator after the animations
         this.hideLoading();
