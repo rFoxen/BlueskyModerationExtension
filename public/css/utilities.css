@@ -41,8 +41,15 @@
 }
 
 /* Wrapper for Block Button */
-.block-button-wrapper {
-    border: 2px solid rgb(46, 64, 82);
+.wrapper-injected {
+    margin: 0;
+    padding: 0;
+    border: none;
+    line-height: 0;
+}
+
+.wrapper-injected.empty {
+    display: none;
 }
 
 .buttons-freshness-container {
