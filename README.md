@@ -237,6 +237,9 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
+### v2.0.3
+- Improvement: adds better support for threaded replies view
+
 ### v2.0.2
 - Fixes: error causing client side browser crash.
 - Improvement: fully hides injected layout when all components hidden

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Bluesky Moderation Helper",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Assist with moderation on Bluesky by allowing users to block others and manage block lists.",
   "permissions": [
     "tabs",
