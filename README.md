@@ -237,6 +237,11 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 📝 **Changelog**
 
+### v2.0.2
+- Fixes: error causing client side browser crash.
+- Improvement: fully hides injected layout when all components hidden
+- Change: removes outline border
+
 ### v2.0.1
 - Fixes: Fixes infinite block list completion screen
 
