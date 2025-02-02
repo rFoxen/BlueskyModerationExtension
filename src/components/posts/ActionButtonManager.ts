@@ -141,22 +141,37 @@ export class ActionButtonManager {
     /**
      * Control visibility of all toggle-block-buttons across the UI.
      */
-    public setBlockButtonsVisibility(visible: boolean): void {
+    public setBlockButtonsVisibility(visible: boolean, isAllHidden: boolean): void {
         const buttons = document.querySelectorAll('.toggle-block-button');
         buttons.forEach((button) => {
             (button as HTMLElement).style.display = visible ? '' : 'none';
         });
+        this.updateWrapperEmptyState(isAllHidden);
     }
-    public setReportButtonsVisibility(visible: boolean): void {
+    public setReportButtonsVisibility(visible: boolean, isAllHidden: boolean): void {
         const buttons = document.querySelectorAll('.report-user-button');
         buttons.forEach((button) => {
             (button as HTMLElement).style.display = visible ? '' : 'none';
         });
+        this.updateWrapperEmptyState(isAllHidden);
     }
-    public setFreshnessVisibility(visible: boolean): void {
+    public setFreshnessVisibility(visible: boolean, isAllHidden: boolean): void {
         const buttons = document.querySelectorAll('.account-freshness');
         buttons.forEach((button) => {
             (button as HTMLElement).style.display = visible ? '' : 'none';
+        });
+        this.updateWrapperEmptyState(isAllHidden);
+    }
+
+    // Helper method to update the empty state for each wrapper-injected element. 
+    private updateWrapperEmptyState(isAllHidden: boolean): void {
+        const wrappers = document.querySelectorAll('.wrapper-injected');
+        wrappers.forEach((wrapper) => {
+            if (isAllHidden) {
+                wrapper.classList.add('empty');
+            } else {
+                wrapper.classList.remove('empty');
+            }
         });
     }
 

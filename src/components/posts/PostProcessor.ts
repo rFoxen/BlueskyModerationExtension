@@ -75,8 +75,8 @@ export class PostProcessor {
         );
         blockedWrappers.forEach((wrapper) => {
             this.resetBlockedClasses(wrapper);
-            this.applyBlockedStyle(wrapper);
         });
+        this.applyBlockedStyle(Array.from(blockedWrappers));
     }
 
     private getBlockedWrapperSelector(): string {
@@ -89,7 +89,7 @@ export class PostProcessor {
             'blocked-post--blurred',
         ];
         return blockedClasses
-            .map((cls) => `.block-button-wrapper.${cls}`)
+            .map((cls) => `.wrapper-injected.${cls}, .wrapper-content-post.${cls}`)
             .join(', ');
     }
 
@@ -104,23 +104,38 @@ export class PostProcessor {
         );
     }
 
-    private applyBlockedStyle(wrapper: HTMLElement): void {
-        switch (this.blockedPostStyle) {
-            case 'none':
-                wrapper.classList.add('blocked-post--none');
-                break;
-            case 'hidden':
-                wrapper.classList.add('blocked-post--hidden');
-                break;
-            case 'blurred':
-                wrapper.classList.add('blocked-post--blurred');
-                break;
-            case 'compact':
-                wrapper.classList.add('blocked-post--compact');
-            default:
-                wrapper.classList.add('blocked-post--darkened');
-                break;
-        }
+    private applyBlockedStyle(elements: HTMLElement[]): void {
+        elements.forEach((wrapper) => {
+            switch (this.blockedPostStyle) {
+                case 'none':
+                    wrapper.classList.add('blocked-post--none');
+                    break;
+                    
+                case 'darkened':
+                    wrapper.classList.add('blocked-post--darkened');
+                    break;
+                    
+                case 'hidden':
+                    wrapper.classList.add('blocked-post--hidden');
+                    break;
+                    
+                case 'blurred':
+                    if(wrapper.classList.contains('wrapper-content-post')){
+                        wrapper.classList.add('blocked-post--blurred');
+                    } else{
+                        wrapper.classList.add('blocked-post--none');
+                    }
+                    break;
+                    
+                case 'compact':
+                    if(wrapper.classList.contains('wrapper-content-post')) {
+                        wrapper.classList.add('blocked-post--compact');
+                    } else{
+                        wrapper.classList.add('blocked-post--none');
+                    }
+                    break;
+            }
+        });
     }
 
     /**
@@ -135,6 +150,10 @@ export class PostProcessor {
      */
     public async processElement(element: HTMLElement): Promise<void> {
         // Instead of checking a Set, we check for a 'data-processed' attribute.
+        if (!element.isConnected) {
+            return;
+        }
+        
         if (this.isElementProcessed(element)) return;
 
         // if (!this.isElementEligibleForProcessing(element)) {
@@ -170,9 +189,80 @@ export class PostProcessor {
             return;
         }
 
-        await this.wrapAndCleanElement(element, profileHandle, postType);
+        // Instead of wrapping, simply inject our custom UI
+        await this.injectCustomUI(element, profileHandle, postType);
     }
 
+    private async injectCustomUI(
+        postElement: HTMLElement,
+        profileHandle: string,
+        postType: string
+    ): Promise<void> {
+        // Check if any parent element is already processed for the same profileHandle
+        let currentParent = postElement.parentElement;
+        while (currentParent) {
+            if (currentParent.getAttribute('data-profile-handle') === profileHandle) {
+                // A parent has already been processed for this profile; skip injection.
+                return;
+            }
+            currentParent = currentParent.parentElement;
+        }
+        
+        // Prevent double injection
+        this.markAsProcessed(postElement);
+        if (postElement.querySelector('.buttons-freshness-container')) {
+            return;
+        }
+
+        // Create your container (you can reuse your existing method for creating elements)
+
+        postElement.setAttribute('data-profile-handle', profileHandle);
+        const container = document.createElement('div');
+        container.classList.add('wrapper-injected');
+        container.setAttribute('data-profile-handle', profileHandle);
+        container.setAttribute('data-post-type', postType);
+        await this.addButtonsAndFreshness(container, profileHandle);
+
+        const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
+        
+        // Determine where to insert: try to target a stable sub-element,
+        // or if none is available, inject at the beginning of the post.
+        // Adjust the selector below to match a suitable anchor point in the post.
+        const anchor = postElement.querySelector('.css-175oi2r') as HTMLElement;
+        const interiorAnchor = postElement.querySelectorAll('[style*="background-color:"]')[-1] as HTMLElement;
+        if (interiorAnchor){
+            if (savedOption === 'prepend') {
+                interiorAnchor.insertAdjacentElement('beforebegin', container);
+            } else if (savedOption === 'append' && interiorAnchor.parentElement && interiorAnchor.parentElement.lastElementChild) {
+                interiorAnchor.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
+            }
+            interiorAnchor.classList.add('wrapper-content-post');
+            interiorAnchor.setAttribute('data-profile-handle', profileHandle);
+            interiorAnchor.setAttribute('data-post-type', postType);
+            await this.applyBlockedStyleIfNecessary([container, interiorAnchor], profileHandle);
+        } else if (anchor) {
+            if (savedOption === 'prepend') {
+                anchor.insertAdjacentElement('beforebegin', container);
+            } else if (savedOption === 'append' && anchor.parentElement && anchor.parentElement.lastElementChild) {
+                anchor.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
+            }
+            anchor.classList.add('wrapper-content-post');
+            anchor.setAttribute('data-profile-handle', profileHandle);
+            anchor.setAttribute('data-post-type', postType);
+            await this.applyBlockedStyleIfNecessary([container, anchor], profileHandle);
+        } else if (postElement.parentElement) {
+            if (savedOption === 'prepend') {
+                postElement.insertAdjacentElement('beforebegin', container);
+            } else if (savedOption === 'append' && postElement.parentElement && postElement.parentElement.lastElementChild) {
+                postElement.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
+            }
+            postElement.classList.add('wrapper-content-post');
+            postElement.setAttribute('data-profile-handle', profileHandle);
+            postElement.setAttribute('data-post-type', postType);
+            await this.applyBlockedStyleIfNecessary([container, postElement], profileHandle);
+        }
+    }
+    
     /**
      * Checking data attribute instead of a processedPosts Set.
      */
@@ -203,7 +293,7 @@ export class PostProcessor {
     }
 
     private hasAncestorWithProfileHandle(element: HTMLElement, profileHandle: string): boolean {
-        const ancestorWrapper = element.closest('.block-button-wrapper') as HTMLElement | null;
+        const ancestorWrapper = element.closest('.wrapper-injected') as HTMLElement | null;
         if (ancestorWrapper) {
             const ancestorHandle = ancestorWrapper.getAttribute('data-profile-handle');
             return ancestorHandle === profileHandle;
@@ -214,7 +304,7 @@ export class PostProcessor {
     private isElementAlreadyWrappedOrHasToggle(element: HTMLElement): boolean {
         return (
             element.querySelector('.toggle-block-button') !== null ||
-            element.closest('.block-button-wrapper') !== null
+            element.closest('.wrapper-injected') !== null
         );
     }
 
@@ -243,7 +333,7 @@ export class PostProcessor {
         }
         try {
             const wrapper = this.createWrapper(profileHandle, postType);
-            await this.applyBlockedStyleIfNecessary(wrapper, profileHandle);
+            await this.applyBlockedStyleIfNecessary([wrapper], profileHandle);
             this.insertWrapperIntoDOM(parent, wrapper, element);
             this.moveChildrenToWrapper(element, wrapper);
             await this.addButtonsAndFreshness(wrapper, profileHandle);
@@ -257,14 +347,14 @@ export class PostProcessor {
 
     private createWrapper(profileHandle: string, postType: string): HTMLElement {
         const wrapper = document.createElement('div');
-        wrapper.classList.add('block-button-wrapper');
+        wrapper.classList.add('wrapper-injected');
         wrapper.setAttribute('data-profile-handle', profileHandle);
         wrapper.setAttribute('data-post-type', postType);
         return wrapper;
     }
 
     private async applyBlockedStyleIfNecessary(
-        wrapper: HTMLElement,
+        htmlElements: HTMLElement[],
         profileHandle: string
     ): Promise<void> {
         const activeListUris = this.getActiveBlockLists();
@@ -273,7 +363,7 @@ export class PostProcessor {
             activeListUris
         );
         if (isUserGlobalBlocked) {
-            this.applyBlockedStyle(wrapper);
+            this.applyBlockedStyle(htmlElements);
         }
     }
 
@@ -289,6 +379,7 @@ export class PostProcessor {
     }
 
     private async addButtonsAndFreshness(wrapper: HTMLElement, profileHandle: string): Promise<void> {
+        
         const buttonsAndFreshnessContainer = document.createElement('div');
         buttonsAndFreshnessContainer.classList.add('buttons-freshness-container');
 
@@ -360,7 +451,7 @@ export class PostProcessor {
     }
 
     private removeInnerDuplicateWrappers(wrapper: HTMLElement, profileHandle: string): void {
-        const nestedWrappers = wrapper.querySelectorAll('.block-button-wrapper');
+        const nestedWrappers = wrapper.querySelectorAll('.wrapper-injected');
         nestedWrappers.forEach((nestedWrapper) => {
             const nestedHandle = nestedWrapper.getAttribute('data-profile-handle');
             if (nestedHandle === profileHandle) {
@@ -400,7 +491,7 @@ export class PostProcessor {
         const wrappers = this.getWrappersByProfileHandle(profileHandle);
         wrappers.forEach((wrapper) => {
             if (isBlocked) {
-                this.applyBlockedStyle(wrapper);
+                this.applyBlockedStyle([wrapper]);
                 wrapper.classList.remove('unblocked-post');
             } else {
                 this.removeBlockedStyles(wrapper);
@@ -414,7 +505,8 @@ export class PostProcessor {
         profileHandle: string
     ): NodeListOf<HTMLElement> {
         return document.querySelectorAll<HTMLElement>(
-            `.block-button-wrapper[data-profile-handle="${profileHandle}"]`
+            `.wrapper-injected[data-profile-handle="${profileHandle}"], 
+                      .wrapper-content-post[data-profile-handle="${profileHandle}"]`
         );
     }
 
@@ -446,23 +538,27 @@ export class PostProcessor {
 
     public setBlockButtonsVisibility(visible: boolean): void {
         this.blockButtonsVisible = visible;
-        this.actionButtonManager.setBlockButtonsVisibility(visible);
+        this.actionButtonManager.setBlockButtonsVisibility(visible, this.isAllHidden());
     }
 
     public setReportButtonsVisibility(visible: boolean): void {
         this.reportButtonsVisible = visible;
-        this.actionButtonManager.setReportButtonsVisibility(visible);
+        this.actionButtonManager.setReportButtonsVisibility(visible, this.isAllHidden());
     }
 
     public setFreshnessVisibility(visible: boolean): void {
         this.freshnessVisible = visible;
-        this.actionButtonManager.setFreshnessVisibility(visible);
+        this.actionButtonManager.setFreshnessVisibility(visible, this.isAllHidden());
+    }
+    
+    public isAllHidden(): boolean {
+        return !this.blockButtonsVisible && !this.reportButtonsVisible && !this.freshnessVisible;
     }
 
     public async refreshAllProcessedPosts(): Promise<void> {
         // Because we no longer store processed posts in a Set,
         // we can iterate over all wrapped elements in the DOM instead.
-        const allWrappers = Array.from(document.querySelectorAll<HTMLElement>('.block-button-wrapper'));
+        const allWrappers = Array.from(document.querySelectorAll<HTMLElement>('.wrapper-injected, .wrapper-content-post'));
 
         for (const wrapper of allWrappers) {
             const profileHandle = wrapper.getAttribute('data-profile-handle');
@@ -475,7 +571,7 @@ export class PostProcessor {
 
     private updateWrapperStyleAndButton(wrapper: HTMLElement, isBlocked: boolean): void {
         if (isBlocked) {
-            this.applyBlockedStyle(wrapper);
+            this.applyBlockedStyle([wrapper]);
             wrapper.classList.remove('unblocked-post');
         } else {
             this.removeBlockedStyles(wrapper);
