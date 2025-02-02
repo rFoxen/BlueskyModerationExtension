@@ -198,70 +198,112 @@ export class PostProcessor {
         profileHandle: string,
         postType: string
     ): Promise<void> {
-        // Check if any parent element is already processed for the same profileHandle
-        let currentParent = postElement.parentElement;
-        while (currentParent) {
-            if (currentParent.getAttribute('data-profile-handle') === profileHandle) {
-                // A parent has already been processed for this profile; skip injection.
-                return;
-            }
-            currentParent = currentParent.parentElement;
+        // Exit early if any parent already has the given profileHandle.
+        if (this.hasProcessedParent(postElement, profileHandle)) {
+            return;
         }
-        
-        // Prevent double injection
+
+        // Prevent double injection.
         this.markAsProcessed(postElement);
         if (postElement.querySelector('.buttons-freshness-container')) {
             return;
         }
 
-        // Create your container (you can reuse your existing method for creating elements)
-
+        // Set the profile handle on the post element.
         postElement.setAttribute('data-profile-handle', profileHandle);
+
+        // Create our injected container.
+        const injectedContainer = this.createInjectedContainer(profileHandle, postType);
+        await this.addButtonsAndFreshness(injectedContainer, profileHandle);
+
+        const placementOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
+
+        // Otherwise, target direct child anchors only.
+        const directAnchors = Array.from(
+            postElement.querySelectorAll(':scope > .css-175oi2r')
+        ) as HTMLElement[];
+        if (directAnchors.length > 0) {
+            directAnchors.forEach(async (anchor) => {
+                this.applyElementAttributes(anchor, profileHandle, postType);
+                this.applyAttributesToNeighbor(anchor, 'previous', profileHandle, postType);
+                this.applyAttributesToNeighbor(anchor, 'next', profileHandle, postType);
+                await this.applyBlockedStyleIfNecessary([injectedContainer, anchor], profileHandle);
+            });
+
+            // Insert the container relative to the last direct anchor.
+            const lastAnchor = directAnchors[0];
+            this.insertInjectedContainer(lastAnchor, injectedContainer, placementOption);
+            await this.applyBlockedStyleIfNecessary([injectedContainer, lastAnchor], profileHandle);
+            return;
+        }
+
+        // Fallback: use the postElement itself.
+        if (postElement.parentElement) {
+            this.applyElementAttributes(postElement, profileHandle, postType);
+            this.insertInjectedContainer(postElement, injectedContainer, placementOption);
+            await this.applyBlockedStyleIfNecessary([injectedContainer, postElement], profileHandle);
+        }
+    }
+
+// Checks if any ancestor of the given element already has the profileHandle.
+    private hasProcessedParent(element: HTMLElement, profileHandle: string): boolean {
+        let parent = element.parentElement;
+        while (parent) {
+            if (parent.getAttribute('data-profile-handle') === profileHandle) {
+                return true;
+            }
+            parent = parent.parentElement;
+        }
+        return false;
+    }
+
+// Creates the injected container element with the proper attributes.
+    private createInjectedContainer(profileHandle: string, postType: string): HTMLElement {
         const container = document.createElement('div');
         container.classList.add('wrapper-injected');
         container.setAttribute('data-profile-handle', profileHandle);
         container.setAttribute('data-post-type', postType);
-        await this.addButtonsAndFreshness(container, profileHandle);
+        return container;
+    }
 
-        const savedOption = StorageHelper.getString(STORAGE_KEYS.PREPEND_APPEND_OPTION, 'prepend');
-        
-        // Determine where to insert: try to target a stable sub-element,
-        // or if none is available, inject at the beginning of the post.
-        // Adjust the selector below to match a suitable anchor point in the post.
-        const anchor = postElement.querySelector('.css-175oi2r') as HTMLElement;
-        const interiorAnchor = postElement.querySelectorAll('[style*="background-color:"]')[-1] as HTMLElement;
-        if (interiorAnchor){
-            if (savedOption === 'prepend') {
-                interiorAnchor.insertAdjacentElement('beforebegin', container);
-            } else if (savedOption === 'append' && interiorAnchor.parentElement && interiorAnchor.parentElement.lastElementChild) {
-                interiorAnchor.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
-            }
-            interiorAnchor.classList.add('wrapper-content-post');
-            interiorAnchor.setAttribute('data-profile-handle', profileHandle);
-            interiorAnchor.setAttribute('data-post-type', postType);
-            await this.applyBlockedStyleIfNecessary([container, interiorAnchor], profileHandle);
-        } else if (anchor) {
-            if (savedOption === 'prepend') {
-                anchor.insertAdjacentElement('beforebegin', container);
-            } else if (savedOption === 'append' && anchor.parentElement && anchor.parentElement.lastElementChild) {
-                anchor.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
-            }
-            anchor.classList.add('wrapper-content-post');
-            anchor.setAttribute('data-profile-handle', profileHandle);
-            anchor.setAttribute('data-post-type', postType);
-            await this.applyBlockedStyleIfNecessary([container, anchor], profileHandle);
-        } else if (postElement.parentElement) {
-            if (savedOption === 'prepend') {
-                postElement.insertAdjacentElement('beforebegin', container);
-            } else if (savedOption === 'append' && postElement.parentElement && postElement.parentElement.lastElementChild) {
-                postElement.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
-            }
-            postElement.classList.add('wrapper-content-post');
-            postElement.setAttribute('data-profile-handle', profileHandle);
-            postElement.setAttribute('data-post-type', postType);
-            await this.applyBlockedStyleIfNecessary([container, postElement], profileHandle);
+// Applies the common attributes and class to an element.
+    private applyElementAttributes(element: HTMLElement, profileHandle: string, postType: string): void {
+        element.classList.add('wrapper-content-post');
+        element.setAttribute('data-profile-handle', profileHandle);
+        element.setAttribute('data-post-type', postType);
+    }
+
+// Applies the common attributes to an element’s immediate neighbor (previous or next sibling).
+    private applyAttributesToNeighbor(
+        element: HTMLElement,
+        neighborDirection: 'previous' | 'next',
+        profileHandle: string,
+        postType: string
+    ): void {
+        const neighbor = neighborDirection === 'previous' ? element.previousElementSibling : element.nextElementSibling;
+        if (neighbor && neighbor instanceof HTMLElement) {
+            this.applyElementAttributes(neighbor, profileHandle, postType);
         }
     }
+
+// Inserts the injected container relative to the reference element based on the placement option.
+    private insertInjectedContainer(
+        referenceElement: HTMLElement,
+        container: HTMLElement,
+        placementOption: string
+    ): void {
+        if (placementOption === 'prepend') {
+            referenceElement.insertAdjacentElement('beforebegin', container);
+        } else if (
+            placementOption === 'append' &&
+            referenceElement.parentElement &&
+            referenceElement.parentElement.lastElementChild
+        ) {
+            referenceElement.parentElement.lastElementChild.insertAdjacentElement('afterend', container);
+        }
+    }
+
+    
     
     /**
      * Checking data attribute instead of a processedPosts Set.

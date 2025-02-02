@@ -89,6 +89,11 @@ a:hover {
     vertical-align: middle;
 }
 
+.css-175oi2r[data-processed][data-testid] {
+    padding: 0 !important;
+    border-top-width: 0.0 !important;
+}
+
 /* .list-group-item .btn-group prevents button compression */
 .list-group-item .btn-group {
     flex-shrink: 0;
@@ -116,6 +121,11 @@ a:hover {
 /* Hidden style: remove from layout entirely */
 .blocked-post--hidden {
     display: none !important;
+    /* In case the element is not truly hidden for some reason, force dimensions to zero */
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
 }
 
 /* Blurred style: blur the content */
